@@ -28,3 +28,6 @@ Thumbs.db
 # Crash dumps and local logs
 *.dmp
 *.log
+
+# Per-user editor sandbox folders
+Content/Developers/
