@@ -1,0 +1,30 @@
+# Unreal Engine generated folders (never commit)
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+
+# Plugin build artifacts
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# IDE / tooling
+.vs/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+.vsconfig
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Crash dumps and local logs
+*.dmp
+*.log
