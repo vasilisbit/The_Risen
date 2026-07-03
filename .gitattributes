@@ -1,0 +1,10 @@
+# Normalize text files; keep Unreal binary assets untouched
+* text=auto
+*.uasset binary
+*.umap binary
+*.ubulk binary
+*.uexp binary
+*.png binary
+*.jpg binary
+*.wav binary
+*.fbx binary
