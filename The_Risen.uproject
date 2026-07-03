@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{FF564C63-48A8-298D-25E3-10ADDFCF3B43}",
+	"EngineAssociation": "5.8",
 	"Category": "Games",
 	"Description": "The Risen: mission-based third-person looter shooter",
 	"Plugins": [
