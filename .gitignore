@@ -1,0 +1,15 @@
+# Godot 4 generated cache and imported data
+.godot/
+
+# Exported builds
+exports/
+*.pck
+*.apk
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Crash dumps and local logs
+*.dmp
+*.log

@@ -1,0 +1,10 @@
+# Normalize text files; keep binary assets untouched
+* text=auto
+*.png binary
+*.jpg binary
+*.svg text
+*.wav binary
+*.ogg binary
+*.ttf binary
+*.glb binary
+*.fbx binary
