@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://co1s7prbdr6vw"]
 
 [ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="1_abcyb"]
+[ext_resource type="PackedScene" uid="uid://dg74s2hqqsckd" path="res://scenes/hub/hologram_table.tscn" id="2_bocl7"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2dud7"]
 albedo_color = Color(0.32, 0.34, 0.38, 1)
@@ -47,3 +48,6 @@ environment = SubResource("Environment_ursuo")
 
 [node name="Guardian" parent="." unique_id=1754395905 instance=ExtResource("1_abcyb")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="HologramTable" parent="." unique_id=58457010 instance=ExtResource("2_bocl7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
