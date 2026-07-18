@@ -1,0 +1,72 @@
+[gd_scene format=3 uid="uid://b88q4r73j0x27"]
+
+[ext_resource type="Script" uid="uid://l7ec6tmmmqg5" path="res://scripts/guardian.gd" id="1_6cu61"]
+[ext_resource type="Script" uid="uid://ce0bx76alqjv5" path="res://scripts/debug_hud.gd" id="2_7yqv1"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gmxg0"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6t5an"]
+albedo_color = Color(0.18, 0.45, 0.72, 1)
+metallic = 0.1
+roughness = 0.6
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_3sear"]
+radius = 0.4
+height = 1.8
+
+[node name="Guardian" type="CharacterBody3D" unique_id=1754395905]
+script = ExtResource("1_6cu61")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1958965474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_gmxg0")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1023509262]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+material_override = SubResource("StandardMaterial3D_6t5an")
+mesh = SubResource("CapsuleMesh_3sear")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="." unique_id=1270346504]
+transform = Transform3D(-1, 1.3064297e-08, -8.644111e-08, 0, 0.9887711, 0.14943814, 8.742278e-08, 0.14943814, -0.9887711, 0, 1.5, 0)
+spring_length = 4.0
+
+[node name="Camera3D" type="Camera3D" parent="SpringArm3D" unique_id=174760006]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
+current = true
+
+[node name="DebugHUD" type="CanvasLayer" parent="." unique_id=499894332]
+script = ExtResource("2_7yqv1")
+
+[node name="Root" type="Control" parent="DebugHUD" unique_id=1006365474]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="Bars" type="VBoxContainer" parent="DebugHUD/Root" unique_id=767227804]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 20.0
+offset_bottom = 128.0
+
+[node name="HealthLabel" type="Label" parent="DebugHUD/Root/Bars" unique_id=716019662]
+layout_mode = 2
+text = "HP  100 / 100"
+
+[node name="HealthBar" type="ProgressBar" parent="DebugHUD/Root/Bars" unique_id=2132206062]
+custom_minimum_size = Vector2(240, 22)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="ShieldLabel" type="Label" parent="DebugHUD/Root/Bars" unique_id=1760870970]
+layout_mode = 2
+text = "Shield  100 / 100"
+
+[node name="ShieldBar" type="ProgressBar" parent="DebugHUD/Root/Bars" unique_id=428732284]
+custom_minimum_size = Vector2(240, 22)
+layout_mode = 2
+value = 100.0
+show_percentage = false
