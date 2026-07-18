@@ -1,0 +1,48 @@
+[gd_scene format=3 uid="uid://co1s7prbdr6vw"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2dud7"]
+albedo_color = Color(0.32, 0.34, 0.38, 1)
+roughness = 0.9
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_abcyb"]
+size = Vector2(50, 50)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bocl7"]
+size = Vector3(50, 1, 50)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_koree"]
+
+[sub_resource type="Sky" id="Sky_ajtfx"]
+sky_material = SubResource("ProceduralSkyMaterial_koree")
+
+[sub_resource type="Environment" id="Environment_ursuo"]
+background_mode = 2
+sky = SubResource("Sky_ajtfx")
+ambient_light_source = 3
+tonemap_mode = 2
+
+[node name="Hub" type="Node3D" unique_id=1537759387]
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1232613271]
+
+[node name="FloorMesh" type="MeshInstance3D" parent="Floor" unique_id=1088211983]
+material_override = SubResource("StandardMaterial3D_2dud7")
+mesh = SubResource("PlaneMesh_abcyb")
+
+[node name="FloorCollision" type="CollisionShape3D" parent="Floor" unique_id=1040265186]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("BoxShape3D_bocl7")
+
+[node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1517499063]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="SunLight" type="DirectionalLight3D" parent="." unique_id=932523293]
+transform = Transform3D(0.8253356, 0.44229966, -0.3509874, 0, 0.62161, 0.7833269, 0.5646425, -0.6465076, 0.51303685, 0, 0, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=630885685]
+environment = SubResource("Environment_ursuo")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=372849972]
+transform = Transform3D(1, 0, 0, 0, 0.87758255, 0.47942555, 0, -0.47942555, 0.87758255, 0, 8, 14)
+current = true
