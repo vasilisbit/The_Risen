@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="1_abcyb"]
 [ext_resource type="PackedScene" uid="uid://dg74s2hqqsckd" path="res://scenes/hub/hologram_table.tscn" id="2_bocl7"]
+[ext_resource type="PackedScene" uid="uid://cv5t0esp8itvn" path="res://ui/vendor_shop.tscn" id="3_koree"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2dud7"]
 albedo_color = Color(0.32, 0.34, 0.38, 1)
@@ -23,6 +24,20 @@ background_mode = 2
 sky = SubResource("Sky_ajtfx")
 ambient_light_source = 3
 tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_koree"]
+albedo_color = Color(0.35, 0.28, 0.12, 1)
+metallic = 0.6
+roughness = 0.5
+emission_enabled = true
+emission = Color(0.5, 0.35, 0.1, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_ajtfx"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ursuo"]
+size = Vector3(1, 2, 1)
 
 [node name="Hub" type="Node3D" unique_id=1537759387]
 
@@ -51,3 +66,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="HologramTable" parent="." unique_id=58457010 instance=ExtResource("2_bocl7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4)
+
+[node name="ForgeMaster" type="StaticBody3D" parent="." unique_id=804933838 groups=["vendor"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, -2)
+collision_layer = 5
+
+[node name="Mesh" type="MeshInstance3D" parent="ForgeMaster" unique_id=2086214232]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+material_override = SubResource("StandardMaterial3D_koree")
+mesh = SubResource("BoxMesh_ajtfx")
+
+[node name="Col" type="CollisionShape3D" parent="ForgeMaster" unique_id=921169314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("BoxShape3D_ursuo")
+
+[node name="HubUI" type="CanvasLayer" parent="." unique_id=473969501]
+
+[node name="VendorShop" parent="HubUI" unique_id=1779289198 instance=ExtResource("3_koree")]
