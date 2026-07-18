@@ -1,0 +1,93 @@
+[gd_scene format=3 uid="uid://dg74s2hqqsckd"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aqj00"]
+albedo_color = Color(0.12, 0.13, 0.16, 1)
+metallic = 0.7
+roughness = 0.4
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_amewl"]
+top_radius = 0.6
+bottom_radius = 0.8
+height = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_od00j"]
+albedo_color = Color(0.1, 0.3, 0.8, 1)
+emission_enabled = true
+emission = Color(0.15, 0.45, 1, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_vwcrf"]
+radius = 0.25
+height = 0.5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_v43hw"]
+radius = 0.25
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_33ipy"]
+albedo_color = Color(0.8, 0.15, 0.1, 1)
+emission_enabled = true
+emission = Color(1, 0.2, 0.12, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_qol3e"]
+radius = 0.25
+height = 0.5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_vh2l4"]
+radius = 0.25
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v3a5f"]
+albedo_color = Color(0.9, 0.5, 0.1, 1)
+emission_enabled = true
+emission = Color(1, 0.55, 0.12, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_d3xan"]
+radius = 0.25
+height = 0.5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_xynk1"]
+radius = 0.25
+
+[node name="HologramTable" type="Node3D" unique_id=58457010]
+
+[node name="Base" type="MeshInstance3D" parent="." unique_id=1177951735]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("StandardMaterial3D_aqj00")
+mesh = SubResource("CylinderMesh_amewl")
+
+[node name="EarthSphere" type="StaticBody3D" parent="." unique_id=142417651 groups=["mission_sphere"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 1.5, 0)
+collision_layer = 4
+collision_mask = 0
+
+[node name="Mesh" type="MeshInstance3D" parent="EarthSphere" unique_id=1662921851]
+material_override = SubResource("StandardMaterial3D_od00j")
+mesh = SubResource("SphereMesh_vwcrf")
+
+[node name="Col" type="CollisionShape3D" parent="EarthSphere" unique_id=2114637555]
+shape = SubResource("SphereShape3D_v43hw")
+
+[node name="MarsSphere" type="StaticBody3D" parent="." unique_id=862622868 groups=["mission_sphere"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+collision_layer = 4
+collision_mask = 0
+
+[node name="Mesh" type="MeshInstance3D" parent="MarsSphere" unique_id=250491291]
+material_override = SubResource("StandardMaterial3D_33ipy")
+mesh = SubResource("SphereMesh_qol3e")
+
+[node name="Col" type="CollisionShape3D" parent="MarsSphere" unique_id=1485507087]
+shape = SubResource("SphereShape3D_vh2l4")
+
+[node name="VenusSphere" type="StaticBody3D" parent="." unique_id=1533850606 groups=["mission_sphere"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 1.5, 0)
+collision_layer = 4
+collision_mask = 0
+
+[node name="Mesh" type="MeshInstance3D" parent="VenusSphere" unique_id=701595373]
+material_override = SubResource("StandardMaterial3D_v3a5f")
+mesh = SubResource("SphereMesh_d3xan")
+
+[node name="Col" type="CollisionShape3D" parent="VenusSphere" unique_id=2080137001]
+shape = SubResource("SphereShape3D_xynk1")
