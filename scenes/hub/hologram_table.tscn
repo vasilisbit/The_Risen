@@ -49,6 +49,10 @@ height = 0.5
 [sub_resource type="SphereShape3D" id="SphereShape3D_xynk1"]
 radius = 0.25
 
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_aqj00"]
+height = 1.0
+radius = 0.8
+
 [node name="HologramTable" type="Node3D" unique_id=58457010]
 
 [node name="Base" type="MeshInstance3D" parent="." unique_id=1177951735]
@@ -91,3 +95,9 @@ mesh = SubResource("SphereMesh_d3xan")
 
 [node name="Col" type="CollisionShape3D" parent="VenusSphere" unique_id=2080137001]
 shape = SubResource("SphereShape3D_xynk1")
+
+[node name="BaseBody" type="StaticBody3D" parent="." unique_id=1656907674]
+
+[node name="Col" type="CollisionShape3D" parent="BaseBody" unique_id=17388580]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("CylinderShape3D_aqj00")
