@@ -86,7 +86,7 @@ func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var panel := VBoxContainer.new()
-	panel.position = Vector2(16, 96)          # top-left, below the HP/shield bars
+	panel.position = Vector2(16, 156)         # top-left, clear of the HP/shield bars
 	panel.add_theme_constant_override("separation", 4)
 	layer.add_child(panel)
 	var title := Label.new()

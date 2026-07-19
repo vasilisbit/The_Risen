@@ -100,9 +100,10 @@ func _build_lights() -> void:
 
 func _build_spawns() -> void:
 	# Zone 1 Street (10), y ~0.1
-	var street := [Vector3(-6, 0.1, 5), Vector3(6, 0.1, 4), Vector3(-2, 0.1, 0), Vector3(5, 0.1, -3),
-		Vector3(-5, 0.1, -6), Vector3(2, 0.1, -9), Vector3(-6, 0.1, -12), Vector3(6, 0.1, -13),
-		Vector3(0, 0.1, -15), Vector3(-3, 0.1, -16)]
+	# Kept clear of the player spawn (0,1,5) so nothing aggros at spawn-in.
+	var street := [Vector3(-6, 0.1, -7), Vector3(6, 0.1, -7), Vector3(-3, 0.1, -10), Vector3(4, 0.1, -10),
+		Vector3(-6, 0.1, -13), Vector3(3, 0.1, -13), Vector3(-4, 0.1, -16), Vector3(6, 0.1, -16),
+		Vector3(0, 0.1, -17), Vector3(-2, 0.1, -17)]
 	# Zone 2 Subway (10), y ~0.1
 	var subway := [Vector3(-3, 0.1, -20), Vector3(3, 0.1, -22), Vector3(0, 0.1, -25), Vector3(-3, 0.1, -28),
 		Vector3(3, 0.1, -31), Vector3(-2, 0.1, -34), Vector3(2, 0.1, -36), Vector3(-3, 0.1, -39),
