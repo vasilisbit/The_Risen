@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://c15kttxt7ue4a"]
+
+[ext_resource type="Script" uid="uid://cidkmh40movc7" path="res://scripts/rusher.gd" id="1_vc0ui"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_727js"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ddulv"]
+albedo_color = Color(0.6, 0.12, 0.12, 1)
+roughness = 0.7
+emission_enabled = true
+emission = Color(0.5, 0.05, 0.05, 1)
+emission_energy_multiplier = 0.4
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_wu13h"]
+radius = 0.4
+height = 1.8
+
+[node name="Rusher" type="CharacterBody3D" unique_id=1159376898]
+script = ExtResource("1_vc0ui")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=906462290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_727js")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1758583681]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+material_override = SubResource("StandardMaterial3D_ddulv")
+mesh = SubResource("CapsuleMesh_wu13h")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="." unique_id=1698967031]
+path_desired_distance = 0.5
+radius = 0.4
