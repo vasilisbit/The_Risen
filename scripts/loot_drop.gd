@@ -15,6 +15,10 @@ const RARITY_COLORS := {
 const WEAPON_KINDS := ["Auto Rifle", "Shotgun", "Sniper", "Hand Cannon"]
 const PICKUP_RADIUS := 2.0
 
+## When non-empty (and a known rarity), skips the roll and forces this rarity —
+## used for guaranteed boss drops. Set before the node enters the tree.
+@export var forced_rarity: String = ""
+
 var rarity: String = "Common"
 var kind: String = "Auto Rifle"
 
@@ -36,6 +40,10 @@ func _ready() -> void:
 
 ## Roll rarity 1-100 per GDD §2.7 (Exotic folded into Epic for the MVP).
 func roll_rarity() -> void:
+	if forced_rarity != "" and RARITY_COLORS.has(forced_rarity):
+		rarity = forced_rarity
+		kind = WEAPON_KINDS[randi() % WEAPON_KINDS.size()]
+		return
 	var r := randi_range(1, 100)
 	if r <= 50:
 		rarity = "Common"
@@ -61,11 +69,16 @@ func _build_visual() -> void:
 	_mesh.position = Vector3(0, 0.35, 0)
 	add_child(_mesh)
 
-	var col := CollisionShape3D.new()
-	var sph := SphereShape3D.new()
-	sph.radius = PICKUP_RADIUS
-	col.shape = sph
-	add_child(col)
+	# Collision is provided by the scene (loot_drop.tscn -> PickupShape). If this
+	# is instantiated as a bare Area3D, create the pickup shape as a fallback so
+	# it can still detect the player.
+	if get_node_or_null("PickupShape") == null:
+		var col := CollisionShape3D.new()
+		col.name = "PickupShape"
+		var sph := SphereShape3D.new()
+		sph.radius = PICKUP_RADIUS
+		col.shape = sph
+		add_child(col)
 
 	_prompt = Label3D.new()
 	_prompt.text = "Press E  [%s]" % rarity

@@ -32,14 +32,26 @@ signal died
 var health: float = MAX_HEALTH
 var shield: float = MAX_SHIELD
 
+var is_dead: bool = false
+
+const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
+
+var _knockback: Vector3 = Vector3.ZERO
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
+var _spawn_point: Vector3
+var _death_screen: CanvasLayer
+
+const RESPAWN_DELAY := 2.5    # s before respawning at the spawn point
 
 
 func _ready() -> void:
+	add_to_group("player")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	# Stop the SpringArm3D from colliding with the player's own body.
 	_spring_arm.add_excluded_object(get_rid())
+	_spawn_point = global_position
+	_build_death_screen()
 	# TODO(T-0004): apply class stat modifiers from SaveManager at spawn.
 	health_changed.emit(health, MAX_HEALTH)
 	shield_changed.emit(shield, MAX_SHIELD)
@@ -62,6 +74,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_dead:
+		# Keep falling but ignore input while dead.
+		if not is_on_floor():
+			velocity.y -= _gravity * delta
+		velocity.x = move_toward(velocity.x, 0.0, WALK_SPEED)
+		velocity.z = move_toward(velocity.z, 0.0, WALK_SPEED)
+		move_and_slide()
+		return
+
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 
@@ -79,6 +100,11 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, speed)
 		velocity.z = move_toward(velocity.z, 0.0, speed)
+
+	# Add any active knockback on top of movement, then let it decay.
+	velocity.x += _knockback.x
+	velocity.z += _knockback.z
+	_knockback = _knockback.move_toward(Vector3.ZERO, KNOCKBACK_DECAY * delta)
 
 	move_and_slide()
 	_update_shield(delta)
@@ -109,5 +135,67 @@ func take_damage(amount: float) -> void:
 	if amount > 0.0:
 		health = maxf(0.0, health - amount)
 		health_changed.emit(health, MAX_HEALTH)
-		if health <= 0.0:
-			died.emit()
+		if health <= 0.0 and not is_dead:
+			_on_death()
+
+
+## Push the player (used by the Shielded Brute's ground slam knockback).
+## Vertical component is an instant impulse; horizontal decays over ~0.3 s.
+func apply_knockback(impulse: Vector3) -> void:
+	velocity.y += impulse.y
+	_knockback = Vector3(impulse.x, 0.0, impulse.z)
+
+
+func _on_death() -> void:
+	is_dead = true
+	died.emit()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if has_node("WeaponManager"):
+		$WeaponManager.set_process(false)
+	if _death_screen:
+		_death_screen.visible = true
+	get_tree().create_timer(RESPAWN_DELAY).timeout.connect(_respawn)
+
+
+func _respawn() -> void:
+	global_position = _spawn_point
+	velocity = Vector3.ZERO
+	health = MAX_HEALTH
+	shield = MAX_SHIELD
+	_time_since_damage = SHIELD_RECHARGE_DELAY
+	is_dead = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if has_node("WeaponManager"):
+		$WeaponManager.set_process(true)
+	if _death_screen:
+		_death_screen.visible = false
+	health_changed.emit(health, MAX_HEALTH)
+	shield_changed.emit(shield, MAX_SHIELD)
+
+
+func _build_death_screen() -> void:
+	_death_screen = CanvasLayer.new()
+	_death_screen.layer = 10
+	_death_screen.visible = false
+	add_child(_death_screen)
+	var tint := ColorRect.new()
+	tint.color = Color(0.35, 0.0, 0.0, 0.55)
+	tint.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_death_screen.add_child(tint)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_death_screen.add_child(center)
+	var vbox := VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(vbox)
+	var title := Label.new()
+	title.text = "YOU DIED"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 64)
+	vbox.add_child(title)
+	var sub := Label.new()
+	sub.text = "Respawning..."
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 24)
+	vbox.add_child(sub)
