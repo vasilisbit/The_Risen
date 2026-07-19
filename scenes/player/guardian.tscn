@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://l7ec6tmmmqg5" path="res://scripts/guardian.gd" id="1_6cu61"]
 [ext_resource type="Script" uid="uid://ce0bx76alqjv5" path="res://scripts/debug_hud.gd" id="2_7yqv1"]
 [ext_resource type="Script" uid="uid://dwnqxirhkf3kp" path="res://scripts/mission_interactor.gd" id="2_gmxg0"]
+[ext_resource type="Script" uid="uid://4qd8fyryxbxb" path="res://scripts/weapon_manager.gd" id="4_gmxg0"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gmxg0"]
 radius = 0.4
@@ -84,3 +85,16 @@ anchor_bottom = 1.0
 text = "+"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Ammo" type="Label" parent="DebugHUD" unique_id=1134565764]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -44.0
+offset_right = 420.0
+offset_bottom = -14.0
+text = "Auto Rifle   30 / 30"
+
+[node name="WeaponManager" type="Node3D" parent="." unique_id=1945568865]
+script = ExtResource("4_gmxg0")

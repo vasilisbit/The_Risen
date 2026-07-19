@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://ci1sicquo57uc"]
+
+[ext_resource type="Script" uid="uid://b0xqp87d053ra" path="res://scripts/weapon.gd" id="1_hn2em"]
+
+[node name="Sniper" type="Node3D" unique_id=2084703599]
+script = ExtResource("1_hn2em")
+weapon_name = "Sniper"
+damage = 300.0
+rpm = 40.0
+mag_size = 5
+reload_time = 3.0
+effective_range = 100.0
+headshot_mult = 2.0

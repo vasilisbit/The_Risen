@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://bahqify0h1c2e"]
+
+[ext_resource type="Script" uid="uid://b0xqp87d053ra" path="res://scripts/weapon.gd" id="1_lbead"]
+
+[node name="Shotgun" type="Node3D" unique_id=343419715]
+script = ExtResource("1_lbead")
+weapon_name = "Shotgun"
+damage = 80.0
+rpm = 60.0
+mag_size = 8
+reload_time = 2.5
+effective_range = 8.0
+pellets = 8
+spread_degrees = 8.0

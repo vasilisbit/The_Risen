@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://d0e8f77auod0m"]
+
+[ext_resource type="Script" uid="uid://b0xqp87d053ra" path="res://scripts/weapon.gd" id="1_jqtgw"]
+
+[node name="HandCannon" type="Node3D" unique_id=1037917511]
+script = ExtResource("1_jqtgw")
+weapon_name = "Hand Cannon"
+damage = 60.0
+rpm = 180.0
+mag_size = 12
+reload_time = 1.5
+effective_range = 40.0
