@@ -16,6 +16,9 @@ signal died(where: Vector3)
 const HEAD_MIN_LOCAL_Y := 1.4
 const LOOT_SCENE_PATH := "res://scenes/weapons/loot_drop.tscn"
 
+## Force a loot rarity on death (e.g. a boss guaranteeing an Epic). Empty = roll.
+var loot_rarity_override: String = ""
+
 var max_health: float = 100.0
 var health: float = 100.0
 var _dead: bool = false
@@ -85,6 +88,9 @@ func _drop_loot(where: Vector3) -> void:
 			drop = packed.instantiate() as Node3D
 	if drop == null:
 		drop = _placeholder_loot()
+	# Force rarity (e.g. boss Epic) before the drop enters the tree and rolls.
+	if loot_rarity_override != "" and ("forced_rarity" in drop):
+		drop.forced_rarity = loot_rarity_override
 	# Parent to the scene (not self — we are about to free) so the drop persists.
 	var host := get_tree().current_scene
 	if host == null:
