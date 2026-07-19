@@ -2,11 +2,16 @@ extends RayCast3D
 ## Debug interactor: casts forward from the camera crosshair. On the "interact"
 ## action it acts on whatever is under the crosshair:
 ##   - a body in group "vendor"        -> opens the vendor shop UI (T-0005)
-##   - a body in group "mission_sphere" -> prints "Mission Selected: <planet>"
-##                                         and emits mission_selected (T-0003)
-## No mission level loading yet (that arrives with the GameState autoload).
+##   - a body in group "mission_sphere" -> selects the mission and, if a level
+##                                         scene exists and is unlocked, loads it.
 
 signal mission_selected(mission: String)
+
+## Mission planet -> level scene. Only Earth is built so far; others fall through
+## to a debug print until their levels exist.
+const MISSION_SCENES := {
+	"Earth": "res://scenes/missions/earth/earth.tscn",
+}
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -33,3 +38,16 @@ func try_interact() -> void:
 		var mission := String(target.name).trim_suffix("Sphere")
 		print("Mission Selected: %s" % mission)
 		mission_selected.emit(mission)
+		_launch_mission(mission)
+
+
+## Load the mission's level scene if it exists and the mission is unlocked.
+func _launch_mission(mission: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.has_method("is_mission_unlocked") and not sm.is_mission_unlocked(mission):
+		print("Mission locked: %s (complete the previous mission first)" % mission)
+		return
+	if MISSION_SCENES.has(mission):
+		get_tree().change_scene_to_file(MISSION_SCENES[mission])
+	else:
+		print("Mission not implemented yet: %s" % mission)
