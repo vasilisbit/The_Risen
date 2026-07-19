@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cq22boj3gjtu4"]
+
+[ext_resource type="Script" uid="uid://jiilbssmuvmt" path="res://scripts/loot_drop.gd" id="1_bv73y"]
+
+[node name="LootDrop" type="Area3D" unique_id=828215994]
+script = ExtResource("1_bv73y")
