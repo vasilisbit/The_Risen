@@ -42,9 +42,23 @@ func _ready() -> void:
 	_omni(Vector3(0, 3.5, 9), 16.0, 2.2, Color(0.85, 0.90, 1.0))
 	_omni(Vector3(0, 2.8, 10.5), 9.0, 2.6, Color(1.0, 0.80, 0.50))  # warm vendor
 
+	# --- Cover markers (T-0008 shooters): bay side of the doorway wall,
+	# behind the Z=5 wall segments so they block LOS to the cockpit ---
+	_cover(Vector3(-2.6, 0, 5.9))
+	_cover(Vector3(2.6, 0, 5.9))
+	_cover(Vector3(-3.3, 0, 6.8))
+	_cover(Vector3(3.3, 0, 6.8))
+
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
 		region.bake_navigation_mesh(false)
+
+
+func _cover(pos: Vector3) -> void:
+	var m := Marker3D.new()
+	m.position = pos
+	m.add_to_group("cover_point", true)
+	add_child(m)
 
 
 func _box(center: Vector3, size: Vector3, mat: StandardMaterial3D) -> void:

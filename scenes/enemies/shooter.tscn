@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://cfamx2iltj3ge"]
+
+[ext_resource type="Script" uid="uid://dq61dioocqxkw" path="res://scripts/shooter.gd" id="1_tuqsv"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_4yo8t"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1uapl"]
+albedo_color = Color(0.45, 0.2, 0.7, 1)
+roughness = 0.7
+emission_enabled = true
+emission = Color(0.4, 0.15, 0.65, 1)
+emission_energy_multiplier = 0.4
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_onxcn"]
+radius = 0.4
+height = 1.8
+
+[node name="Shooter" type="CharacterBody3D" unique_id=331610939]
+script = ExtResource("1_tuqsv")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=706145263]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_4yo8t")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=312638995]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+material_override = SubResource("StandardMaterial3D_1uapl")
+mesh = SubResource("CapsuleMesh_onxcn")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="." unique_id=377381002]
+path_desired_distance = 0.5
+target_desired_distance = 0.6
+radius = 0.4
