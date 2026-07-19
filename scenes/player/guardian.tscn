@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://l7ec6tmmmqg5" path="res://scripts/guardian.gd" id="1_6cu61"]
 [ext_resource type="Script" uid="uid://ce0bx76alqjv5" path="res://scripts/debug_hud.gd" id="2_7yqv1"]
 [ext_resource type="Script" uid="uid://dwnqxirhkf3kp" path="res://scripts/mission_interactor.gd" id="2_gmxg0"]
+[ext_resource type="Script" uid="uid://b13uwpuw8daba" path="res://scripts/weapon_viewmodel.gd" id="3_3sear"]
 [ext_resource type="Script" uid="uid://p0rsegtkfxti" path="res://scripts/inventory_hud.gd" id="4_6t5an"]
 [ext_resource type="Script" uid="uid://4qd8fyryxbxb" path="res://scripts/weapon_manager.gd" id="4_gmxg0"]
 
@@ -43,6 +44,9 @@ current = true
 target_position = Vector3(0, 0, -12)
 collision_mask = 4
 script = ExtResource("2_gmxg0")
+
+[node name="WeaponViewmodel" type="Node3D" parent="SpringArm3D/Camera3D" unique_id=1373588399]
+script = ExtResource("3_3sear")
 
 [node name="DebugHUD" type="CanvasLayer" parent="." unique_id=499894332]
 script = ExtResource("2_7yqv1")
