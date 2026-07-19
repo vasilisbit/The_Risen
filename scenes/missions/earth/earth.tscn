@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://756cuqmxjaoe"]
 
 [ext_resource type="Script" uid="uid://dgldv3k12xc82" path="res://scripts/earth_level.gd" id="1_keulp"]
+[ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="2_4ylf5"]
+[ext_resource type="PackedScene" uid="uid://dtagsb120l75d" path="res://scenes/enemies/shielded_brute.tscn" id="3_qfysw"]
 
 [sub_resource type="Environment" id="Environment_45g3f"]
 background_mode = 1
@@ -26,3 +28,9 @@ navigation_mesh = SubResource("NavigationMesh_4ylf5")
 
 [node name="Structure" type="StaticBody3D" parent="Nav" unique_id=197737094]
 script = ExtResource("1_keulp")
+
+[node name="Guardian" parent="." unique_id=1754395905 instance=ExtResource("2_4ylf5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 5)
+
+[node name="ShieldedBrute" parent="." unique_id=1948417710 instance=ExtResource("3_qfysw")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -85)
