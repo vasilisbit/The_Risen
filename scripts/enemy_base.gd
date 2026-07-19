@@ -8,12 +8,13 @@ extends CharacterBody3D
 
 signal died(where: Vector3)
 
-## Assigned by the loot system (T-0011); until then a placeholder beacon drops.
+## Loot spawned on death. If unset, the shared loot_drop.tscn (T-0011) is used.
 @export var loot_scene: PackedScene
 
 ## Local height (from the body origin at the feet) at/above which a hit counts
 ## as a headshot — matches the 1.8 m capsule (top hemisphere).
 const HEAD_MIN_LOCAL_Y := 1.4
+const LOOT_SCENE_PATH := "res://scenes/weapons/loot_drop.tscn"
 
 var max_health: float = 100.0
 var health: float = 100.0
@@ -72,22 +73,30 @@ func _die() -> void:
 	queue_free()
 
 
+## Spawn loot at the death position + a random offset within a 1 m radius
+## (GDD §2.7). Uses `loot_scene` if set, else the shared loot_drop.tscn.
 func _drop_loot(where: Vector3) -> void:
-	var drop: Node3D
+	var drop: Node3D = null
 	if loot_scene != null:
 		drop = loot_scene.instantiate() as Node3D
 	else:
+		var packed := load(LOOT_SCENE_PATH)
+		if packed != null:
+			drop = packed.instantiate() as Node3D
+	if drop == null:
 		drop = _placeholder_loot()
 	# Parent to the scene (not self — we are about to free) so the drop persists.
-	# Add to the tree BEFORE setting global_position (that requires being inside).
 	var host := get_tree().current_scene
 	if host == null:
 		host = get_tree().root
 	host.add_child(drop)
-	drop.global_position = where + Vector3(0.0, 0.5, 0.0)
+	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0))
+	if offset.length() > 1.0:
+		offset = offset.normalized()
+	drop.global_position = where + Vector3(0.0, 0.4, 0.0) + offset
 
 
-## Temporary loot marker until T-0011 provides loot_drop.tscn.
+## Fallback marker if the loot scene fails to load.
 func _placeholder_loot() -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.name = "LootDropPlaceholder"
