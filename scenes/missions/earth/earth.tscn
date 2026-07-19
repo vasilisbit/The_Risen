@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://756cuqmxjaoe"]
+
+[ext_resource type="Script" uid="uid://dgldv3k12xc82" path="res://scripts/earth_level.gd" id="1_keulp"]
+
+[sub_resource type="Environment" id="Environment_45g3f"]
+background_mode = 1
+background_color = Color(0.55, 0.57, 0.6, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.57, 0.62, 1)
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.6, 0.62, 0.66, 1)
+fog_density = 0.018
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_4ylf5"]
+geometry_parsed_geometry_type = 1
+agent_height = 1.8
+
+[node name="Earth" type="Node3D" unique_id=1122514516]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=606280515]
+environment = SubResource("Environment_45g3f")
+
+[node name="Nav" type="NavigationRegion3D" parent="." unique_id=807453541]
+navigation_mesh = SubResource("NavigationMesh_4ylf5")
+
+[node name="Structure" type="StaticBody3D" parent="Nav" unique_id=197737094]
+script = ExtResource("1_keulp")
