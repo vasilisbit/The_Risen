@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://obhr7m6seaiv"]
+
+[ext_resource type="Script" uid="uid://b0xqp87d053ra" path="res://scripts/weapon.gd" id="1_m8q8x"]
+
+[node name="AutoRifle" type="Node3D" unique_id=73481906]
+script = ExtResource("1_m8q8x")
+weapon_name = "Auto Rifle"
+automatic = true

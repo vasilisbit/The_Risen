@@ -1,14 +1,19 @@
 class_name EnemyBase
 extends CharacterBody3D
 
-## Shared enemy plumbing (T-0007/T-0008): health, damage intake, death signal,
-## loot drop, player lookup, gravity. Subclasses set `max_health` in _init()
-## and implement their own _physics_process guarding on `_dead`.
+## Shared enemy plumbing (T-0007/T-0008/T-0009): health, damage intake, death
+## signal, loot drop, player lookup, gravity, headshot test. Subclasses set
+## `max_health` in _init() and implement their own _physics_process guarding on
+## `_dead`.
 
 signal died(where: Vector3)
 
 ## Assigned by the loot system (T-0011); until then a placeholder beacon drops.
 @export var loot_scene: PackedScene
+
+## Local height (from the body origin at the feet) at/above which a hit counts
+## as a headshot — matches the 1.8 m capsule (top hemisphere).
+const HEAD_MIN_LOCAL_Y := 1.4
 
 var max_health: float = 100.0
 var health: float = 100.0
@@ -45,7 +50,12 @@ func _face(target: Vector3) -> void:
 		look_at(flat, Vector3.UP)
 
 
-## Incoming damage (weapons land in T-0010). Dies + drops loot at 0 HP.
+## True when a world-space hit point lands in this enemy's head zone.
+func is_headshot(world_point: Vector3) -> bool:
+	return (world_point.y - global_position.y) >= HEAD_MIN_LOCAL_Y
+
+
+## Incoming damage (from weapons T-0010). Dies + drops loot at 0 HP.
 func take_damage(amount: float) -> void:
 	if _dead:
 		return
