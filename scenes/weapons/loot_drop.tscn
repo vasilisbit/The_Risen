@@ -2,5 +2,11 @@
 
 [ext_resource type="Script" uid="uid://jiilbssmuvmt" path="res://scripts/loot_drop.gd" id="1_bv73y"]
 
+[sub_resource type="SphereShape3D" id="SphereShape3D_bv73y"]
+radius = 2.0
+
 [node name="LootDrop" type="Area3D" unique_id=828215994]
 script = ExtResource("1_bv73y")
+
+[node name="PickupShape" type="CollisionShape3D" parent="." unique_id=523066039]
+shape = SubResource("SphereShape3D_bv73y")
