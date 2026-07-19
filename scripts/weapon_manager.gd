@@ -15,6 +15,7 @@ var _active: int = 0
 var _camera: Camera3D
 var _body: CollisionObject3D
 var _ammo_label: Label
+var _viewmodel: Node3D
 
 
 func _ready() -> void:
@@ -22,6 +23,7 @@ func _ready() -> void:
 	_camera = player.get_node("SpringArm3D/Camera3D") as Camera3D
 	_body = player as CollisionObject3D
 	_ammo_label = player.get_node_or_null("DebugHUD/Ammo") as Label
+	_viewmodel = _camera.get_node_or_null("WeaponViewmodel") as Node3D
 	for path in WEAPON_PATHS:
 		var w := load(path).instantiate() as Weapon
 		add_child(w)
@@ -69,12 +71,16 @@ func _fire() -> void:
 	var w := active_weapon()
 	if w == null or _camera == null:
 		return
+	if not w.can_fire():
+		return
 	var origin := _camera.global_position
 	var dir := -_camera.global_transform.basis.z
 	var exclude: Array[RID] = []
 	if _body != null:
 		exclude.append(_body.get_rid())
 	w.fire(origin, dir, get_world_3d(), exclude)
+	if _viewmodel != null:
+		_viewmodel.kick()                # recoil the on-screen viewmodel
 
 
 func _update_hud() -> void:
