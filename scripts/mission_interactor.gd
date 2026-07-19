@@ -48,6 +48,10 @@ func _launch_mission(mission: String) -> void:
 		print("Mission locked: %s (complete the previous mission first)" % mission)
 		return
 	if MISSION_SCENES.has(mission):
-		get_tree().change_scene_to_file(MISSION_SCENES[mission])
+		var gs := get_node_or_null("/root/GameState")
+		if gs and gs.has_method("transition_to"):
+			gs.transition_to(MISSION_SCENES[mission])   # fade to black
+		else:
+			get_tree().change_scene_to_file(MISSION_SCENES[mission])
 	else:
 		print("Mission not implemented yet: %s" % mission)
