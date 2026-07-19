@@ -17,7 +17,7 @@ roughness = 0.6
 radius = 0.4
 height = 1.8
 
-[node name="Guardian" type="CharacterBody3D" unique_id=1754395905]
+[node name="Guardian" type="CharacterBody3D" unique_id=1754395905 groups=["player"]]
 script = ExtResource("1_6cu61")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1958965474]
