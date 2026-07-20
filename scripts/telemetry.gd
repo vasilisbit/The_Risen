@@ -117,6 +117,12 @@ func mission_started(mission_id: String) -> void:
 	_mission_start_msec = Time.get_ticks_msec()
 	deaths_this_mission = 0
 	loot_this_mission = 0
+	# Record where the ship is parked, for the hub window planet (T-0028).
+	# Done here because every mission driver already reports its start.
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm:
+		sm.data["last_mission"] = mission_id
+		sm.save_game()
 	log_event("MissionStart", {
 		"mission_id": mission_id,
 		"class": _class_name(),

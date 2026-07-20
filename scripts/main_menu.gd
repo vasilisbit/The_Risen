@@ -12,7 +12,21 @@ extends Control
 const HUB := "res://scenes/hub/hub.tscn"
 const GOLD := Color(0.95, 0.78, 0.32)
 const DIM := Color(0.55, 0.58, 0.66)
-const STAR_COUNT := 220
+const STAR_COUNT := 260
+## Screen widths per second at full parallax depth. Was 14 — far too fast.
+const STAR_DRIFT := 1.6
+
+## Background planets: x/y in screen fractions, radius in pixels, and the two
+## tones its banded surface mixes between. Drawn behind the menu text, right of
+## the entries so they never sit under a label.
+const MENU_PLANETS := [
+	{"pos": Vector2(0.78, 0.32), "radius": 120.0, "drift": 0.35,
+		"base": Color(0.16, 0.30, 0.55), "band": Color(0.35, 0.62, 0.85)},
+	{"pos": Vector2(0.60, 0.78), "radius": 46.0, "drift": 0.7,
+		"base": Color(0.42, 0.18, 0.12), "band": Color(0.72, 0.36, 0.20)},
+	{"pos": Vector2(0.92, 0.72), "radius": 28.0, "drift": 1.1,
+		"base": Color(0.45, 0.34, 0.14), "band": Color(0.78, 0.62, 0.28)},
+]
 
 var _entries: Array[Dictionary] = []
 var _hovered: int = -1
@@ -35,10 +49,11 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	# Drift the starfield sideways; wrap at the edges.
+	# Drift the starfield sideways; wrap at the edges. Slow — this is a distant
+	# field, not a warp effect; at the original speed it read as motion sickness.
 	for i in _stars.size():
 		var s := _stars[i]
-		s.x -= s.z * delta * 14.0
+		s.x -= s.z * delta * STAR_DRIFT
 		if s.x < -0.02:
 			s.x = 1.02
 			s.y = randf()
@@ -55,6 +70,9 @@ func _draw() -> void:
 		# Twinkle, keyed off each star's own speed so they don't pulse in sync.
 		a *= 0.75 + 0.25 * sin(_time * (1.0 + s.z * 3.0) + s.y * 20.0)
 		draw_circle(p, 0.6 + s.z * 1.4, Color(0.75, 0.85, 1.0, a))
+
+	for info in MENU_PLANETS:
+		_draw_menu_planet(info, vp)
 
 	# Angled gold band behind the title, echoing the HUD's super bar.
 	var band_y := vp.y * 0.22
@@ -81,6 +99,46 @@ func _draw() -> void:
 			var loop := PackedVector2Array(pts)
 			loop.append(pts[0])
 			draw_polyline(loop, DIM, 1.6, true)
+
+
+## A banded disc with a crescent of night, drifting slowly with the starfield.
+## Drawn with arcs rather than a texture, like the rest of the game's art.
+func _draw_menu_planet(info: Dictionary, vp: Vector2) -> void:
+	var frac: Vector2 = info["pos"]
+	var r: float = info["radius"]
+	# Wraps across the screen far slower than the stars, at its own rate.
+	var x := fposmod(frac.x - _time * float(info["drift"]) * 0.004, 1.3) - 0.15
+	var c := Vector2(x * vp.x, frac.y * vp.y)
+	if c.x < -r * 2.0 or c.x > vp.x + r * 2.0:
+		return
+
+	var base: Color = info["base"]
+	var band: Color = info["band"]
+	draw_circle(c, r, base)
+
+	# Latitude bands: horizontal chords. Each is sized to the NARROWER of its
+	# two edges so it stays inside the disc — using the centre width let the
+	# corners poke past the limb and the planet came out visibly stepped.
+	var rows := int(r / 3.0)
+	for i in rows:
+		var t0 := (float(i) / float(rows)) * 2.0 - 1.0        # -1..1 across the disc
+		var t1 := (float(i + 1) / float(rows)) * 2.0 - 1.0
+		var outer := maxf(absf(t0), absf(t1))
+		var half := sqrt(maxf(0.0, 1.0 - outer * outer)) * r
+		if half <= 0.5:
+			continue
+		var shade := 0.5 + 0.5 * sin(t0 * 7.0 + frac.x * 12.0)
+		var col := base.lerp(band, shade * 0.55)
+		draw_rect(Rect2(Vector2(c.x - half, c.y + t0 * r),
+			Vector2(half * 2.0, (t1 - t0) * r + 0.5)), col)
+
+	# Night side: a crescent, drawn as offset discs fading to the background.
+	for i in 7:
+		var k := float(i) / 6.0
+		draw_circle(c + Vector2(r * 0.55 * k, r * 0.18 * k),
+			r * (1.0 - 0.06 * k), Color(0.02, 0.03, 0.05, 0.16))
+	# Thin lit limb on the sunward side.
+	draw_arc(c, r - 1.0, PI * 0.55, PI * 1.45, 32, Color(band, 0.5), 2.0, true)
 
 
 func _gui_input(event: InputEvent) -> void:

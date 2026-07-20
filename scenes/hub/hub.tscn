@@ -7,16 +7,20 @@
 [ext_resource type="PackedScene" path="res://ui/class_select.tscn" id="5_clssel"]
 [ext_resource type="Script" path="res://scripts/difficulty_select.gd" id="6_diffsel"]
 [ext_resource type="Script" path="res://scripts/hub_planet.gd" id="7_planet"]
+[ext_resource type="Shader" path="res://shaders/space_sky.gdshader" id="8_sky"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_koree"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_space"]
+shader = ExtResource("8_sky")
 
 [sub_resource type="Sky" id="Sky_ajtfx"]
-sky_material = SubResource("ProceduralSkyMaterial_koree")
+sky_material = SubResource("ShaderMaterial_space")
 
 [sub_resource type="Environment" id="Environment_ursuo"]
 background_mode = 2
 sky = SubResource("Sky_ajtfx")
 ambient_light_source = 3
+ambient_light_color = Color(0.35, 0.4, 0.55, 1)
+ambient_light_energy = 0.35
 tonemap_mode = 2
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_koree"]
