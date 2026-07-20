@@ -140,8 +140,17 @@ func take_damage(amount: float) -> void:
 	if _dead:
 		return
 	health = maxf(0.0, health - amount)
+	play_sfx("enemy_hit")
 	if health <= 0.0:
 		_die()
+
+
+## Positional effect at this enemy (T-0034). No-ops without the autoload, so
+## enemies stay testable in isolation.
+func play_sfx(id: String) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx(id, global_position)
 
 
 func _die() -> void:
