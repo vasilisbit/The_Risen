@@ -43,12 +43,26 @@ func try_interact() -> void:
 		_launch_mission(mission)
 
 
-## Load the mission's level scene if it exists and the mission is unlocked.
+## Selecting a planet opens the difficulty prompt (T-0027) rather than dropping
+## straight into the mission; the prompt calls back here on confirm.
 func _launch_mission(mission: String) -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("is_mission_unlocked") and not sm.is_mission_unlocked(mission):
 		print("Mission locked: %s (complete the previous mission first)" % mission)
 		return
+	if not MISSION_SCENES.has(mission):
+		print("Mission not implemented yet: %s" % mission)
+		return
+	var prompt := get_tree().get_first_node_in_group("difficulty_select")
+	if prompt and prompt.has_method("open"):
+		if not prompt.launch_confirmed.is_connected(_start_mission):
+			prompt.launch_confirmed.connect(_start_mission)
+		prompt.open(mission)
+	else:
+		_start_mission(mission)          # no prompt in the scene: go directly
+
+
+func _start_mission(mission: String) -> void:
 	if MISSION_SCENES.has(mission):
 		var gs := get_node_or_null("/root/GameState")
 		if gs and gs.has_method("transition_to"):
