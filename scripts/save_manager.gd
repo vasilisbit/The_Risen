@@ -37,6 +37,8 @@ func _default_data() -> Dictionary:
 		"total_kills": 0,
 		"total_deaths": 0,
 		"total_playtime": 0.0,
+		# Linear 0..1 per audio bus (T-0034). Backfilled into older saves.
+		"audio_volumes": {"Master": 1.0, "Music": 1.0, "SFX": 1.0},
 	}
 
 

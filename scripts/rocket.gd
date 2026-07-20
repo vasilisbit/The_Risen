@@ -92,6 +92,9 @@ func detonate() -> void:
 		if e.has_method("take_damage"):
 			e.take_damage(DAMAGE)
 	_explosion_vfx(here)
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx("explosion", here)
 	queue_free()
 
 

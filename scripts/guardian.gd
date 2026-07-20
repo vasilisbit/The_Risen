@@ -55,6 +55,7 @@ var is_dead: bool = false
 
 const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
 const PUSH_TIME := 0.4           # s a wind gust / boss slam takes to shove you
+const STEP_DISTANCE := 2.2       # m of travel between footstep sounds
 
 ## Multiplies gravity — a low-gravity Area3D (Mars) sets this to 0.4.
 var gravity_scale: float = 1.0
@@ -77,6 +78,7 @@ var _air_speed: float = WALK_SPEED     # horizontal speed locked in at take-off
 var _knockback: Vector3 = Vector3.ZERO
 var _push_velocity: Vector3 = Vector3.ZERO
 var _push_time_left: float = 0.0
+var _step_accum: float = 0.0
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
@@ -170,6 +172,7 @@ func _physics_process(delta: float) -> void:
 	_knockback = _knockback.move_toward(Vector3.ZERO, KNOCKBACK_DECAY * delta)
 
 	move_and_slide()
+	_tick_footsteps(delta)
 
 	# Pushes (Venus wind gusts, boss slams) are a displacement budget, applied
 	# AFTER move_and_slide as real motion rather than added to velocity. Going
@@ -189,6 +192,28 @@ func _update_shield(delta: float) -> void:
 	if shield < MAX_SHIELD and _time_since_damage >= SHIELD_RECHARGE_DELAY:
 		shield = minf(MAX_SHIELD, shield + SHIELD_RECHARGE_RATE * delta)
 		shield_changed.emit(shield, MAX_SHIELD)
+
+
+## Footsteps are driven by distance covered, not a fixed timer, so sprinting
+## naturally steps faster and standing still is silent (T-0034).
+func _tick_footsteps(delta: float) -> void:
+	if is_dead or not is_on_floor():
+		return
+	var speed := Vector2(velocity.x, velocity.z).length()
+	if speed < 0.5:
+		return
+	_step_accum += speed * delta
+	if _step_accum >= STEP_DISTANCE:
+		_step_accum = 0.0
+		_sfx("footstep")
+
+
+## Fire a UI/self sound. No-ops without the autoload so the player stays
+## testable in isolation.
+func _sfx(id: String) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx(id, global_position)
 
 
 ## Effective max health (base + class/buff bonus).
@@ -283,6 +308,7 @@ func take_damage(amount: float) -> void:
 			return
 	amount *= (1.0 - clampf(damage_reduction, 0.0, 0.9))
 	_time_since_damage = 0.0
+	_sfx("player_hit")
 
 	if shield > 0.0:
 		var absorbed := minf(shield, amount)

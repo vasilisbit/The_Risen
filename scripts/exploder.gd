@@ -126,6 +126,7 @@ func detonate() -> void:
 			if target.has_method("take_damage"):
 				target.take_damage(EXPLOSION_DAMAGE)
 	_spawn_explosion_vfx(global_position)
+	play_sfx("explosion")
 	died.emit(global_position)
 	_drop_loot(global_position)
 	queue_free()

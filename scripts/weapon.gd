@@ -63,6 +63,10 @@ func fire(origin: Vector3, direction: Vector3, world: World3D, exclude: Array = 
 		return []
 	ammo -= 1
 	_cooldown = 60.0 / rpm
+	# Fired at the muzzle so it attenuates with distance for anyone else nearby
+	# (T-0034). The sfx id is derived from the weapon name, so the four
+	# configured scenes each get their own report with no extra @export.
+	_play_shot(origin)
 	var per_pellet := damage * damage_multiplier * class_multiplier / float(max(1, pellets))
 	var results: Array = []
 	var space := world.direct_space_state
@@ -84,6 +88,13 @@ func fire(origin: Vector3, direction: Vector3, world: World3D, exclude: Array = 
 			results.append({"collider": collider, "headshot": head, "damage": dmg})
 	state_changed.emit()
 	return results
+
+
+func _play_shot(origin: Vector3) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio == null:
+		return
+	audio.play_sfx(weapon_name.to_lower().replace(" ", "_"), origin)
 
 
 func start_reload() -> void:

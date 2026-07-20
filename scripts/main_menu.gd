@@ -17,6 +17,7 @@ const STAR_COUNT := 220
 var _entries: Array[Dictionary] = []
 var _hovered: int = -1
 var _confirm: Control
+var _settings: Control
 var _status: Label
 var _stars: Array[Vector3] = []      # x, y, speed
 var _time: float = 0.0
@@ -114,7 +115,8 @@ func _activate(index: int) -> void:
 		"continue":
 			_continue()
 		"settings":
-			_status.text = "Settings are not implemented yet (T-0034 covers audio)."
+			if _settings:
+				_settings.open()
 		"quit":
 			_show_confirm()
 
@@ -181,7 +183,7 @@ func _build_ui() -> void:
 	var defs := [
 		{"id": "new", "text": "NEW GAME", "hint": "Choose a class and begin"},
 		{"id": "continue", "text": "CONTINUE", "hint": "Resume your saved Guardian"},
-		{"id": "settings", "text": "SETTINGS", "hint": "Not implemented yet"},
+		{"id": "settings", "text": "SETTINGS", "hint": "Audio levels"},
 		{"id": "quit", "text": "QUIT", "hint": "Leave the game"},
 	]
 	for i in defs.size():
@@ -205,6 +207,10 @@ func _build_ui() -> void:
 	_status.add_theme_color_override("font_color", GOLD)
 	_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_status)
+
+	_settings = Control.new()
+	_settings.set_script(load("res://scripts/settings_panel.gd"))
+	add_child(_settings)
 
 	_build_confirm()
 	_layout()
@@ -230,8 +236,8 @@ func _layout() -> void:
 		_entries[i]["rect"] = Rect2(Vector2(x, y), Vector2(320, 38))
 	_status.position = Vector2(x, top + float(_entries.size()) * 74.0 + 10.0)
 	_status.size = Vector2(620, 20)
-	if _confirm:
-		_confirm.size = vp
+	# The confirm and settings overlays anchor to the full rect themselves;
+	# setting their size here fought the anchors and logged a warning.
 
 
 func _refresh_entry_colours() -> void:
@@ -243,7 +249,12 @@ func _refresh_entry_colours() -> void:
 
 func _build_confirm() -> void:
 	_confirm = Control.new()
-	_confirm.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Anchors and offsets both, so the overlay fills the screen instead of
+	# shrink-wrapping to its content (see settings_panel.gd for the same fix).
+	_confirm.anchor_right = 1.0
+	_confirm.anchor_bottom = 1.0
+	_confirm.offset_right = 0.0
+	_confirm.offset_bottom = 0.0
 	_confirm.mouse_filter = Control.MOUSE_FILTER_STOP
 	_confirm.visible = false
 	add_child(_confirm)
