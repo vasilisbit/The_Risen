@@ -125,7 +125,7 @@ func _begin_peek() -> void:
 func _navigate_to(pos: Vector3) -> void:
 	_agent.target_position = pos
 	var next := _agent.get_next_path_position()
-	_steer(next)
+	_steer(global_position + _nav_dir(next, pos))
 
 
 func _move_straight_to(pos: Vector3) -> void:
@@ -137,8 +137,9 @@ func _steer(toward: Vector3) -> void:
 	dir.y = 0.0
 	if dir.length() > 0.05:
 		dir = dir.normalized()
-		velocity.x = dir.x * MOVE_SPEED
-		velocity.z = dir.z * MOVE_SPEED
+		var spd := MOVE_SPEED * EnemyBase.speed_scale
+		velocity.x = dir.x * spd
+		velocity.z = dir.z * spd
 	else:
 		_halt_horizontal()
 
@@ -175,3 +176,17 @@ func _shoot() -> void:
 		host = get_tree().root
 	host.add_child(p)
 	p.setup(_eye(), _player, get_rid())
+	# "-5% enemy accuracy" debuff pick: nudge the shot off-target.
+	if EnemyBase.accuracy_penalty > 0.0:
+		p._dir = _stray(p._dir, EnemyBase.accuracy_penalty)
+
+
+## Rotate a firing direction by a random error cone (radians = penalty).
+func _stray(dir: Vector3, penalty: float) -> Vector3:
+	var axis := dir.cross(Vector3.UP)
+	if axis.length() < 0.001:
+		axis = Vector3.RIGHT
+	axis = axis.normalized()
+	var a := randf_range(-penalty, penalty)
+	var b := randf_range(-penalty, penalty)
+	return dir.rotated(axis, a).rotated(Vector3.UP, b).normalized()

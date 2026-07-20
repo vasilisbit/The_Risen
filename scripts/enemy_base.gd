@@ -16,6 +16,16 @@ signal died(where: Vector3)
 const HEAD_MIN_LOCAL_Y := 1.4
 const LOOT_SCENE_PATH := "res://scenes/weapons/loot_drop.tscn"
 
+## Mission-wide enemy modifiers set by the Mars debuff picks (T-0018). Static so
+## they apply to every enemy, including ones spawned later. Reset per mission.
+static var speed_scale: float = 1.0          # -10% speed pick -> 0.9
+static var accuracy_penalty: float = 0.0     # -5% accuracy pick -> 0.05
+
+
+static func reset_modifiers() -> void:
+	speed_scale = 1.0
+	accuracy_penalty = 0.0
+
 ## Force a loot rarity on death (e.g. a boss guaranteeing an Epic). Empty = roll.
 var loot_rarity_override: String = ""
 
@@ -46,6 +56,20 @@ func _ensure_player() -> bool:
 func _halt_horizontal() -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
+
+
+## Horizontal steering direction toward a NavigationAgent3D waypoint. The
+## navmesh sits slightly above the floor, so once the agent is horizontally on
+## top of a waypoint the flattened delta collapses to ~0 and the enemy would
+## stall every time it reached one. Fall back to heading straight at the final
+## target in that case.
+func _nav_dir(next: Vector3, fallback_target: Vector3) -> Vector3:
+	var dir := next - global_position
+	dir.y = 0.0
+	if dir.length() < 0.15:
+		dir = fallback_target - global_position
+		dir.y = 0.0
+	return dir
 
 
 func _face(target: Vector3) -> void:
