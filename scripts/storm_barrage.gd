@@ -5,7 +5,7 @@ extends Ability
 ## 8 m splash, 60 s cooldown.
 ##
 ## Rockets are spread across the available targets round-robin rather than all
-## piling onto the nearest enemy, so the DoD case — 10 targets on 150 HP — kills
+## piling onto the nearest enemy, so the DoD case - 10 targets on 150 HP - kills
 ## all 10 rather than overkilling one. With fewer targets than rockets the
 ## remainder wrap around and stack, which is what you want against a boss.
 

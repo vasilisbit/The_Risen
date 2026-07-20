@@ -6,7 +6,7 @@ extends Ability
 ## with a 1 s swing VFX standing in for the animation.
 ##
 ## All three run their damage through _damage(), which applies the Guardian's
-## melee_multiplier — this is what finally makes Juggernaut Charge's "melee x3"
+## melee_multiplier - this is what finally makes Juggernaut Charge's "melee x3"
 ## (T-0023) do something, since nothing read that field until now.
 ##
 ## Damage lands on the frame the attack fires rather than partway through the
@@ -31,7 +31,7 @@ func _execute() -> void:
 	_strike()
 
 
-## Subclass hook — the actual attack.
+## Subclass hook - the actual attack.
 func _strike() -> void:
 	pass
 

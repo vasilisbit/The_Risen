@@ -4,7 +4,7 @@ extends Grenade
 ## Support grenade (T-0024): a 5 m zone that restores 50 HP over 5 s.
 ##
 ## The card specifies a zone over time rather than the GDD's instant heal, so
-## it heals 10 HP/s while you stand in it — you have to hold the ground you
+## it heals 10 HP/s while you stand in it - you have to hold the ground you
 ## threw it on instead of topping up and walking away. It leaves a lingering
 ## HealZone behind rather than healing on detonation, so the grenade body can
 ## free itself as normal.

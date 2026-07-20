@@ -3,7 +3,7 @@ extends Control
 ## Settings overlay (T-0034). Master / Music / SFX volume sliders that apply to
 ## the audio buses live as you drag them, and persist through SaveManager.
 ##
-## Styled to match the main menu — dark panel, gold accents — and opened from
+## Styled to match the main menu - dark panel, gold accents - and opened from
 ## it. It is the only settings content the game has, so the menu entry no
 ## longer needs to say "not implemented".
 
@@ -41,7 +41,7 @@ func close() -> void:
 	visible = false
 
 
-## Current slider value for a bus — exposed so the wiring can be asserted.
+## Current slider value for a bus - exposed so the wiring can be asserted.
 func value_of(bus_name: String) -> float:
 	return float(_values.get(bus_name, 1.0))
 

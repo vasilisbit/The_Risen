@@ -158,7 +158,7 @@ func _chase() -> void:
 		_halt_horizontal()
 
 
-## Current movement speed — 1.5x once enraged (phase C).
+## Current movement speed - 1.5x once enraged (phase C).
 func move_speed() -> float:
 	var spd := MOVE_SPEED * EnemyBase.speed_scale
 	return spd * RAGE_SPEED_MULT if phase == Phase.C else spd
@@ -184,7 +184,7 @@ func melee() -> void:
 
 
 ## Linear fireball. GDD §3.4 calls it homing, but every other projectile in the
-## game was made straight-line on purpose (dodgeable by strafing) — see devlog.
+## game was made straight-line on purpose (dodgeable by strafing) - see devlog.
 func fireball() -> void:
 	_fireball_timer = FIREBALL_COOLDOWN * cooldown_scale()
 	if _player == null:

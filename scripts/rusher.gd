@@ -1,12 +1,12 @@
 class_name Rusher
 extends EnemyBase
 
-## Melee Rusher enemy (T-0007). Plain-GDScript enum state machine (zero deps —
+## Melee Rusher enemy (T-0007). Plain-GDScript enum state machine (zero deps -
 ## LimboAI deferred per tracker Open Decision #2). Detects the player within 10 m,
 ## chases at 9 m/s via NavigationAgent3D, and melees for 150 damage at 2 m on a
 ## 1.5 s cooldown. HP 150; drops loot on death (EnemyBase).
 
-const SPRINT_SPEED := 5.0        # m/s (below the player's 6 m/s walk — kiteable)
+const SPRINT_SPEED := 5.0        # m/s (below the player's 6 m/s walk - kiteable)
 const DETECT_RANGE := 10.0       # m
 const ATTACK_RANGE := 2.0        # m
 const MELEE_DAMAGE := 150.0

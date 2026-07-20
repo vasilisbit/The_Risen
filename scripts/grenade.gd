@@ -8,7 +8,7 @@ extends RigidBody3D
 ##
 ## The ability that throws these reads GRENADE_NAME / GRENADE_COLOR off the
 ## subclass, so the payload owns its own presentation. Those two names are
-## declared ONLY in subclasses — GDScript forbids shadowing a parent constant,
+## declared ONLY in subclasses - GDScript forbids shadowing a parent constant,
 ## so the base keeps its fallbacks under different names.
 
 const DEFAULT_NAME := "Grenade"
@@ -69,7 +69,7 @@ func detonate() -> void:
 	queue_free()
 
 
-## Subclass hook — the actual effect, at global_position.
+## Subclass hook - the actual effect, at global_position.
 func _detonate() -> void:
 	pass
 

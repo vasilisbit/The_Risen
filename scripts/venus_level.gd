@@ -1,12 +1,12 @@
 extends StaticBody3D
 ## T-0020 Venus mission blockout, generated in code (same approach as Earth/Mars).
 ## Three sections per GDD §3.4:
-##   1. Exterior Ascent  — 200 m of 15 degrees volcano slope, wind gusts that push
+##   1. Exterior Ascent  - 200 m of 15 degrees volcano slope, wind gusts that push
 ##      the player 2 m back every 5 s, rock cover, lava vents. 20 spawn markers.
-##   2. Interior Descent — 150 m lava-river cavern: 20 safe platforms (2 m across,
+##   2. Interior Descent - 150 m lava-river cavern: 20 safe platforms (2 m across,
 ##      3 m apart), lava contact = -50% max HP + checkpoint respawn, wall ledges
 ##      for ranged enemies. 15 spawn markers. Ends at the scripted lava pool.
-##   3. Boss Arena       — 30 m circular obsidian platform ringed by a lava moat,
+##   3. Boss Arena       - 30 m circular obsidian platform ringed by a lava moat,
 ##      4 weak-point markers (cardinal, 5 m out) and 8 eruption markers for the
 ##      Ember Tyrant (T-0021).
 ## Bakes the parent NavigationRegion3D at runtime.
@@ -283,7 +283,7 @@ func _on_checkpoint(body: Node, respawn: Vector3) -> void:
 func _build_spawns() -> void:
 	_marker(Vector3(0, 1.0, 6.0), "player_spawn")
 
-	# Ascent — 20 markers. First 8 sit next to the rock cover (shooters), the
+	# Ascent - 20 markers. First 8 sit next to the rock cover (shooters), the
 	# remaining 12 are spread down the open slope (rushers).
 	for i in 8:
 		var z := -24.0 - 22.0 * float(i)
@@ -294,7 +294,7 @@ func _build_spawns() -> void:
 		var x := -2.0 if i % 2 == 0 else 2.0
 		_marker(Vector3(x, slope_y(z) + 1.0, z), "spawn_point")
 
-	# Descent — 15 markers: 5 shooters on the wall ledges, 2 exploders and
+	# Descent - 15 markers: 5 shooters on the wall ledges, 2 exploders and
 	# 8 rushers on the connected floors (entrance ledge / pool chamber), where
 	# navmesh actually reaches the player.
 	for i in 5:

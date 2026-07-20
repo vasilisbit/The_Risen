@@ -4,7 +4,7 @@ extends StaticBody3D
 ## Destructible crystal for the Ember Tyrant's phase B (T-0021). 200 HP, glows
 ## orange and pulses with a matching audio cue so it reads as the thing to
 ## shoot. Sits on collision layer 1 so the hitscan weapons (T-0010) find it.
-## Destroying all four drops the boss's shield — see ember_tyrant.gd.
+## Destroying all four drops the boss's shield - see ember_tyrant.gd.
 
 signal destroyed(where: Vector3)
 
@@ -56,7 +56,7 @@ func take_damage(amount: float) -> void:
 		_shatter()
 
 
-## Crystals are small and uniform — no head zone, so weapons never crit them.
+## Crystals are small and uniform - no head zone, so weapons never crit them.
 func is_headshot(_world_point: Vector3) -> bool:
 	return false
 

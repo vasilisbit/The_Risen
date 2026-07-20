@@ -110,7 +110,7 @@ func _door_wall(z: float, has_door: bool) -> void:
 	_box(Vector3(-5.25, Y_ROOM + 2.5, z), Vector3(4.5, 5, T), _rock)      # left of door
 	_box(Vector3(5.25, Y_ROOM + 2.5, z), Vector3(4.5, 5, T), _rock)       # right of door
 	_box(Vector3(0, Y_ROOM + 4, z), Vector3(3, 2, T), _rock)             # lintel
-	# Blue portal panel filling the doorway (visual only — no collision).
+	# Blue portal panel filling the doorway (visual only - no collision).
 	_panel(Vector3(0, Y_ROOM + 1.5, z), Vector3(3, 3, 0.08), _portal)
 
 

@@ -4,7 +4,7 @@ extends Ability
 ## Support super (T-0023, GDD §2.4): a 5 m shield dome for 10 s that absorbs
 ## 1500 damage, 60 s cooldown.
 ##
-## The dome is anchored where it was cast, not to the player — it is cover you
+## The dome is anchored where it was cast, not to the player - it is cover you
 ## fall back to, and following the player would make it a personal bubble with
 ## no reason to ever leave it. Damage is only absorbed while the player is
 ## actually inside the radius. It ends on whichever comes first: the 1500 pool

@@ -94,7 +94,7 @@ func teleport() -> void:
 	teleports_done += 1
 
 
-## No shield gate — straight HP, with a one-off adds summon at 50%.
+## No shield gate - straight HP, with a one-off adds summon at 50%.
 func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
 		return

@@ -17,10 +17,10 @@ const WEAPON_KINDS := ["Auto Rifle", "Shotgun", "Sniper", "Hand Cannon"]
 const ARMOR_KINDS := ["Chest Plate", "Helmet", "Gauntlets"]
 const PICKUP_RADIUS := 2.0
 
-## When non-empty (and a known rarity), skips the roll and forces this rarity —
+## When non-empty (and a known rarity), skips the roll and forces this rarity -
 ## used for guaranteed boss drops. Set before the node enters the tree.
 @export var forced_rarity: String = ""
-## "weapon" (default) or "armor" — decides the kind pool and which SaveManager
+## "weapon" (default) or "armor" - decides the kind pool and which SaveManager
 ## inventory the pickup lands in. Set before the node enters the tree.
 @export var category: String = "weapon"
 ## Force one specific item name instead of rolling one. Set before tree entry.

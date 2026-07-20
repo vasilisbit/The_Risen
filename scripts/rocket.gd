@@ -4,7 +4,7 @@ extends Node3D
 ## Homing rocket fired by the Assault super, Storm Barrage (T-0023).
 ## 200 damage in an 8 m splash on impact (GDD §2.4).
 ##
-## This one DOES home, unlike every enemy projectile in the game — those were
+## This one DOES home, unlike every enemy projectile in the game - those were
 ## deliberately made linear so the player can strafe out of them. A player
 ## super that the player aims at nothing in particular has the opposite
 ## requirement: it should reliably hit what it was launched at.

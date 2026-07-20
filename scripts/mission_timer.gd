@@ -5,8 +5,8 @@ extends Node
 ## to the hub. On any other tier it removes itself, so the node can sit in every
 ## mission scene unconditionally.
 ##
-## This is the first thing in the game that can actually fail a mission — until
-## now death only cost a checkpoint — which is why Telemetry.mission_failed()
+## This is the first thing in the game that can actually fail a mission - until
+## now death only cost a checkpoint - which is why Telemetry.mission_failed()
 ## had an API but no caller.
 
 const WARN_AT := 60.0             # s remaining when the clock turns red
@@ -77,7 +77,7 @@ func _fail() -> void:
 		get_tree().change_scene_to_file(RETURN_SCENE)
 
 
-## Prefer the exported id, else the scene name — every mission scene is named
+## Prefer the exported id, else the scene name - every mission scene is named
 ## after its mission.
 func _mission() -> String:
 	if mission_id != "":

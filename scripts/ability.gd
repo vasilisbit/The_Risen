@@ -46,7 +46,7 @@ func cooldown_left() -> float:
 	return _cooldown_left
 
 
-## 0.0 while fully on cooldown, 1.0 when ready — what the radial HUD fills to.
+## 0.0 while fully on cooldown, 1.0 when ready - what the radial HUD fills to.
 func cooldown_fraction() -> float:
 	if cooldown_time <= 0.0:
 		return 1.0
@@ -89,7 +89,7 @@ func reset_cooldown() -> void:
 	became_ready.emit()
 
 
-## Subclass hook — the actual effect.
+## Subclass hook - the actual effect.
 func _execute() -> void:
 	pass
 

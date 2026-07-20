@@ -49,7 +49,7 @@ const TIERS: Array[Dictionary] = [
 		"id": LEGENDARY,
 		"title": "LEGENDARY",
 		"blurb": "Heroic, against the clock, with no second wind.",
-		"details": "Everything in Heroic.\n10 minute time limit — the mission fails at zero.\nYour shield never recharges.",
+		"details": "Everything in Heroic.\n10 minute time limit - the mission fails at zero.\nYour shield never recharges.",
 		"health_mult": 1.5,
 		"shield_fraction": 0.25,
 		"time_limit": 600.0,
@@ -102,7 +102,7 @@ func tier_of(id: String) -> Dictionary:
 	return {}
 
 
-## The tier actually in force for `mission_id` — Normal outside Earth/Venus.
+## The tier actually in force for `mission_id` - Normal outside Earth/Venus.
 func active_tier(mission_id: String) -> Dictionary:
 	if not APPLIES_TO.has(mission_id):
 		return tier_of(NORMAL)

@@ -68,7 +68,7 @@ func refresh() -> void:
 		if _labels.has(mission):
 			var label: Label3D = _labels[mission]
 			# A locked world still names itself, but says so. The suffix goes on
-			# its own line — inline, the three labels ran into each other.
+			# its own line - inline, the three labels ran into each other.
 			label.text = mission.to_upper() if unlocked else "%s\nLOCKED" % mission.to_upper()
 			label.set_meta("base_alpha", 0.95 if unlocked else 0.45)
 

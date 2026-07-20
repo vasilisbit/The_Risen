@@ -1,18 +1,18 @@
 class_name GrenadeAbility
 extends Ability
 
-## Grenade throw (T-0024). One ability for all three classes — the throw is
+## Grenade throw (T-0024). One ability for all three classes - the throw is
 ## identical, only the payload differs, so the class picks a grenade script and
 ## this reads the payload's own GRENADE_NAME / GRENADE_COLOR for the HUD.
 ##
 ## 30 s cooldown, bound to G. The grenade is a real RigidBody3D launched with an
 ## impulse, so the arc comes from the physics engine rather than a scripted
-## parabola — it bounces off walls and rolls down slopes on its own.
+## parabola - it bounces off walls and rolls down slopes on its own.
 
 const GRENADE_COOLDOWN := 30.0
 
 ## Tuned in-engine so a level throw LANDS ~10 m away (card: "τόξο 10m") with
-## roughly 20 degrees of loft, touching down around 1.0 s — comfortably inside
+## roughly 20 degrees of loft, touching down around 1.0 s - comfortably inside
 ## the 1.5 s fuse, so the grenade comes to rest near the target instead of
 ## airbursting mid-arc. The first pass at 12 m/s was still flying at the fuse
 ## and "landed" 15 m out.

@@ -12,7 +12,7 @@ signal died(where: Vector3)
 @export var loot_scene: PackedScene
 
 ## Local height (from the body origin at the feet) at/above which a hit counts
-## as a headshot — matches the 1.8 m capsule (top hemisphere).
+## as a headshot - matches the 1.8 m capsule (top hemisphere).
 const HEAD_MIN_LOCAL_Y := 1.4
 const LOOT_SCENE_PATH := "res://scenes/weapons/loot_drop.tscn"
 
@@ -35,7 +35,7 @@ var health: float = 100.0
 var stun_left: float = 0.0
 
 ## Heroic/Legendary shield pool (T-0027), absorbed before health. GDD §7 calls
-## for ELEMENTAL shields that must be matched by the weapon's element — weapons
+## for ELEMENTAL shields that must be matched by the weapon's element - weapons
 ## have no elements yet (mods are unimplemented), so this is the same mechanic
 ## without the matching rule. Wire the element check in when weapon mods land.
 var elemental_shield: float = 0.0
@@ -114,7 +114,7 @@ func is_pushed() -> bool:
 
 
 ## Advance stun/knockback and hold the enemy while either is active. Returns
-## true while the caller should skip the rest of its _physics_process —
+## true while the caller should skip the rest of its _physics_process -
 ## subclasses call this right after their `_dead` guard. Gravity still applies,
 ## so an affected enemy falls instead of hanging in mid-air.
 func _tick_status(delta: float) -> bool:
@@ -242,7 +242,7 @@ func _drop_loot(where: Vector3) -> void:
 	# Force rarity (e.g. boss Epic) before the drop enters the tree and rolls.
 	if loot_rarity_override != "" and ("forced_rarity" in drop):
 		drop.forced_rarity = loot_rarity_override
-	# Parent to the scene (not self — we are about to free) so the drop persists.
+	# Parent to the scene (not self - we are about to free) so the drop persists.
 	var host := get_tree().current_scene
 	if host == null:
 		host = get_tree().root

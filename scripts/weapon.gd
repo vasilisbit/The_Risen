@@ -19,7 +19,7 @@ extends Node3D
 
 signal state_changed                       # ammo / reload changed
 
-## Scales outgoing damage — Mars wave buffs raise this (e.g. +20% -> 1.2).
+## Scales outgoing damage - Mars wave buffs raise this (e.g. +20% -> 1.2).
 ## Buff picks SET this rather than stacking it, hence the separate class field.
 var damage_multiplier: float = 1.0
 ## Class passive damage bonus (Assault: 1.1). Kept apart from

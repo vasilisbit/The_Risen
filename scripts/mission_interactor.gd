@@ -48,7 +48,7 @@ func try_interact() -> void:
 func _launch_mission(mission: String) -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("is_mission_unlocked") and not sm.is_mission_unlocked(mission):
-		_notify("%s is locked — complete %s first." % [mission, _previous_mission(mission)])
+		_notify("%s is locked - complete %s first." % [mission, _previous_mission(mission)])
 		return
 	if not MISSION_SCENES.has(mission):
 		print("Mission not implemented yet: %s" % mission)
