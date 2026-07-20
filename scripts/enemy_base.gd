@@ -31,8 +31,13 @@ var loot_rarity_override: String = ""
 
 var max_health: float = 100.0
 var health: float = 100.0
-## Seconds of Flashbang blindness left; while > 0 the enemy takes no actions.
+## Seconds of stun left; while > 0 the enemy takes no actions.
 var stun_left: float = 0.0
+
+## Knockback displacement budget (Ground Slam), spent over PUSH_TIME seconds.
+const PUSH_TIME := 0.3
+var _push_velocity: Vector3 = Vector3.ZERO
+var _push_time_left: float = 0.0
 var _dead: bool = false
 var _player: Node3D = null
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
@@ -60,8 +65,9 @@ func _halt_horizontal() -> void:
 	velocity.z = 0.0
 
 
-## Blind/stun this enemy (Flashbang, T-0024). Takes the longer of the current
-## and new duration so a second flash can't cut an existing one short.
+## Blind/stun this enemy (Flashbang T-0024, EMP Punch T-0025). Takes the longer
+## of the current and new duration so a second application can't cut an
+## existing one short.
 func stun(seconds: float) -> void:
 	stun_left = maxf(stun_left, seconds)
 
@@ -70,18 +76,37 @@ func is_stunned() -> bool:
 	return stun_left > 0.0
 
 
-## Advance the stun timer and hold the enemy in place. Returns true while the
-## caller should skip the rest of its _physics_process — subclasses call this
-## right after their `_dead` guard. Gravity still applies, so a stunned enemy
-## falls instead of hanging in mid-air.
-func _tick_stun(delta: float) -> bool:
-	if stun_left <= 0.0:
+## Shove this enemy a precise distance (Ground Slam, T-0025). Mirrors
+## Guardian.apply_push(): a displacement budget spent over PUSH_TIME and
+## applied with move_and_collide, so the travel is exactly offset.length()
+## regardless of frame rate, and walls still stop it.
+func apply_push(offset: Vector3) -> void:
+	if _dead or offset == Vector3.ZERO:
+		return
+	_push_velocity = offset / PUSH_TIME
+	_push_time_left = PUSH_TIME
+
+
+func is_pushed() -> bool:
+	return _push_time_left > 0.0
+
+
+## Advance stun/knockback and hold the enemy while either is active. Returns
+## true while the caller should skip the rest of its _physics_process —
+## subclasses call this right after their `_dead` guard. Gravity still applies,
+## so an affected enemy falls instead of hanging in mid-air.
+func _tick_status(delta: float) -> bool:
+	if stun_left <= 0.0 and _push_time_left <= 0.0:
 		return false
 	stun_left = maxf(0.0, stun_left - delta)
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	_halt_horizontal()
 	move_and_slide()
+	if _push_time_left > 0.0:
+		var push_dt: float = minf(delta, _push_time_left)
+		move_and_collide(_push_velocity * push_dt)
+		_push_time_left -= push_dt
 	return true
 
 

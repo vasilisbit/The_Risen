@@ -45,7 +45,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
-	if _tick_stun(delta):
+	if _tick_status(delta):
 		return
 	_melee_timer = maxf(0.0, _melee_timer - delta)
 	_slam_timer = maxf(0.0, _slam_timer - delta)
