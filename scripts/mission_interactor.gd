@@ -7,11 +7,12 @@ extends RayCast3D
 
 signal mission_selected(mission: String)
 
-## Mission planet -> level scene. Only Earth is built so far; others fall through
-## to a debug print until their levels exist.
+## Mission planet -> level scene. All three are built; anything not listed falls
+## through to a debug print. Unlock gating is handled by SaveManager.
 const MISSION_SCENES := {
 	"Earth": "res://scenes/missions/earth/earth.tscn",
 	"Mars": "res://scenes/missions/mars/mars.tscn",
+	"Venus": "res://scenes/missions/venus/venus.tscn",
 }
 
 

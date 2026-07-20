@@ -11,19 +11,33 @@ signal all_complete
 @export var mission_id: String = "Earth"
 @export var return_scene: String = "res://scenes/hub/hub.tscn"
 
-# Ordered objectives. "kill" uses target; "flag" objectives are completed by
-# notify_flag(<flag>).
-var _objectives: Array = [
-	{"text": "Eliminate enemies", "type": "kill", "target": 30, "current": 0, "done": false},
-	{"text": "Retrieve the Archive Core", "type": "flag", "flag": "archive", "done": false},
-	{"text": "Defeat the Shielded Brute", "type": "flag", "flag": "boss", "done": false},
-]
+# Ordered objectives per mission. "kill" uses target; "flag" objectives are
+# completed by notify_flag(<flag>). Picked by mission_id at _ready().
+const MISSION_OBJECTIVES := {
+	"Earth": [
+		{"text": "Eliminate enemies", "type": "kill", "target": 30, "current": 0, "done": false},
+		{"text": "Retrieve the Archive Core", "type": "flag", "flag": "archive", "done": false},
+		{"text": "Defeat the Shielded Brute", "type": "flag", "flag": "boss", "done": false},
+	],
+	# GDD §3.4. The final objective is fired by the Ember Tyrant (T-0021).
+	"Venus": [
+		{"text": "Climb to the volcano summit", "type": "flag", "flag": "summit", "done": false},
+		{"text": "Descend to the lava river", "type": "flag", "flag": "descent", "done": false},
+		{"text": "Dive into the lava pool", "type": "flag", "flag": "pool", "done": false},
+		{"text": "Defeat the Ember Tyrant", "type": "flag", "flag": "boss", "done": false},
+	],
+}
+
+var _objectives: Array = []
 var _index: int = 0
 var _complete: bool = false
 var _labels: Array[Label] = []
 
 
 func _ready() -> void:
+	# duplicate(true): the const table is read-only, and we mutate progress.
+	var list: Array = MISSION_OBJECTIVES.get(mission_id, [])
+	_objectives = list.duplicate(true)
 	_build_ui()
 	_refresh_ui()
 
@@ -38,7 +52,7 @@ func is_complete() -> bool:
 
 ## Count one kill toward the current objective (if it is a "kill" objective).
 func register_kill() -> void:
-	if _complete:
+	if _complete or _index >= _objectives.size():
 		return
 	var o: Dictionary = _objectives[_index]
 	if o["type"] != "kill":
@@ -51,7 +65,7 @@ func register_kill() -> void:
 
 ## Complete the current objective if it is a matching "flag" objective.
 func notify_flag(flag: String) -> void:
-	if _complete:
+	if _complete or _index >= _objectives.size():
 		return
 	var o: Dictionary = _objectives[_index]
 	if o["type"] == "flag" and o.get("flag", "") == flag:
