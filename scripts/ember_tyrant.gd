@@ -79,6 +79,7 @@ var _body_mat: StandardMaterial3D
 
 func _init() -> void:
 	max_health = TOTAL_HEALTH
+	flux_value = 150
 
 
 func _ready() -> void:

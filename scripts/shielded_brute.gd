@@ -33,6 +33,7 @@ var _shield_vfx: MeshInstance3D
 
 func _init() -> void:
 	max_health = 1500.0
+	flux_value = 50
 	loot_rarity_override = "Epic"          # guaranteed Epic on death
 
 

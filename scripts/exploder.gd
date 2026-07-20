@@ -30,6 +30,7 @@ var _beep_accum: float = 0.0
 
 func _init() -> void:
 	max_health = 50.0
+	flux_value = 4
 
 
 func _ready() -> void:

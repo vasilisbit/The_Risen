@@ -28,6 +28,7 @@ var _adds_spawned: bool = false
 
 func _init() -> void:
 	max_health = 1800.0
+	flux_value = 75
 
 
 func _ready() -> void:
