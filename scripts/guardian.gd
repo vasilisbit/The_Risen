@@ -8,7 +8,9 @@ extends CharacterBody3D
 # --- Movement tuning (TDD §4.1) ---
 const WALK_SPEED := 6.0          # m/s
 const SPRINT_SPEED := 9.0        # m/s
-const JUMP_HEIGHT := 5.0         # m (peak); jump velocity derived from gravity
+const JUMP_HEIGHT := 2.0         # m (peak); jump velocity derived from gravity
+                                 # Tuned down from TDD §4.1's 5 m after playtest
+                                 # feedback that the jump felt far too floaty.
 
 # --- Camera / look ---
 const MOUSE_SENSITIVITY := 0.003
@@ -41,6 +43,7 @@ var gravity_scale: float = 1.0
 ## Fall-respawn point (Mars platforming); updated by checkpoint triggers.
 var checkpoint: Vector3
 
+var _air_speed: float = WALK_SPEED     # horizontal speed locked in at take-off
 var _knockback: Vector3 = Vector3.ZERO
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
@@ -99,7 +102,13 @@ func _physics_process(delta: float) -> void:
 
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
-	var speed := SPRINT_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
+	# Sprint only counts while grounded: the horizontal speed is locked in at
+	# take-off, so tapping sprint mid-air can't extend a jump. Direction is
+	# still steerable in the air, just at the speed you launched with.
+	var ground_speed := SPRINT_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
+	if is_on_floor():
+		_air_speed = ground_speed
+	var speed := ground_speed if is_on_floor() else _air_speed
 
 	if direction != Vector3.ZERO:
 		velocity.x = direction.x * speed
