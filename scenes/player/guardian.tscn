@@ -91,24 +91,11 @@ text = "+"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Ammo" type="Label" parent="DebugHUD" unique_id=1134565764]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = -44.0
-offset_right = 420.0
-offset_bottom = -14.0
-text = "Auto Rifle   30 / 30"
-
 [node name="Inventory" type="Label" parent="DebugHUD" unique_id=301877071]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -74.0
+offset_top = 132.0
 offset_right = 420.0
-offset_bottom = -46.0
+offset_bottom = 156.0
 text = "Inventory: 0"
 script = ExtResource("4_6t5an")
 
