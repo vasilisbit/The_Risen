@@ -62,12 +62,12 @@ func _physics_process(delta: float) -> void:
 func _chase() -> void:
 	_agent.target_position = _player.global_position
 	var next := _agent.get_next_path_position()
-	var dir := next - global_position
-	dir.y = 0.0
+	var dir := _nav_dir(next, _player.global_position)
 	if dir.length() > 0.05:
 		dir = dir.normalized()
-		velocity.x = dir.x * SPRINT_SPEED
-		velocity.z = dir.z * SPRINT_SPEED
+		var spd := SPRINT_SPEED * EnemyBase.speed_scale
+		velocity.x = dir.x * spd
+		velocity.z = dir.z * spd
 		_face(global_position + dir)
 	else:
 		_halt_horizontal()

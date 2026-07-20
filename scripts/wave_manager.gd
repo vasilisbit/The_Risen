@@ -15,6 +15,7 @@ const RUSHER := "res://scenes/enemies/rusher.tscn"
 const SHOOTER := "res://scenes/enemies/shooter.tscn"
 const EXPLODER := "res://scenes/enemies/exploder.tscn"
 const PORTAL_SCENE := "res://scenes/vfx/portal_vfx.tscn"
+const BUFF_UI_SCENE := "res://ui/buff_select.tscn"
 
 const STAGGER := 0.5           # s between successive portal openings
 const PORTAL_LEAD := 2.0       # s a portal is visible before its enemy appears
@@ -52,6 +53,8 @@ var _started: bool = false
 
 
 func _ready() -> void:
+	# Enemy modifiers are static, so clear any left over from a previous run.
+	EnemyBase.reset_modifiers()
 	_build_ui()
 	_update_label("Reach the Nexus Chamber")
 
@@ -225,67 +228,50 @@ func _update_label(override_text: String = "") -> void:
 	_label.text = "Wave %d/%d    Enemies: %d" % [wave_index + 1, WAVES.size(), remaining]
 
 
+## Open the T-0018 selection UI (3 random buff/debuff options, 10 s auto-pick).
 func _show_buff_ui() -> void:
+	var scene := load(BUFF_UI_SCENE)
+	if scene == null:
+		start_wave(wave_index + 1)
+		return
 	_buff_layer = CanvasLayer.new()
 	_buff_layer.layer = 20
 	add_child(_buff_layer)
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.5)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_buff_layer.add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_buff_layer.add_child(center)
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	center.add_child(vbox)
-	var title := Label.new()
-	title.text = "CHOOSE A BUFF"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	vbox.add_child(title)
-	for opt in [["damage", "+20% Weapon Damage"], ["health", "+50 Max HP"], ["armor", "-15% Damage Taken"]]:
-		var b := Button.new()
-		b.text = opt[1]
-		b.custom_minimum_size = Vector2(320, 44)
-		var id: String = opt[0]
-		b.pressed.connect(func() -> void: _choose_buff(id))
-		vbox.add_child(b)
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_auto_pick_after(BUFF_TIMEOUT)
+	var ui := scene.instantiate() as Control
+	_buff_layer.add_child(ui)
+	ui.option_chosen.connect(_on_option_chosen)
 
 
-func _auto_pick_after(seconds: float) -> void:
-	await get_tree().create_timer(seconds).timeout
+func _on_option_chosen(id: String) -> void:
+	apply_modifier(id)
 	if _buff_layer != null and is_instance_valid(_buff_layer):
-		_choose_buff("damage")          # auto-select if the player didn't pick
-
-
-func _choose_buff(id: String) -> void:
-	if _buff_layer == null or not is_instance_valid(_buff_layer):
-		return
-	apply_buff(id)
-	_buff_layer.queue_free()
+		_buff_layer.queue_free()
 	_buff_layer = null
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	start_wave(wave_index + 1)
 
 
-## Apply a buff to the player. Public so it is unit-testable.
-func apply_buff(id: String) -> void:
+## Apply a buff/debuff. Modifiers are SET per type (not stacked), so a pick lasts
+## until the mission ends or the same type is picked again — matching the card's
+## "until the end of the mission or the next pick". Public for testing.
+func apply_modifier(id: String) -> void:
 	var player := get_tree().get_first_node_in_group("player")
-	if player == null:
-		return
 	match id:
 		"damage":
-			var wm := player.get_node_or_null("WeaponManager")
-			if wm and ("_weapons" in wm):
-				for w in wm._weapons:
-					w.damage_multiplier *= 1.2
+			if player:
+				var wm := player.get_node_or_null("WeaponManager")
+				if wm and ("_weapons" in wm):
+					for w in wm._weapons:
+						w.damage_multiplier = 1.2
 		"health":
-			player.max_health_bonus += 50.0
-			player.health += 50.0
-			player.health_changed.emit(player.health, player.max_hp())
+			if player:
+				var delta: float = 50.0 - float(player.max_health_bonus)
+				player.max_health_bonus = 50.0
+				player.health = minf(player.health + maxf(delta, 0.0), player.max_hp())
+				player.health_changed.emit(player.health, player.max_hp())
 		"armor":
-			player.damage_reduction = clampf(player.damage_reduction + 0.15, 0.0, 0.9)
+			if player:
+				player.damage_reduction = 0.15
+		"enemy_speed":
+			EnemyBase.speed_scale = 0.9          # -10% enemy movement
+		"enemy_accuracy":
+			EnemyBase.accuracy_penalty = 0.05    # -5% enemy accuracy
