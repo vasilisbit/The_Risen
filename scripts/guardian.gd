@@ -81,9 +81,8 @@ var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
 var _death_screen: CanvasLayer
-var _super_hud: Control
-var _grenade_hud: Control
-var _melee_hud: Control
+var _ability_hud: Control
+var _weapon_hud: Control
 
 const RESPAWN_DELAY := 2.5    # s before respawning at the spawn point
 const FALL_PENALTY := 10.0    # HP lost on a fall respawn (GDD §3.3)
@@ -242,9 +241,10 @@ func _build_kit(stats: Dictionary) -> void:
 	else:
 		grenade_ability = null
 
-	_bind_hud(_super_hud, super_ability)
-	_bind_hud(_grenade_hud, grenade_ability)
-	_bind_hud(_melee_hud, melee_ability)
+	if _ability_hud:
+		_ability_hud.super_ability = super_ability
+		_ability_hud.grenade_ability = grenade_ability
+		_ability_hud.melee_ability = melee_ability
 
 
 func _make_ability(script_path: String) -> Ability:
@@ -257,11 +257,6 @@ func _make_ability(script_path: String) -> Ability:
 	ability.player = self
 	add_child(ability)
 	return ability
-
-
-func _bind_hud(hud: Control, ability: Ability) -> void:
-	if hud:
-		hud.ability = ability
 
 
 func _apply_class_weapon_bonus(mult: float) -> void:
@@ -412,24 +407,24 @@ func _respawn() -> void:
 	shield_changed.emit(shield, MAX_SHIELD)
 
 
-## Radial cooldown rings, bottom-right of the existing debug HUD layer.
-## Slot 0 is the rightmost (super), then grenade, then melee to its left.
+## Destiny-style HUD: the ability cluster bottom-left (super diamond + grenade
+## and melee tiles) and the weapon panel bottom-right. One cluster owns all
+## three ability slots so they can share a layout — the earlier design was a
+## separate node per ability and couldn't.
 func _build_ability_hud() -> void:
 	var layer := get_node_or_null("DebugHUD")
 	if layer == null:
 		return
-	_super_hud = _make_ring(layer, "SuperHUD", 0)
-	_grenade_hud = _make_ring(layer, "GrenadeHUD", 1)
-	_melee_hud = _make_ring(layer, "MeleeHUD", 2)
+	_ability_hud = Control.new()
+	_ability_hud.name = "AbilityHUD"
+	_ability_hud.set_script(load("res://scripts/ability_hud.gd"))
+	layer.add_child(_ability_hud)
 
-
-func _make_ring(layer: Node, ring_name: String, slot: int) -> Control:
-	var ring := Control.new()
-	ring.name = ring_name
-	ring.set_script(load("res://scripts/ability_hud.gd"))
-	ring.slot = slot                  # must be set before _ready lays it out
-	layer.add_child(ring)
-	return ring
+	_weapon_hud = Control.new()
+	_weapon_hud.name = "WeaponHUD"
+	_weapon_hud.set_script(load("res://scripts/weapon_hud.gd"))
+	_weapon_hud.weapon_manager = get_node_or_null("WeaponManager")
+	layer.add_child(_weapon_hud)
 
 
 func _build_death_screen() -> void:
