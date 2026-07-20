@@ -40,6 +40,10 @@ const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
 
 ## Multiplies gravity — a low-gravity Area3D (Mars) sets this to 0.4.
 var gravity_scale: float = 1.0
+## Fraction of incoming damage ignored (Mars buff: -15% -> 0.15).
+var damage_reduction: float = 0.0
+## Extra max health from buffs (+50 HP option).
+var max_health_bonus: float = 0.0
 ## Fall-respawn point (Mars platforming); updated by checkpoint triggers.
 var checkpoint: Vector3
 
@@ -63,7 +67,7 @@ func _ready() -> void:
 	checkpoint = global_position
 	_build_death_screen()
 	# TODO(T-0004): apply class stat modifiers from SaveManager at spawn.
-	health_changed.emit(health, MAX_HEALTH)
+	health_changed.emit(health, max_hp())
 	shield_changed.emit(shield, MAX_SHIELD)
 
 
@@ -133,11 +137,17 @@ func _update_shield(delta: float) -> void:
 		shield_changed.emit(shield, MAX_SHIELD)
 
 
+## Effective max health (base + buff bonus).
+func max_hp() -> float:
+	return MAX_HEALTH + max_health_bonus
+
+
 ## Apply incoming damage: shield absorbs first, overflow hits health.
 ## Resets the shield recharge delay.
 func take_damage(amount: float) -> void:
 	if amount <= 0.0:
 		return
+	amount *= (1.0 - clampf(damage_reduction, 0.0, 0.9))
 	_time_since_damage = 0.0
 
 	if shield > 0.0:
@@ -150,7 +160,7 @@ func take_damage(amount: float) -> void:
 
 	if amount > 0.0:
 		health = maxf(0.0, health - amount)
-		health_changed.emit(health, MAX_HEALTH)
+		health_changed.emit(health, max_hp())
 		if health <= 0.0 and not is_dead:
 			_on_death()
 
@@ -176,7 +186,7 @@ func fall_respawn() -> void:
 	velocity = Vector3.ZERO
 	_knockback = Vector3.ZERO
 	health = maxf(1.0, health - FALL_PENALTY)
-	health_changed.emit(health, MAX_HEALTH)
+	health_changed.emit(health, max_hp())
 
 
 func _on_death() -> void:
@@ -193,7 +203,7 @@ func _on_death() -> void:
 func _respawn() -> void:
 	global_position = _spawn_point
 	velocity = Vector3.ZERO
-	health = MAX_HEALTH
+	health = max_hp()
 	shield = MAX_SHIELD
 	_time_since_damage = SHIELD_RECHARGE_DELAY
 	is_dead = false
@@ -202,7 +212,7 @@ func _respawn() -> void:
 		$WeaponManager.set_process(true)
 	if _death_screen:
 		_death_screen.visible = false
-	health_changed.emit(health, MAX_HEALTH)
+	health_changed.emit(health, max_hp())
 	shield_changed.emit(shield, MAX_SHIELD)
 
 
