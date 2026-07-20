@@ -117,7 +117,7 @@ func _build_labels() -> void:
 	_name_label = _make_label(14, HORIZONTAL_ALIGNMENT_LEFT)
 	_name_label.modulate = DIM
 	add_child(_name_label)
-	_ammo_label = _make_label(40, HORIZONTAL_ALIGNMENT_RIGHT)
+	_ammo_label = _make_label(32, HORIZONTAL_ALIGNMENT_RIGHT)
 	add_child(_ammo_label)
 	_reserve_label = _make_label(18, HORIZONTAL_ALIGNMENT_CENTER)
 	_reserve_label.modulate = DIM
@@ -148,21 +148,23 @@ func _sync() -> void:
 	var w: Weapon = weapons[active]
 	var head_h := HEAD_HEIGHT
 
-	# Name on its own line at the top, count below — they collided when the
-	# head block was short enough for both to want the vertical centre.
-	_name_label.position = Vector2(14, 5)
-	_name_label.size = Vector2(PANEL.x - 30, 18)
+	# Name on its own line at the top, count below. Everything is sized to sit
+	# inside HEAD_HEIGHT — the count used to be a 48 px box starting at the
+	# vertical centre, which pushed its bottom past the panel edge.
+	_name_label.position = Vector2(14, 4)
+	_name_label.size = Vector2(PANEL.x - 30, 16)
 	_name_label.text = "%s%s" % [w.weapon_name.to_upper(),
 		"   RELOADING" if w.is_reloading() else ""]
 
-	_ammo_label.position = Vector2(PANEL.x - 210, head_h * 0.5 - 12)
-	_ammo_label.size = Vector2(140, 48)
+	var divider := PANEL.x - 62.0
+	_ammo_label.position = Vector2(PANEL.x - 210, 22)
+	_ammo_label.size = Vector2(divider - 8.0 - (PANEL.x - 210), head_h - 26)
 	_ammo_label.text = str(w.ammo)
 	# Flash the count red when the magazine is empty.
 	_ammo_label.modulate = Color(1.0, 0.45, 0.4) if w.ammo <= 0 else Color(1, 1, 1)
 
-	_reserve_label.position = Vector2(PANEL.x - 62, head_h * 0.5 - 2)
-	_reserve_label.size = Vector2(56, 26)
+	_reserve_label.position = Vector2(divider + 4.0, 24)
+	_reserve_label.size = Vector2(PANEL.x - divider - 12.0, head_h - 28)
 	_reserve_label.text = "INF"
 
 	var slot := 0

@@ -46,6 +46,11 @@ func tick(delta: float) -> void:
 			_reloading = false
 			ammo = mag_size
 			state_changed.emit()
+	elif ammo <= 0:
+		# Empty magazines reload themselves: dry-firing and waiting for the
+		# player to press R does nothing useful. Manual reload still works
+		# early, and this lives in tick() so any Weapon user gets it.
+		start_reload()
 
 
 func is_reloading() -> bool:
