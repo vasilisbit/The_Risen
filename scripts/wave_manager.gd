@@ -16,6 +16,7 @@ const SHOOTER := "res://scenes/enemies/shooter.tscn"
 const EXPLODER := "res://scenes/enemies/exploder.tscn"
 const PORTAL_SCENE := "res://scenes/vfx/portal_vfx.tscn"
 const BUFF_UI_SCENE := "res://ui/buff_select.tscn"
+const PHANTOM := "res://scenes/enemies/phantom.tscn"
 
 const STAGGER := 0.5           # s between successive portal openings
 const PORTAL_LEAD := 2.0       # s a portal is visible before its enemy appears
@@ -93,6 +94,11 @@ func _spawn_wave(index: int) -> void:
 		var m: Node3D = markers[randi() % markers.size()]
 		_spawn_one(t, m.global_position)
 		await get_tree().create_timer(STAGGER).timeout
+	# Final wave also brings the Teleporting Phantom mini-boss (T-0019). It goes
+	# through the same portal telegraph and counts toward the clear condition.
+	if index == WAVES.size() - 1:
+		var bm: Node3D = markers[randi() % markers.size()]
+		_spawn_one(PHANTOM, bm.global_position)
 	_spawn_done = true
 	_check_cleared()
 

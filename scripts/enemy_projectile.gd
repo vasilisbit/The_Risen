@@ -11,6 +11,8 @@ const LIFETIME := 5.0          # s
 const TARGET_CHEST := Vector3(0.0, 1.0, 0.0)
 
 var damage: float = 100.0
+## Bolt tint — set before the node enters the tree (the Phantom fires purple).
+var bolt_color: Color = Color(1.0, 0.55, 0.1)
 var _dir: Vector3 = Vector3.FORWARD
 var _shooter_rid: RID
 var _life: float = 0.0
@@ -31,9 +33,9 @@ func _ready() -> void:
 	sphere.height = 0.24
 	mi.mesh = sphere
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.55, 0.1)
+	mat.albedo_color = bolt_color
 	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.5, 0.1)
+	mat.emission = bolt_color
 	mat.emission_energy_multiplier = 2.5
 	mi.material_override = mat
 	add_child(mi)
