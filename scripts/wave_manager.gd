@@ -79,6 +79,12 @@ func start_wave(index: int) -> void:
 	_pending = 0
 	_spawn_done = false
 	_wave_active = true
+	# Each wave is a checkpoint. Mars has no ObjectiveManager, and without this
+	# a death on wave 11 would drop the player back at the last platforming
+	# checkpoint, outside the chambers entirely.
+	var p := get_tree().get_first_node_in_group("player")
+	if p and p.has_method("checkpoint_here"):
+		p.checkpoint_here()
 	wave_started.emit(index + 1)
 	_update_label()
 	_spawn_wave(index)

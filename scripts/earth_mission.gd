@@ -40,6 +40,11 @@ func _physics_process(_delta: float) -> void:
 
 func _spawn_zone(zone: int) -> void:
 	_zone_spawned[zone] = true
+	# Entering a zone is a checkpoint: "eliminate 30 enemies" spans all three
+	# zones, so without this a death in the rooftop fight would send the player
+	# back to the street.
+	if _obj:
+		_obj.checkpoint_at_player()
 	var host := get_tree().current_scene
 	var markers := _zone_markers(zone)
 	for i in markers.size():

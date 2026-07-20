@@ -24,6 +24,13 @@ const SHIELD_RECHARGE_DELAY := 3.0   # s of no damage before recharge starts
 const SHIELD_RECHARGE_RATE := 25.0   # shield HP per second
 const DEBUG_DAMAGE_AMOUNT := 25.0    # applied by the "debug_damage" action
 
+## Class passives (T-0022, GDD §2.4). Supers/grenades/melee are T-0023..25.
+const CLASS_STATS := {
+	"Assault": {"damage_multiplier": 1.1, "max_health_bonus": 0.0, "damage_reduction": 0.0},
+	"Support": {"damage_multiplier": 1.0, "max_health_bonus": 50.0, "damage_reduction": 0.0},
+	"Tank":    {"damage_multiplier": 1.0, "max_health_bonus": 0.0, "damage_reduction": 0.2},
+}
+
 signal health_changed(current: float, maximum: float)
 signal shield_changed(current: float, maximum: float)
 signal shield_depleted
@@ -69,7 +76,8 @@ func _ready() -> void:
 	_spawn_point = global_position
 	checkpoint = global_position
 	_build_death_screen()
-	# TODO(T-0004): apply class stat modifiers from SaveManager at spawn.
+	apply_class_stats()
+	health = max_hp()          # spawn at full, including the Support bonus
 	health_changed.emit(health, max_hp())
 	shield_changed.emit(shield, MAX_SHIELD)
 
@@ -151,9 +159,35 @@ func _update_shield(delta: float) -> void:
 		shield_changed.emit(shield, MAX_SHIELD)
 
 
-## Effective max health (base + buff bonus).
+## Effective max health (base + class/buff bonus).
 func max_hp() -> float:
 	return MAX_HEALTH + max_health_bonus
+
+
+## Apply the saved class's passive (T-0022, GDD §2.4). Called at spawn.
+##   Assault +10% weapon damage / Support +50 max HP / Tank -20% damage taken.
+## Public so it can be re-applied (and tested) after a class change without
+## reloading the scene. Idempotent: each passive is SET, never accumulated.
+func apply_class_stats() -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	var chosen: String = String(sm.data.get("selected_class", "Assault")) if sm else "Assault"
+	var stats: Dictionary = CLASS_STATS.get(chosen, CLASS_STATS["Assault"])
+
+	max_health_bonus = float(stats["max_health_bonus"])
+	damage_reduction = float(stats["damage_reduction"])
+	health = minf(health, max_hp())
+	if health <= 0.0:
+		health = max_hp()
+	_apply_class_weapon_bonus(float(stats["damage_multiplier"]))
+	health_changed.emit(health, max_hp())
+
+
+func _apply_class_weapon_bonus(mult: float) -> void:
+	var wm := get_node_or_null("WeaponManager")
+	if wm == null or not ("_weapons" in wm):
+		return
+	for w in wm._weapons:
+		w.class_multiplier = mult
 
 
 ## Apply incoming damage: shield absorbs first, overflow hits health.
@@ -198,9 +232,28 @@ func apply_push(offset: Vector3) -> void:
 	_push_time_left = PUSH_TIME
 
 
-## Set the fall-respawn point (Mars checkpoint triggers).
+## Move the respawn point. Used by the level checkpoint triggers (Mars
+## platforms, Venus climb) and by the mission drivers as objectives advance, so
+## dying never sends the player back to the very start of a long level.
 func set_checkpoint(pos: Vector3) -> void:
 	checkpoint = pos
+
+
+## Checkpoint wherever the player is standing right now, dropped onto the floor
+## beneath them so a checkpoint taken mid-jump doesn't respawn them in mid-air.
+## Callers use this instead of an authored per-objective point because a
+## hand-placed point can sit ahead of the player and teleport them forward.
+func checkpoint_here() -> void:
+	if is_on_floor():
+		checkpoint = global_position
+		return
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(
+		global_position + Vector3(0, 0.5, 0), global_position + Vector3(0, -8.0, 0), 1)
+	var skip: Array[RID] = [get_rid()]
+	query.exclude = skip
+	var hit := space.intersect_ray(query)
+	checkpoint = (hit["position"] as Vector3) + Vector3(0, 0.2, 0) if not hit.is_empty() else global_position
 
 
 ## Respawn at the last checkpoint after a fall (fall damage disabled — a flat
@@ -244,9 +297,14 @@ func _on_death() -> void:
 	get_tree().create_timer(RESPAWN_DELAY).timeout.connect(_respawn)
 
 
+## Respawn after death at the last checkpoint, NOT at the level spawn point —
+## on Venus that would be a 200 m climb away. `checkpoint` starts at the spawn
+## point, so a level with no checkpoints behaves exactly as it did before.
 func _respawn() -> void:
-	global_position = _spawn_point
+	global_position = checkpoint
 	velocity = Vector3.ZERO
+	_knockback = Vector3.ZERO
+	_push_time_left = 0.0
 	health = max_hp()
 	shield = MAX_SHIELD
 	_time_since_damage = SHIELD_RECHARGE_DELAY

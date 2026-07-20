@@ -76,10 +76,23 @@ func notify_flag(flag: String) -> void:
 func _advance() -> void:
 	_objectives[_index]["done"] = true
 	_index += 1
+	checkpoint_at_player()
 	if _index >= _objectives.size():
 		_on_all_complete()
 	else:
 		objective_advanced.emit(_index)
+
+
+## Anchor the respawn point to wherever the player is standing when an
+## objective completes, so dying sends them back to their current objective
+## rather than the level entrance. Deliberately uses the player's own position
+## instead of an authored point per objective: a hand-placed point can sit
+## ahead of the player and would then teleport them *forward* on death.
+## Public so the mission drivers can also call it at finer-grained beats.
+func checkpoint_at_player() -> void:
+	var player := get_tree().get_first_node_in_group("player")
+	if player and player.has_method("checkpoint_here"):
+		player.checkpoint_here()
 
 
 func _on_all_complete() -> void:
