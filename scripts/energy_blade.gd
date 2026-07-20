@@ -23,7 +23,7 @@ func _strike() -> void:
 	last_hits = 0
 	for e in _targets_in_cone(REACH, HALF_ARC_DEG):
 		if e.has_method("take_damage"):
-			e.take_damage(_damage(DAMAGE))
+			_hit(e, _damage(DAMAGE))
 			last_hits += 1
 
 

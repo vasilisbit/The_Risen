@@ -13,6 +13,8 @@ const TARGET_CHEST := Vector3(0.0, 1.0, 0.0)
 var damage: float = 100.0
 ## Bolt tint — set before the node enters the tree (the Phantom fires purple).
 var bolt_color: Color = Color(1.0, 0.55, 0.1)
+## Who fired it, for PlayerDeath attribution (T-0026). Set by the shooter.
+var source_name: String = "Projectile"
 var _dir: Vector3 = Vector3.FORWARD
 var _shooter_rid: RID
 var _life: float = 0.0
@@ -73,5 +75,5 @@ func _physics_process(delta: float) -> void:
 
 func _hit_player(node: Node) -> void:
 	if node.has_method("take_damage"):
-		node.take_damage(damage)
+		node.take_damage(damage, source_name)
 	queue_free()

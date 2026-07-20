@@ -38,6 +38,9 @@ func _ready() -> void:
 	# duplicate(true): the const table is read-only, and we mutate progress.
 	var list: Array = MISSION_OBJECTIVES.get(mission_id, [])
 	_objectives = list.duplicate(true)
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.mission_started(mission_id)
 	_build_ui()
 	_refresh_ui()
 
@@ -99,6 +102,9 @@ func _on_all_complete() -> void:
 	_complete = true
 	all_complete.emit()
 	_refresh_ui()
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.mission_completed(mission_id)
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("complete_mission"):
 		sm.complete_mission(mission_id)

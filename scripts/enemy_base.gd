@@ -153,12 +153,42 @@ func play_sfx(id: String) -> void:
 		audio.play_sfx(id, global_position)
 
 
+## What last damaged this enemy, for the EnemyKilled telemetry event (T-0026).
+## Recorded on the enemy rather than logged by the weapon so that delayed
+## deaths (the Ember Tyrant's 3 s sequence) and indirect kills (explosions,
+## the Exploder taking itself out) still attribute correctly.
+var last_hit_by: String = "Unknown"
+var last_hit_headshot: bool = false
+
+
+func mark_damage_source(source: String, headshot: bool = false) -> void:
+	last_hit_by = source
+	last_hit_headshot = headshot
+
+
 func _die() -> void:
 	_dead = true
 	var where := global_position
+	_log_kill()
 	died.emit(where)
 	_drop_loot(where)
 	queue_free()
+
+
+## Subclasses that override _die() (Exploder, Ember Tyrant) call this too.
+func _log_kill() -> void:
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.enemy_killed(_enemy_type_name(), last_hit_by, last_hit_headshot)
+
+
+## The subclass's class_name ("Rusher", "EmberTyrant", ...) for telemetry.
+func _enemy_type_name() -> String:
+	var script: Script = get_script() as Script
+	if script == null:
+		return "Enemy"
+	var global_name := String(script.get_global_name())
+	return global_name if global_name != "" else "Enemy"
 
 
 ## Spawn loot at the death position + a random offset within a 1 m radius

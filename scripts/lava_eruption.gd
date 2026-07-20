@@ -44,7 +44,7 @@ func _physics_process(delta: float) -> void:
 	var flat := (player as Node3D).global_position - global_position
 	flat.y = 0.0
 	if flat.length() <= RADIUS:
-		player.take_damage(DPS * delta)
+		player.take_damage(DPS * delta, "LavaEruption")
 
 
 ## True while the column is actually burning (past its telegraph).

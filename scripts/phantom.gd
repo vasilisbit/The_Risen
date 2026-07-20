@@ -71,6 +71,7 @@ func shoot() -> void:
 	var p := load("res://scripts/enemy_projectile.gd").new() as Node3D
 	p.damage = PROJECTILE_DAMAGE
 	p.bolt_color = BOLT_COLOR          # set before _ready builds the mesh
+	p.source_name = "Phantom"
 	var host := get_tree().current_scene
 	if host == null:
 		host = get_tree().root

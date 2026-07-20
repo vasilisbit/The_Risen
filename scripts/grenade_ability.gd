@@ -28,6 +28,7 @@ func _init() -> void:
 	cooldown_time = GRENADE_COOLDOWN
 	ability_name = "Grenade"
 	ability_color = Color(0.8, 0.8, 0.8)
+	telemetry_slot = "grenade"
 	input_prompt = "G"
 
 

@@ -22,6 +22,7 @@ SaveManager="*res://scripts/save_manager.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 GameState="*res://scripts/game_state.gd"
 AudioManager="*res://scripts/audio_manager.gd"
+Telemetry="*res://scripts/telemetry.gd"
 
 [editor_plugins]
 

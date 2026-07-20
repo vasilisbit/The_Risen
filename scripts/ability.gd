@@ -20,6 +20,8 @@ var cooldown_time: float = COOLDOWN
 var ability_name: String = "Super"
 var ability_color: Color = Color(1, 1, 1)
 var input_prompt: String = "Q"
+## Which telemetry event this slot reports: "super" / "grenade" / "melee".
+var telemetry_slot: String = "super"
 
 var _cooldown_left: float = 0.0
 
@@ -61,8 +63,24 @@ func activate() -> bool:
 		return false
 	_cooldown_left = cooldown_time
 	_execute()
+	_log_use()
 	activated.emit()
 	return true
+
+
+## Telemetry (T-0026). Declared per slot rather than inferred from the cooldown
+## value, so retuning a cooldown can't silently relabel the event.
+func _log_use() -> void:
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel == null:
+		return
+	match telemetry_slot:
+		"grenade":
+			tel.used_grenade()
+		"melee":
+			tel.used_melee()
+		_:
+			tel.used_super()
 
 
 ## Skip the remaining cooldown (debug / tests).

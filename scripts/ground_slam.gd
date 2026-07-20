@@ -29,8 +29,7 @@ func _strike() -> void:
 	last_hits = 0
 	var origin: Vector3 = player.global_position
 	for e in _targets_in_radius(RADIUS):
-		if e.has_method("take_damage"):
-			e.take_damage(_damage(DAMAGE))
+		_hit(e, _damage(DAMAGE))
 		# Push survivors outward. A lethal slam frees the node first.
 		if not is_instance_valid(e):
 			last_hits += 1

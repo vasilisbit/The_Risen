@@ -140,4 +140,7 @@ func pickup() -> void:
 		owned.append({"id": "loot_%d" % Time.get_ticks_usec(), "name": kind, "rarity": rarity})
 		sm.data[slot] = owned
 		sm.save_game()
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.loot_picked(kind, rarity)
 	queue_free()
