@@ -24,11 +24,15 @@ const SHIELD_RECHARGE_DELAY := 3.0   # s of no damage before recharge starts
 const SHIELD_RECHARGE_RATE := 25.0   # shield HP per second
 const DEBUG_DAMAGE_AMOUNT := 25.0    # applied by the "debug_damage" action
 
-## Class passives (T-0022, GDD §2.4). Supers/grenades/melee are T-0023..25.
+## Class passives (T-0022) and super abilities (T-0023), GDD §2.4.
+## Grenades and melee are T-0024 / T-0025.
 const CLASS_STATS := {
-	"Assault": {"damage_multiplier": 1.1, "max_health_bonus": 0.0, "damage_reduction": 0.0},
-	"Support": {"damage_multiplier": 1.0, "max_health_bonus": 50.0, "damage_reduction": 0.0},
-	"Tank":    {"damage_multiplier": 1.0, "max_health_bonus": 0.0, "damage_reduction": 0.2},
+	"Assault": {"damage_multiplier": 1.1, "max_health_bonus": 0.0, "damage_reduction": 0.0,
+		"super": "res://scripts/storm_barrage.gd"},
+	"Support": {"damage_multiplier": 1.0, "max_health_bonus": 50.0, "damage_reduction": 0.0,
+		"super": "res://scripts/guardian_dome.gd"},
+	"Tank":    {"damage_multiplier": 1.0, "max_health_bonus": 0.0, "damage_reduction": 0.2,
+		"super": "res://scripts/juggernaut_charge.gd"},
 }
 
 signal health_changed(current: float, maximum: float)
@@ -54,6 +58,12 @@ var damage_reduction: float = 0.0
 var max_health_bonus: float = 0.0
 ## Fall-respawn point (Mars platforming); updated by checkpoint triggers.
 var checkpoint: Vector3
+## Ignores all incoming damage — Juggernaut Charge (T-0023) sets this.
+var invulnerable: bool = false
+## Scales melee damage — Juggernaut Charge sets 3.0. Read by T-0025's melee.
+var melee_multiplier: float = 1.0
+## This class's super ability (T-0023). Rebuilt whenever the class changes.
+var super_ability: Ability
 
 var _air_speed: float = WALK_SPEED     # horizontal speed locked in at take-off
 var _knockback: Vector3 = Vector3.ZERO
@@ -63,6 +73,7 @@ var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
 var _death_screen: CanvasLayer
+var _ability_hud: Control
 
 const RESPAWN_DELAY := 2.5    # s before respawning at the spawn point
 const FALL_PENALTY := 10.0    # HP lost on a fall respawn (GDD §3.3)
@@ -76,6 +87,7 @@ func _ready() -> void:
 	_spawn_point = global_position
 	checkpoint = global_position
 	_build_death_screen()
+	_build_ability_hud()       # before apply_class_stats, which wires the super in
 	apply_class_stats()
 	health = max_hp()          # spawn at full, including the Support bonus
 	health_changed.emit(health, max_hp())
@@ -96,6 +108,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			else Input.MOUSE_MODE_CAPTURED)
 	elif event.is_action_pressed("debug_damage"):
 		take_damage(DEBUG_DAMAGE_AMOUNT)
+	elif event.is_action_pressed("super"):
+		# Ability.activate() no-ops and returns false while on cooldown, so
+		# "Q only fires when ready" holds for all three classes in one place.
+		if not is_dead and super_ability != null:
+			super_ability.activate()
 
 
 func _physics_process(delta: float) -> void:
@@ -179,7 +196,27 @@ func apply_class_stats() -> void:
 	if health <= 0.0:
 		health = max_hp()
 	_apply_class_weapon_bonus(float(stats["damage_multiplier"]))
+	_build_super(String(stats.get("super", "")))
 	health_changed.emit(health, max_hp())
+
+
+## Swap in this class's super (T-0023). Replaces any existing one, so changing
+## class mid-session can't leave the previous class's ability attached.
+func _build_super(script_path: String) -> void:
+	if super_ability != null and is_instance_valid(super_ability):
+		super_ability.queue_free()
+	super_ability = null
+	if script_path == "":
+		return
+	var script := load(script_path)
+	if script == null:
+		return
+	var ability := script.new() as Ability
+	ability.player = self
+	add_child(ability)
+	super_ability = ability
+	if _ability_hud:
+		_ability_hud.ability = ability
 
 
 func _apply_class_weapon_bonus(mult: float) -> void:
@@ -195,6 +232,15 @@ func _apply_class_weapon_bonus(mult: float) -> void:
 func take_damage(amount: float) -> void:
 	if amount <= 0.0:
 		return
+	# Juggernaut Charge (T-0023) is total immunity — checked before armour and
+	# shield, so the Tank passive's -20% never even comes into it.
+	if invulnerable:
+		return
+	# Guardian Dome soaks damage before anything else, while you stand in it.
+	if super_ability is GuardianDome:
+		amount = (super_ability as GuardianDome).absorb(amount, global_position)
+		if amount <= 0.0:
+			return
 	amount *= (1.0 - clampf(damage_reduction, 0.0, 0.9))
 	_time_since_damage = 0.0
 
@@ -277,9 +323,12 @@ func fall_respawn() -> void:
 func hazard_respawn(damage: float) -> void:
 	if is_dead:
 		return
-	health = maxf(1.0, health - damage)
-	_time_since_damage = 0.0
-	health_changed.emit(health, max_hp())
+	# Juggernaut Charge negates the burn, but you still get pulled out of the
+	# lava — standing in it unharmed for 5 s would be worse than the hazard.
+	if not invulnerable:
+		health = maxf(1.0, health - damage)
+		_time_since_damage = 0.0
+		health_changed.emit(health, max_hp())
 	global_position = checkpoint
 	velocity = Vector3.ZERO
 	_knockback = Vector3.ZERO
@@ -316,6 +365,17 @@ func _respawn() -> void:
 		_death_screen.visible = false
 	health_changed.emit(health, max_hp())
 	shield_changed.emit(shield, MAX_SHIELD)
+
+
+## Radial super cooldown, bottom-right of the existing debug HUD layer.
+func _build_ability_hud() -> void:
+	var layer := get_node_or_null("DebugHUD")
+	if layer == null:
+		return
+	_ability_hud = Control.new()
+	_ability_hud.name = "AbilityHUD"
+	_ability_hud.set_script(load("res://scripts/ability_hud.gd"))
+	layer.add_child(_ability_hud)
 
 
 func _build_death_screen() -> void:
