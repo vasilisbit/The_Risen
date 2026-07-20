@@ -37,7 +37,7 @@ var shield: float = MAX_SHIELD
 var is_dead: bool = false
 
 const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
-const WIND_PUSH_TIME := 0.4      # s a wind gust takes to shove the player (Venus)
+const PUSH_TIME := 0.4           # s a wind gust / boss slam takes to shove you
 
 ## Multiplies gravity — a low-gravity Area3D (Mars) sets this to 0.4.
 var gravity_scale: float = 1.0
@@ -50,8 +50,8 @@ var checkpoint: Vector3
 
 var _air_speed: float = WALK_SPEED     # horizontal speed locked in at take-off
 var _knockback: Vector3 = Vector3.ZERO
-var _wind_velocity: Vector3 = Vector3.ZERO
-var _wind_time_left: float = 0.0
+var _push_velocity: Vector3 = Vector3.ZERO
+var _push_time_left: float = 0.0
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
@@ -129,15 +129,18 @@ func _physics_process(delta: float) -> void:
 	velocity.z += _knockback.z
 	_knockback = _knockback.move_toward(Vector3.ZERO, KNOCKBACK_DECAY * delta)
 
-	# Wind gusts (Venus) are a displacement budget rather than a decaying
-	# impulse: spending exactly WIND_PUSH_TIME seconds of _wind_velocity moves
-	# the player exactly the requested distance, whatever the frame rate.
-	if _wind_time_left > 0.0 and delta > 0.0:
-		var wind_dt: float = minf(delta, _wind_time_left)
-		velocity += _wind_velocity * (wind_dt / delta)
-		_wind_time_left -= wind_dt
-
 	move_and_slide()
+
+	# Pushes (Venus wind gusts, boss slams) are a displacement budget, applied
+	# AFTER move_and_slide as real motion rather than added to velocity. Going
+	# through velocity would let the per-frame friction above eat into it, and
+	# any push faster than the walk speed would instead compound frame over
+	# frame. move_and_collide still resolves walls, and spending exactly
+	# PUSH_TIME seconds of _push_velocity travels exactly the distance asked for.
+	if _push_time_left > 0.0:
+		var push_dt: float = minf(delta, _push_time_left)
+		move_and_collide(_push_velocity * push_dt)
+		_push_time_left -= push_dt
 	_update_shield(delta)
 
 
@@ -183,15 +186,16 @@ func apply_knockback(impulse: Vector3) -> void:
 	_knockback = Vector3(impulse.x, 0.0, impulse.z)
 
 
-## Shove the player a precise distance (Venus wind gusts, T-0020). Unlike
-## apply_knockback() the total travel equals offset.length() exactly, so the
-## design spec "gusts push the player back 2 m" is literally what happens.
-## Obstacles still absorb it — move_and_slide() resolves the collision.
-func apply_wind_push(offset: Vector3) -> void:
+## Shove the player a precise distance (Venus wind gusts T-0020, Ember Tyrant
+## slam T-0021). Unlike apply_knockback() the total travel equals
+## offset.length() exactly, so specs like "push the player back 2 m" or
+## "knockback 3 m" are literally what happens, at any frame rate and whether
+## the player is grounded, airborne or running. Walls still absorb it.
+func apply_push(offset: Vector3) -> void:
 	if is_dead or offset == Vector3.ZERO:
 		return
-	_wind_velocity = offset / WIND_PUSH_TIME
-	_wind_time_left = WIND_PUSH_TIME
+	_push_velocity = offset / PUSH_TIME
+	_push_time_left = PUSH_TIME
 
 
 ## Set the fall-respawn point (Mars checkpoint triggers).
@@ -226,7 +230,7 @@ func hazard_respawn(damage: float) -> void:
 	global_position = checkpoint
 	velocity = Vector3.ZERO
 	_knockback = Vector3.ZERO
-	_wind_time_left = 0.0
+	_push_time_left = 0.0
 
 
 func _on_death() -> void:

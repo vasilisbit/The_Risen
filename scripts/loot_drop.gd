@@ -13,11 +13,18 @@ const RARITY_COLORS := {
 	"Exotic": Color(1.0, 0.8, 0.1),
 }
 const WEAPON_KINDS := ["Auto Rifle", "Shotgun", "Sniper", "Hand Cannon"]
+## Armour slots (GDD §3.4 boss reward: chest, helmet, gloves).
+const ARMOR_KINDS := ["Chest Plate", "Helmet", "Gauntlets"]
 const PICKUP_RADIUS := 2.0
 
 ## When non-empty (and a known rarity), skips the roll and forces this rarity —
 ## used for guaranteed boss drops. Set before the node enters the tree.
 @export var forced_rarity: String = ""
+## "weapon" (default) or "armor" — decides the kind pool and which SaveManager
+## inventory the pickup lands in. Set before the node enters the tree.
+@export var category: String = "weapon"
+## Force one specific item name instead of rolling one. Set before tree entry.
+@export var forced_kind: String = ""
 
 var rarity: String = "Common"
 var kind: String = "Auto Rifle"
@@ -42,7 +49,7 @@ func _ready() -> void:
 func roll_rarity() -> void:
 	if forced_rarity != "" and RARITY_COLORS.has(forced_rarity):
 		rarity = forced_rarity
-		kind = WEAPON_KINDS[randi() % WEAPON_KINDS.size()]
+		kind = _roll_kind()
 		return
 	var r := randi_range(1, 100)
 	if r <= 50:
@@ -51,7 +58,14 @@ func roll_rarity() -> void:
 		rarity = "Rare"
 	else:
 		rarity = "Epic"
-	kind = WEAPON_KINDS[randi() % WEAPON_KINDS.size()]
+	kind = _roll_kind()
+
+
+func _roll_kind() -> String:
+	if forced_kind != "":
+		return forced_kind
+	var pool: Array = ARMOR_KINDS if category == "armor" else WEAPON_KINDS
+	return pool[randi() % pool.size()]
 
 
 func _build_visual() -> void:
@@ -121,8 +135,9 @@ func pickup() -> void:
 	_picked = true
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm:
-		var owned: Array = sm.data.get("owned_weapons", [])
+		var slot := "owned_armor" if category == "armor" else "owned_weapons"
+		var owned: Array = sm.data.get(slot, [])
 		owned.append({"id": "loot_%d" % Time.get_ticks_usec(), "name": kind, "rarity": rarity})
-		sm.data["owned_weapons"] = owned
+		sm.data[slot] = owned
 		sm.save_game()
 	queue_free()

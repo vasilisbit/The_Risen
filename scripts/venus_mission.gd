@@ -15,6 +15,12 @@ const EMBER_TYRANT := "res://scenes/enemies/ember_tyrant.tscn"
 const SECTION_ASCENT := 0
 const SECTION_DESCENT := 1
 
+## Seconds between the Ember Tyrant dying and the mission completing. GDD §3.4
+## says 5 s before the victory screen; 8 s here because completing the mission
+## frees the level, and with it the boss's four guaranteed drops — the player
+## needs long enough to actually walk over them.
+const VICTORY_DELAY := 8.0
+
 # Section boundaries along -Z. Must track venus_level.gd: the ascent is 200 m
 # long and its summit pad runs 12 m further to the cavern mouth.
 const SUMMIT_Z := -170.0        # far enough up the slope to count as "summit"
@@ -134,4 +140,10 @@ func _spawn_boss() -> void:
 	if spawn:
 		boss.global_position = (spawn as Node3D).global_position
 	if boss.has_signal("died"):
-		boss.died.connect(func(_w: Vector3) -> void: _obj.notify_flag("boss"))
+		boss.died.connect(_on_boss_died)
+
+
+func _on_boss_died(_where: Vector3) -> void:
+	await get_tree().create_timer(VICTORY_DELAY).timeout
+	if is_instance_valid(_obj):
+		_obj.notify_flag("boss")
