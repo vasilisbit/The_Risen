@@ -81,6 +81,9 @@ func buy_weapon(id: String) -> String:
 	owned.append({"id": id, "name": weapon["name"], "rarity": weapon["rarity"]})
 	_sm.data["owned_weapons"] = owned
 	_sm.save_game()
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.vendor_interaction("buy", String(weapon["name"]), price)
 	_buy_sound.play()
 	_set_status("Purchased %s" % weapon["name"], false)
 	_refresh()

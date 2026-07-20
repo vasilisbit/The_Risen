@@ -124,9 +124,10 @@ func detonate() -> void:
 	for target in get_tree().get_nodes_in_group("player"):
 		if target is Node3D and global_position.distance_to((target as Node3D).global_position) <= EXPLOSION_RADIUS:
 			if target.has_method("take_damage"):
-				target.take_damage(EXPLOSION_DAMAGE)
+				target.take_damage(EXPLOSION_DAMAGE, "Exploder")
 	_spawn_explosion_vfx(global_position)
 	play_sfx("explosion")
+	_log_kill()
 	died.emit(global_position)
 	_drop_loot(global_position)
 	queue_free()

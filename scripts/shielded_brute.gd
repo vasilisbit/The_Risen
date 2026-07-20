@@ -98,7 +98,7 @@ func _chase() -> void:
 func _melee() -> void:
 	_melee_timer = MELEE_COOLDOWN
 	if _player and _player.has_method("take_damage"):
-		_player.take_damage(MELEE_DAMAGE)
+		_player.take_damage(MELEE_DAMAGE, "ShieldedBrute")
 
 
 ## Ground slam: hard-radius AoE + knockback. Public so it is unit-testable.
@@ -110,7 +110,7 @@ func slam() -> void:
 		return
 	if global_position.distance_to(_player.global_position) <= SLAM_RADIUS:
 		if _player.has_method("take_damage"):
-			_player.take_damage(SLAM_DAMAGE)
+			_player.take_damage(SLAM_DAMAGE, "ShieldedBrute")
 		if _player.has_method("apply_knockback"):
 			var kb := _player.global_position - global_position
 			kb.y = 0.0

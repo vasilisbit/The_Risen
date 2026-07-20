@@ -79,6 +79,7 @@ var _knockback: Vector3 = Vector3.ZERO
 var _push_velocity: Vector3 = Vector3.ZERO
 var _push_time_left: float = 0.0
 var _step_accum: float = 0.0
+var _last_damage_source: String = "Unknown"
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
@@ -294,9 +295,14 @@ func _apply_class_weapon_bonus(mult: float) -> void:
 
 ## Apply incoming damage: shield absorbs first, overflow hits health.
 ## Resets the shield recharge delay.
-func take_damage(amount: float) -> void:
+## `source` is only used to attribute PlayerDeath in telemetry (T-0026). It is
+## optional so the many existing call sites keep working; the attacks that can
+## actually kill you pass their own name.
+func take_damage(amount: float, source: String = "") -> void:
 	if amount <= 0.0:
 		return
+	if source != "":
+		_last_damage_source = source
 	# Juggernaut Charge (T-0023) is total immunity — checked before armour and
 	# shield, so the Tank passive's -20% never even comes into it.
 	if invulnerable:
@@ -403,6 +409,9 @@ func hazard_respawn(damage: float) -> void:
 
 func _on_death() -> void:
 	is_dead = true
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.player_died(global_position, _last_damage_source)
 	died.emit()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if has_node("WeaponManager"):

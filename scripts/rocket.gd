@@ -89,6 +89,8 @@ func detonate() -> void:
 			continue
 		if (e as Node3D).global_position.distance_to(here) > SPLASH_RADIUS:
 			continue
+		if e.has_method("mark_damage_source"):
+			e.mark_damage_source("Storm Barrage")
 		if e.has_method("take_damage"):
 			e.take_damage(DAMAGE)
 	_explosion_vfx(here)

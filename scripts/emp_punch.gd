@@ -27,8 +27,7 @@ func _init() -> void:
 func _strike() -> void:
 	last_hits = 0
 	for e in _targets_in_cone(REACH, HALF_ARC_DEG):
-		if e.has_method("take_damage"):
-			e.take_damage(_damage(DAMAGE))
+		_hit(e, _damage(DAMAGE))
 		# Stun after the damage: a lethal punch frees the node, and stunning a
 		# freed enemy would error.
 		if is_instance_valid(e) and e.has_method("stun"):

@@ -22,6 +22,7 @@ func _init() -> void:
 	cooldown_time = MELEE_COOLDOWN
 	ability_name = "Melee"
 	ability_color = Color(0.9, 0.9, 0.9)
+	telemetry_slot = "melee"
 	input_prompt = "V"
 
 
@@ -40,6 +41,15 @@ func _damage(base: float) -> float:
 	if player == null or not is_instance_valid(player):
 		return base
 	return base * float(player.melee_multiplier)
+
+
+## Attribute a kill to this melee before damaging, so EnemyKilled reports the
+## ability rather than "Unknown" (T-0026).
+func _hit(target: Node, amount: float) -> void:
+	if target.has_method("mark_damage_source"):
+		target.mark_damage_source(ability_name)
+	if target.has_method("take_damage"):
+		target.take_damage(amount)
 
 
 ## Enemies inside a cone in front of the player: within `reach` metres and

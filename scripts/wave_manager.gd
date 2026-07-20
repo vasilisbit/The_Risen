@@ -56,6 +56,9 @@ var _started: bool = false
 func _ready() -> void:
 	# Enemy modifiers are static, so clear any left over from a previous run.
 	EnemyBase.reset_modifiers()
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.mission_started(mission_id)
 	_build_ui()
 	_update_label("Reach the Nexus Chamber")
 
@@ -86,6 +89,9 @@ func start_wave(index: int) -> void:
 	if p and p.has_method("checkpoint_here"):
 		p.checkpoint_here()
 	wave_started.emit(index + 1)
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.wave_started(index + 1)
 	_update_label()
 	_spawn_wave(index)
 
@@ -164,6 +170,11 @@ func _intermission() -> void:
 func _on_all_complete() -> void:
 	_update_label("All waves cleared!")
 	all_waves_complete.emit()
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		# The last wave has no buff pick, so it reports an empty selection.
+		tel.wave_completed(wave_index + 1, "")
+		tel.mission_completed(mission_id)
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("complete_mission"):
 		sm.complete_mission(mission_id)
@@ -254,7 +265,12 @@ func _show_buff_ui() -> void:
 	ui.option_chosen.connect(_on_option_chosen)
 
 
+## WaveComplete is logged here rather than at clear time: buff_selected is one
+## of its parameters and it isn't known until the player picks.
 func _on_option_chosen(id: String) -> void:
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.wave_completed(wave_index + 1, id)
 	apply_modifier(id)
 	if _buff_layer != null and is_instance_valid(_buff_layer):
 		_buff_layer.queue_free()

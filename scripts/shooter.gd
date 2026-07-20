@@ -173,6 +173,7 @@ func _shoot() -> void:
 	_shoot_timer = SHOOT_COOLDOWN
 	shots_fired += 1
 	var p := load("res://scripts/enemy_projectile.gd").new() as Node3D
+	p.source_name = "Shooter"
 	var host := get_tree().current_scene
 	if host == null:
 		host = get_tree().root

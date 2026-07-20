@@ -16,6 +16,8 @@ const RADIUS := 4.0
 func _detonate() -> void:
 	var here := global_position
 	for e in _enemies_in(RADIUS):
+		if e.has_method("mark_damage_source"):
+			e.mark_damage_source(GRENADE_NAME)
 		if e.has_method("take_damage"):
 			e.take_damage(DAMAGE)
 	_burst(here, GRENADE_COLOR, RADIUS * 2.0, 0.35)

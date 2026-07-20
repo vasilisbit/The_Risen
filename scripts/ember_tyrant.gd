@@ -180,7 +180,7 @@ func cooldown_scale() -> float:
 func melee() -> void:
 	_melee_timer = MELEE_COOLDOWN * cooldown_scale()
 	if _player and _player.has_method("take_damage"):
-		_player.take_damage(MELEE_DAMAGE)
+		_player.take_damage(MELEE_DAMAGE, "EmberTyrant")
 
 
 ## Linear fireball. GDD §3.4 calls it homing, but every other projectile in the
@@ -192,6 +192,7 @@ func fireball() -> void:
 	var p := load("res://scripts/enemy_projectile.gd").new() as Node3D
 	p.damage = FIREBALL_DAMAGE
 	p.bolt_color = BOLT_COLOR          # set before _ready builds the mesh
+	p.source_name = "EmberTyrant"
 	var host := _host()
 	host.add_child(p)
 	p.setup(global_position + Vector3(0, EYE_HEIGHT, 0), _player, get_rid())
@@ -207,7 +208,7 @@ func slam() -> void:
 	if global_position.distance_to(_player.global_position) > SLAM_RADIUS:
 		return
 	if _player.has_method("take_damage"):
-		_player.take_damage(SLAM_DAMAGE)
+		_player.take_damage(SLAM_DAMAGE, "EmberTyrant")
 	var away := _player.global_position - global_position
 	away.y = 0.0
 	if away.length() < 0.01:
@@ -273,6 +274,7 @@ func _enter_phase_b() -> void:
 	if _shield_vfx:
 		_shield_vfx.visible = true
 	_spawn_crystals()
+	_log_phase("A", "B")
 	phase_changed.emit(Phase.B)
 
 
@@ -280,6 +282,7 @@ func _enter_phase_c() -> void:
 	phase = Phase.C
 	_eruption_timer = ERUPTION_INTERVAL
 	_rage_vfx()
+	_log_phase("B", "C")
 	phase_changed.emit(Phase.C)
 
 
@@ -352,6 +355,7 @@ func _die() -> void:
 	_halt_horizontal()
 	_death_vfx()
 	var where := global_position
+	_log_kill()
 	await get_tree().create_timer(DEATH_TIME).timeout
 	died.emit(where)
 	_drop_loot(where)
@@ -464,3 +468,10 @@ func _burst(color: Color, size: float, time: float) -> MeshInstance3D:
 	tw.parallel().tween_property(m, "albedo_color:a", 0.0, time)
 	tw.tween_callback(vfx.queue_free)
 	return vfx
+
+
+## Boss pacing telemetry (T-0026). Reports how long the phase being left ran.
+func _log_phase(from_phase: String, to_phase: String) -> void:
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel:
+		tel.boss_phase_transition("EmberTyrant", from_phase, to_phase)

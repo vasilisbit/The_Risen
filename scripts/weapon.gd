@@ -84,6 +84,9 @@ func fire(origin: Vector3, direction: Vector3, world: World3D, exclude: Array = 
 			if collider.has_method("is_headshot") and collider.is_headshot(hit["position"]):
 				dmg *= headshot_mult
 				head = true
+			# Attribute before the hit: a lethal shot frees the node.
+			if collider.has_method("mark_damage_source"):
+				collider.mark_damage_source(weapon_name, head)
 			collider.take_damage(dmg)
 			results.append({"collider": collider, "headshot": head, "damage": dmg})
 	state_changed.emit()
