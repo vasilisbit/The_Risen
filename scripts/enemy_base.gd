@@ -31,6 +31,11 @@ var loot_rarity_override: String = ""
 
 var max_health: float = 100.0
 var health: float = 100.0
+## Flux awarded on death. Subclasses raise it in _init(); bosses pay far more.
+## GDD 2.5 estimates ~200 Flux for Earth, which these values roughly hit. Mars
+## pays considerably more than its ~500 estimate because it actually contains
+## about 210 enemies, not the ~50 that estimate implies.
+var flux_value: int = 3
 ## Seconds of stun left; while > 0 the enemy takes no actions.
 var stun_left: float = 0.0
 
@@ -216,6 +221,9 @@ func _log_kill() -> void:
 	var tel := get_node_or_null("/root/Telemetry")
 	if tel:
 		tel.enemy_killed(_enemy_type_name(), last_hit_by, last_hit_headshot)
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.has_method("add_flux"):
+		sm.add_flux(flux_value)
 
 
 ## The subclass's class_name ("Rusher", "EmberTyrant", ...) for telemetry.

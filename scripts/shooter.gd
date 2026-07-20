@@ -34,6 +34,7 @@ var shots_fired: int = 0         # exposed for tests/telemetry
 
 func _init() -> void:
 	max_health = 100.0
+	flux_value = 5
 
 
 func _physics_process(delta: float) -> void:

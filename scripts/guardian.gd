@@ -504,6 +504,13 @@ func _build_ability_hud() -> void:
 	_weapon_hud.weapon_manager = get_node_or_null("WeaponManager")
 	layer.add_child(_weapon_hud)
 
+	# Inventory overlay lives on the player so it is reachable from the hub and
+	# every mission, rather than being duplicated into each scene.
+	var inventory := Control.new()
+	inventory.name = "InventoryScreen"
+	inventory.set_script(load("res://scripts/inventory_screen.gd"))
+	layer.add_child(inventory)
+
 
 ## Holster everything in a non-combat scene: no firing, no viewmodel, and no
 ## weapon or ability HUD. The abilities themselves stay built so the class kit

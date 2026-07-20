@@ -8,8 +8,15 @@ const SAVE_PATH := "user://risen_save_01.json"
 ## Mission order for unlock gating - each unlocks when the previous completes.
 const MISSION_ORDER: Array[String] = ["Earth", "Mars", "Venus"]
 
+## Flux paid for finishing a mission, on top of per-kill rewards. Tuned so a
+## clean Earth run lands near the ~200 Flux GDD 2.5 expects, which is roughly
+## two vendor upgrades.
+const COMPLETION_FLUX := {"Earth": 60, "Mars": 100, "Venus": 150}
+
 signal game_loaded
 signal game_saved
+## Emitted whenever Flux is earned, so HUDs can update without polling.
+signal flux_changed(total: int)
 
 var data: Dictionary = {}
 
@@ -90,11 +97,24 @@ func save_game() -> bool:
 	return true
 
 
+## Award Flux. Returns the new balance. Kills and mission completions are the
+## only sources - before this, flux_currency was spent by the vendor but never
+## earned, so the shop was unusable on a fresh save.
+func add_flux(amount: int) -> int:
+	if amount <= 0:
+		return int(data.get("flux_currency", 0))
+	var total := int(data.get("flux_currency", 0)) + amount
+	data["flux_currency"] = total
+	flux_changed.emit(total)
+	return total
+
+
 ## Mark a mission complete and auto-save (called on return to the hub).
 func complete_mission(mission: String) -> void:
 	var flags: Dictionary = data.get("mission_completion_flags", {})
 	flags[mission] = true
 	data["mission_completion_flags"] = flags
+	add_flux(int(COMPLETION_FLUX.get(mission, 0)))
 	save_game()
 	# Clearing Venus opens the Heroic/Legendary modifiers (T-0027, GDD §7).
 	var diff := get_node_or_null("/root/Difficulty")
