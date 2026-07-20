@@ -28,11 +28,14 @@ const DEBUG_DAMAGE_AMOUNT := 25.0    # applied by the "debug_damage" action
 ## Grenades and melee are T-0024 / T-0025.
 const CLASS_STATS := {
 	"Assault": {"damage_multiplier": 1.1, "max_health_bonus": 0.0, "damage_reduction": 0.0,
-		"super": "res://scripts/storm_barrage.gd"},
+		"super": "res://scripts/storm_barrage.gd",
+		"grenade": "res://scripts/frag_grenade.gd"},
 	"Support": {"damage_multiplier": 1.0, "max_health_bonus": 50.0, "damage_reduction": 0.0,
-		"super": "res://scripts/guardian_dome.gd"},
+		"super": "res://scripts/guardian_dome.gd",
+		"grenade": "res://scripts/healing_grenade.gd"},
 	"Tank":    {"damage_multiplier": 1.0, "max_health_bonus": 0.0, "damage_reduction": 0.2,
-		"super": "res://scripts/juggernaut_charge.gd"},
+		"super": "res://scripts/juggernaut_charge.gd",
+		"grenade": "res://scripts/flash_grenade.gd"},
 }
 
 signal health_changed(current: float, maximum: float)
@@ -62,8 +65,9 @@ var checkpoint: Vector3
 var invulnerable: bool = false
 ## Scales melee damage — Juggernaut Charge sets 3.0. Read by T-0025's melee.
 var melee_multiplier: float = 1.0
-## This class's super ability (T-0023). Rebuilt whenever the class changes.
-var super_ability: Ability
+## This class's ability kit. Both rebuilt whenever the class changes.
+var super_ability: Ability          # T-0023, Q
+var grenade_ability: Ability        # T-0024, G
 
 var _air_speed: float = WALK_SPEED     # horizontal speed locked in at take-off
 var _knockback: Vector3 = Vector3.ZERO
@@ -73,7 +77,8 @@ var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
 var _death_screen: CanvasLayer
-var _ability_hud: Control
+var _super_hud: Control
+var _grenade_hud: Control
 
 const RESPAWN_DELAY := 2.5    # s before respawning at the spawn point
 const FALL_PENALTY := 10.0    # HP lost on a fall respawn (GDD §3.3)
@@ -110,9 +115,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		take_damage(DEBUG_DAMAGE_AMOUNT)
 	elif event.is_action_pressed("super"):
 		# Ability.activate() no-ops and returns false while on cooldown, so
-		# "Q only fires when ready" holds for all three classes in one place.
+		# "only fires when ready" holds for every class and slot in one place.
 		if not is_dead and super_ability != null:
 			super_ability.activate()
+	elif event.is_action_pressed("grenade"):
+		if not is_dead and grenade_ability != null:
+			grenade_ability.activate()
 
 
 func _physics_process(delta: float) -> void:
@@ -196,27 +204,52 @@ func apply_class_stats() -> void:
 	if health <= 0.0:
 		health = max_hp()
 	_apply_class_weapon_bonus(float(stats["damage_multiplier"]))
-	_build_super(String(stats.get("super", "")))
+	_build_kit(stats)
 	health_changed.emit(health, max_hp())
 
 
-## Swap in this class's super (T-0023). Replaces any existing one, so changing
-## class mid-session can't leave the previous class's ability attached.
-func _build_super(script_path: String) -> void:
+## Swap in this class's ability kit — super (T-0023) and grenade (T-0024).
+## Both are replaced outright, so changing class mid-session can't leave the
+## previous class's abilities attached.
+func _build_kit(stats: Dictionary) -> void:
 	if super_ability != null and is_instance_valid(super_ability):
 		super_ability.queue_free()
-	super_ability = null
+	if grenade_ability != null and is_instance_valid(grenade_ability):
+		grenade_ability.queue_free()
+	super_ability = _make_ability(String(stats.get("super", "")))
+
+	# All three classes throw with the same ability; only the payload differs,
+	# so the grenade script is data rather than another Ability subclass.
+	var grenade_path := String(stats.get("grenade", ""))
+	if grenade_path != "":
+		var g := GrenadeAbility.new()
+		g.grenade_script = grenade_path
+		g.refresh_identity()          # takes its name/colour from the payload
+		g.player = self
+		add_child(g)
+		grenade_ability = g
+	else:
+		grenade_ability = null
+
+	_bind_hud(_super_hud, super_ability)
+	_bind_hud(_grenade_hud, grenade_ability)
+
+
+func _make_ability(script_path: String) -> Ability:
 	if script_path == "":
-		return
+		return null
 	var script := load(script_path)
 	if script == null:
-		return
+		return null
 	var ability := script.new() as Ability
 	ability.player = self
 	add_child(ability)
-	super_ability = ability
-	if _ability_hud:
-		_ability_hud.ability = ability
+	return ability
+
+
+func _bind_hud(hud: Control, ability: Ability) -> void:
+	if hud:
+		hud.ability = ability
 
 
 func _apply_class_weapon_bonus(mult: float) -> void:
@@ -367,15 +400,23 @@ func _respawn() -> void:
 	shield_changed.emit(shield, MAX_SHIELD)
 
 
-## Radial super cooldown, bottom-right of the existing debug HUD layer.
+## Radial cooldown rings, bottom-right of the existing debug HUD layer.
+## Slot 0 is the rightmost (super), slot 1 sits to its left (grenade).
 func _build_ability_hud() -> void:
 	var layer := get_node_or_null("DebugHUD")
 	if layer == null:
 		return
-	_ability_hud = Control.new()
-	_ability_hud.name = "AbilityHUD"
-	_ability_hud.set_script(load("res://scripts/ability_hud.gd"))
-	layer.add_child(_ability_hud)
+	_super_hud = _make_ring(layer, "SuperHUD", 0)
+	_grenade_hud = _make_ring(layer, "GrenadeHUD", 1)
+
+
+func _make_ring(layer: Node, ring_name: String, slot: int) -> Control:
+	var ring := Control.new()
+	ring.name = ring_name
+	ring.set_script(load("res://scripts/ability_hud.gd"))
+	ring.slot = slot                  # must be set before _ready lays it out
+	layer.add_child(ring)
+	return ring
 
 
 func _build_death_screen() -> void:

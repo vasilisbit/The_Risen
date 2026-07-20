@@ -91,6 +91,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _dead or _state == State.DYING:
 		return
+	if _tick_stun(delta):
+		return
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 
