@@ -87,6 +87,18 @@ var _death_screen: CanvasLayer
 var _ability_hud: Control
 var _weapon_hud: Control
 
+## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
+## is a social space, and a rifle pointed at the vendor reads badly.
+@export var combat_enabled: bool = true
+
+## Authoritative look pitch. Camera shake is added on top of this each frame
+## rather than written into the SpringArm directly, otherwise the shake would
+## fight the mouse and permanently drift the player's aim.
+var _look_pitch: float = 0.0
+var _shake: float = 0.0
+const SHAKE_DECAY := 7.0         # how fast the jitter settles
+const MAX_SHAKE := 0.05          # rad, so even a shotgun stays readable
+
 const RESPAWN_DELAY := 2.5    # s before respawning at the spawn point
 const FALL_PENALTY := 10.0    # HP lost on a fall respawn (GDD §3.3)
 
@@ -101,6 +113,7 @@ func _ready() -> void:
 	_build_death_screen()
 	_build_ability_hud()       # before apply_class_stats, which wires the super in
 	apply_class_stats()
+	_apply_combat_mode()
 	health = max_hp()          # spawn at full, including the Support bonus
 	health_changed.emit(health, max_hp())
 	shield_changed.emit(shield, MAX_SHIELD)
@@ -110,8 +123,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
 		rotate_y(-motion.relative.x * MOUSE_SENSITIVITY)
-		_spring_arm.rotation.x = clampf(
-			_spring_arm.rotation.x - motion.relative.y * MOUSE_SENSITIVITY,
+		_look_pitch = clampf(_look_pitch - motion.relative.y * MOUSE_SENSITIVITY,
 			PITCH_MIN, PITCH_MAX)
 	elif event.is_action_pressed("ui_cancel"):
 		# Toggle mouse capture so the run can be inspected / closed.
@@ -120,6 +132,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			else Input.MOUSE_MODE_CAPTURED)
 	elif event.is_action_pressed("debug_damage"):
 		take_damage(DEBUG_DAMAGE_AMOUNT)
+	elif not combat_enabled:
+		return                 # hub: abilities are holstered along with the gun
 	elif event.is_action_pressed("super"):
 		# Ability.activate() no-ops and returns false while on cooldown, so
 		# "only fires when ready" holds for every class and slot in one place.
@@ -185,6 +199,7 @@ func _physics_process(delta: float) -> void:
 		var push_dt: float = minf(delta, _push_time_left)
 		move_and_collide(_push_velocity * push_dt)
 		_push_time_left -= push_dt
+	_apply_look(delta)
 	_update_shield(delta)
 
 
@@ -357,6 +372,30 @@ func apply_push(offset: Vector3) -> void:
 ## Move the respawn point. Used by the level checkpoint triggers (Mars
 ## platforms, Venus climb) and by the mission drivers as objectives advance, so
 ## dying never sends the player back to the very start of a long level.
+## Weapon recoil (T-0034 follow-up). `pitch_kick` climbs the aim permanently,
+## the way real recoil does; `shake` is a decaying jitter on top. Both scale
+## with the weapon, so a shotgun throws the view around and the rifle barely
+## nudges it.
+func add_recoil(pitch_kick: float, shake: float) -> void:
+	_look_pitch = clampf(_look_pitch + pitch_kick, PITCH_MIN, PITCH_MAX)
+	_shake = minf(_shake + shake, MAX_SHAKE)
+
+
+## Apply look pitch plus shake. Jitter goes on the Camera, not the SpringArm or
+## the body, so it never accumulates into the player's actual facing.
+func _apply_look(delta: float) -> void:
+	_shake = maxf(0.0, _shake - SHAKE_DECAY * _shake * delta - 0.0005)
+	var jitter := Vector3.ZERO
+	if _shake > 0.0001:
+		jitter = Vector3(randf_range(-_shake, _shake), randf_range(-_shake, _shake),
+			randf_range(-_shake, _shake) * 0.6)
+	_spring_arm.rotation.x = _look_pitch + jitter.x
+	var cam := _spring_arm.get_node_or_null("Camera3D") as Camera3D
+	if cam:
+		cam.rotation.y = jitter.y
+		cam.rotation.z = jitter.z
+
+
 func set_checkpoint(pos: Vector3) -> void:
 	checkpoint = pos
 
@@ -464,6 +503,25 @@ func _build_ability_hud() -> void:
 	_weapon_hud.set_script(load("res://scripts/weapon_hud.gd"))
 	_weapon_hud.weapon_manager = get_node_or_null("WeaponManager")
 	layer.add_child(_weapon_hud)
+
+
+## Holster everything in a non-combat scene: no firing, no viewmodel, and no
+## weapon or ability HUD. The abilities themselves stay built so the class kit
+## is still inspectable — only the input and the display are suppressed.
+func _apply_combat_mode() -> void:
+	var wm := get_node_or_null("WeaponManager")
+	if wm:
+		wm.set_process(combat_enabled)
+	var viewmodel := _spring_arm.get_node_or_null("Camera3D/WeaponViewmodel") as Node3D
+	if viewmodel:
+		viewmodel.visible = combat_enabled
+	if _weapon_hud:
+		_weapon_hud.visible = combat_enabled
+	if _ability_hud:
+		_ability_hud.visible = combat_enabled
+	var crosshair := get_node_or_null("DebugHUD/Crosshair") as Control
+	if crosshair:
+		crosshair.visible = combat_enabled
 
 
 func _build_death_screen() -> void:

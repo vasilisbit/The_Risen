@@ -50,6 +50,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3)
 environment = SubResource("Environment_ursuo")
 
 [node name="Guardian" parent="." unique_id=1754395905 instance=ExtResource("1_abcyb")]
+combat_enabled = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3)
 
 [node name="HologramTable" parent="." unique_id=58457010 instance=ExtResource("2_bocl7")]
