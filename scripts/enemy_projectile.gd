@@ -2,7 +2,7 @@ class_name EnemyProjectile
 extends Node3D
 
 ## Linear enemy projectile (T-0008, retuned). Fired straight toward where the
-## player's chest was when the shot left the muzzle — no homing, so it travels in
+## player's chest was when the shot left the muzzle - no homing, so it travels in
 ## a straight line and can be dodged by strafing. Raycasts each step for wall and
 ## player hits (allies are excluded so bolts pass through other enemies).
 
@@ -11,7 +11,7 @@ const LIFETIME := 5.0          # s
 const TARGET_CHEST := Vector3(0.0, 1.0, 0.0)
 
 var damage: float = 100.0
-## Bolt tint — set before the node enters the tree (the Phantom fires purple).
+## Bolt tint - set before the node enters the tree (the Phantom fires purple).
 var bolt_color: Color = Color(1.0, 0.55, 0.1)
 ## Who fired it, for PlayerDeath attribution (T-0026). Set by the shooter.
 var source_name: String = "Projectile"

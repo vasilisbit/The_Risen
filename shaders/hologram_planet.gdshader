@@ -6,7 +6,7 @@ render_mode blend_add, cull_disabled, unshaded, depth_draw_never;
 // in both places, then projected as light: additive blending, a bright fresnel
 // limb, travelling scanlines and a faint flicker.
 //
-// The noise block is duplicated from planet.gdshader rather than #include'd —
+// The noise block is duplicated from planet.gdshader rather than #include'd -
 // the two shaders differ in render_mode and lighting model, and a shared
 // include for ~25 lines would couple them for little gain.
 

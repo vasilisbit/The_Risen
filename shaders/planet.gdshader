@@ -6,7 +6,7 @@ render_mode unshaded, cull_back;
 // must not depend on the hub's interior lighting reaching 20 m out the window.
 //
 // Rotation is done here against TIME rather than by spinning the node, so it
-// is frame-rate independent and cannot stutter with the physics tick — and the
+// is frame-rate independent and cannot stutter with the physics tick - and the
 // terminator stays put while the surface turns under it, as it should.
 //
 // No textures: the surface is fbm noise, matching the project's
@@ -22,7 +22,7 @@ uniform float cloud_amount = 0.40;
 uniform float rot_speed = 0.0166667;    // revolutions per second = 1 per 60 s
 uniform float night_level = 0.06;       // how dark the unlit side goes
 
-// TAU is a Godot shader builtin — declaring it here is a redefinition error.
+// TAU is a Godot shader builtin - declaring it here is a redefinition error.
 
 varying vec3 local_pos;
 

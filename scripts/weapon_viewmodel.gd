@@ -3,7 +3,7 @@ extends Node3D
 ## licensing). Sits under the camera in the lower-right; kick() adds a recoil
 ## impulse that decays each frame, so firing reads on screen.
 ##
-## Each of the four weapon types gets its own silhouette and recoil weight —
+## Each of the four weapon types gets its own silhouette and recoil weight -
 ## a shotgun should not look or kick like a sniper. set_weapon() rebuilds when
 ## the player switches, and the WeaponManager calls it on every switch.
 
@@ -30,7 +30,7 @@ func _ready() -> void:
 	set_weapon(weapon_name)
 
 
-## Rebuild the viewmodel for `name_`. Cheap enough to do on every switch —
+## Rebuild the viewmodel for `name_`. Cheap enough to do on every switch -
 ## these are a handful of boxes and cylinders.
 func set_weapon(name_: String) -> void:
 	weapon_name = name_

@@ -4,7 +4,7 @@ extends Node
 ## objectives from GDD §3.4 are driven by section triggers plus the scripted
 ## lava-pool dive that teleports the player into the boss arena.
 ##
-## The Ember Tyrant itself is T-0021 — until that scene exists the final
+## The Ember Tyrant itself is T-0021 - until that scene exists the final
 ## objective simply cannot complete, and the mission is a playable blockout.
 
 const RUSHER := "res://scenes/enemies/rusher.tscn"
@@ -17,7 +17,7 @@ const SECTION_DESCENT := 1
 
 ## Seconds between the Ember Tyrant dying and the mission completing. GDD §3.4
 ## says 5 s before the victory screen; 8 s here because completing the mission
-## frees the level, and with it the boss's four guaranteed drops — the player
+## frees the level, and with it the boss's four guaranteed drops - the player
 ## needs long enough to actually walk over them.
 const VICTORY_DELAY := 8.0
 
@@ -107,7 +107,7 @@ func _on_enemy_killed(_where: Vector3) -> void:
 
 ## GDD §3.4 objective 3: the player jumps into the pool and is carried through a
 ## hidden passage to the boss chamber. This pool is deliberately NOT a lava
-## hazard — it is the way forward.
+## hazard - it is the way forward.
 func _on_pool_entered(body: Node) -> void:
 	if _dived or not body.is_in_group("player"):
 		return

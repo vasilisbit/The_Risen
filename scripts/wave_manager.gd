@@ -23,7 +23,7 @@ const PORTAL_LEAD := 2.0       # s a portal is visible before its enemy appears
 const INTERMISSION := 15.0     # s countdown after a wave is cleared
 const BUFF_TIMEOUT := 10.0     # s before the buff picker auto-selects
 
-## GDD §3.3 wave table — [rushers, shooters, exploders] per wave.
+## GDD §3.3 wave table - [rushers, shooters, exploders] per wave.
 ## Wave 12 also gets the Teleporting Phantom once T-0019 lands.
 const WAVES := [
 	[8, 2, 0], [6, 4, 2], [10, 5, 0], [8, 5, 2],        # Room 1, waves 1-4
@@ -47,7 +47,7 @@ var _buff_layer: CanvasLayer
 
 
 ## Waves begin when the player crosses into the first chamber rather than on a
-## timer — otherwise enemies would spawn while the player is still platforming.
+## timer - otherwise enemies would spawn while the player is still platforming.
 const START_TRIGGER_Z := -114.0
 
 var _started: bool = false
@@ -161,7 +161,7 @@ func _check_cleared() -> void:
 func _intermission() -> void:
 	var left := INTERMISSION
 	while left > 0.0:
-		_update_label("Wave %d cleared — next in %d" % [wave_index + 1, int(ceil(left))])
+		_update_label("Wave %d cleared - next in %d" % [wave_index + 1, int(ceil(left))])
 		await get_tree().create_timer(1.0).timeout
 		left -= 1.0
 	_show_buff_ui()
@@ -279,7 +279,7 @@ func _on_option_chosen(id: String) -> void:
 
 
 ## Apply a buff/debuff. Modifiers are SET per type (not stacked), so a pick lasts
-## until the mission ends or the same type is picked again — matching the card's
+## until the mission ends or the same type is picked again - matching the card's
 ## "until the end of the mission or the next pick". Public for testing.
 func apply_modifier(id: String) -> void:
 	var player := get_tree().get_first_node_in_group("player")

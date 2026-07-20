@@ -3,7 +3,7 @@ extends Control
 ## Difficulty prompt (T-0027, reworked). Opens when a mission sphere is
 ## selected on the hologram table and launches that mission on confirm, so the
 ## choice is made in the moment it matters instead of sitting permanently on
-## screen — where it also blocked the view out of the cockpit window.
+## screen - where it also blocked the view out of the cockpit window.
 ##
 ## Three cards with tooltips; locked tiers are greyed and say what unlocks them.
 ## The choice persists through SaveManager, so it carries between runs.
@@ -74,8 +74,8 @@ func refresh() -> void:
 		(card.get_meta("lock") as Label).visible = not unlocked
 	var applies: bool = diff.APPLIES_TO.has(mission_id)
 	_note.text = ("Modifiers apply to this mission.   Selected: %s" % current) if applies \
-		else "Modifiers do not apply to %s — it runs on Normal." % mission_id
-	_launch.text = "LAUNCH  —  %s" % (current if applies else "Normal")
+		else "Modifiers do not apply to %s - it runs on Normal." % mission_id
+	_launch.text = "LAUNCH  -  %s" % (current if applies else "Normal")
 
 
 func _select(id: String) -> void:
@@ -83,7 +83,7 @@ func _select(id: String) -> void:
 	if diff == null:
 		return
 	if not diff.is_unlocked(id):
-		_note.text = "%s is locked — complete the Venus mission first." % id
+		_note.text = "%s is locked - complete the Venus mission first." % id
 		return
 	if diff.select(id):
 		var tel := get_node_or_null("/root/Telemetry")
@@ -195,7 +195,7 @@ func _build_card(tier: Dictionary) -> PanelContainer:
 	col.add_child(blurb)
 
 	var lock := Label.new()
-	lock.text = "LOCKED — clear Venus"
+	lock.text = "LOCKED - clear Venus"
 	lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lock.add_theme_font_size_override("font_size", 11)
 	lock.add_theme_color_override("font_color", LOCKED)

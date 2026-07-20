@@ -5,7 +5,7 @@ extends Node
 
 const SAVE_PATH := "user://risen_save_01.json"
 
-## Mission order for unlock gating — each unlocks when the previous completes.
+## Mission order for unlock gating - each unlocks when the previous completes.
 const MISSION_ORDER: Array[String] = ["Earth", "Mars", "Venus"]
 
 signal game_loaded
@@ -36,7 +36,7 @@ func _default_data() -> Dictionary:
 		"difficulty_unlocks": {"Heroic": false, "Legendary": false},
 		# Selected modifier tier (T-0027); unlocks after Venus.
 		"selected_difficulty": "Normal",
-		# Most recent mission deployed to — drives the hub window planet (T-0028).
+		# Most recent mission deployed to - drives the hub window planet (T-0028).
 		"last_mission": "Earth",
 		"total_kills": 0,
 		"total_deaths": 0,

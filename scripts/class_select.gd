@@ -3,7 +3,7 @@ extends Control
 ## and its ability kit; clicking one highlights it, Confirm saves the choice to
 ## SaveManager and applies the passive to the live Guardian.
 ##
-## Shown once, on first entry to the hub — SaveManager.has_chosen_class() is
+## Shown once, on first entry to the hub - SaveManager.has_chosen_class() is
 ## false until the player confirms, so this frees itself immediately on every
 ## later run. `selected_class` alone can't gate it: it already defaults to
 ## "Assault", which is indistinguishable from a real pick.
@@ -66,7 +66,7 @@ func _select(id: String) -> void:
 		var card: PanelContainer = _cards[card_id]
 		card.modulate = Color(1, 1, 1) if card_id == id else Color(0.55, 0.55, 0.6)
 	if _confirm:
-		_confirm.text = "CONFIRM  —  %s" % id
+		_confirm.text = "CONFIRM  -  %s" % id
 
 
 ## Commit the choice: persist it, apply the passive to the live player, close.

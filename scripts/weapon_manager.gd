@@ -1,6 +1,6 @@
 extends Node3D
 ## Player weapon manager (T-0010). Holds the four weapon scenes, handles switch
-## (1-4), reload (R), and fire (LMB — full-auto for the Auto Rifle, semi for the
+## (1-4), reload (R), and fire (LMB - full-auto for the Auto Rifle, semi for the
 ## rest), raycasting from the player camera. Updates the ammo HUD label.
 
 const WEAPON_PATHS := [

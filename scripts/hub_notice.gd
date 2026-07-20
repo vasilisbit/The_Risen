@@ -1,6 +1,6 @@
 extends Control
 
-## Transient notice in the bottom-left of the hub — currently used when you
+## Transient notice in the bottom-left of the hub - currently used when you
 ## select a mission you have not unlocked yet.
 ##
 ## It lives here rather than as a print() because a locked planet giving no
@@ -51,7 +51,7 @@ func notify(message: String) -> void:
 	shown.emit(message)
 
 
-## True while a notice is on screen — exposed for tests.
+## True while a notice is on screen - exposed for tests.
 func is_showing() -> bool:
 	return _left > 0.0
 

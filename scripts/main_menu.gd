@@ -2,7 +2,7 @@ extends Control
 
 ## T-0033 main menu, styled to match the in-game HUD: an animated starfield,
 ## an angled gold title bar, and a column of entries each marked by a diamond
-## that lights up on hover — the same shape language as the super icon.
+## that lights up on hover - the same shape language as the super icon.
 ##
 ## New Game clears the class-selection flag so the picker (T-0022) runs again
 ## on entering the hub; Continue just loads whatever is saved. Quit asks first.
@@ -20,7 +20,7 @@ const STAR_COUNT := 260
 const STAR_DRIFT := 0.10
 
 ## Background planets. `spin` turns the surface; `orbit`/`sway` move the whole
-## body on a slow sine so it drifts and returns instead of scrolling off — a
+## body on a slow sine so it drifts and returns instead of scrolling off - a
 ## menu backdrop should loop, not go anywhere.
 const MENU_PLANETS := [
 	{"pos": Vector2(0.78, 0.34), "radius": 120.0,
@@ -55,7 +55,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	# Drift the starfield sideways; wrap at the edges. Slow — this is a distant
+	# Drift the starfield sideways; wrap at the edges. Slow - this is a distant
 	# field, not a warp effect; at the original speed it read as motion sickness.
 	for i in _stars.size():
 		var s := _stars[i]
@@ -130,7 +130,7 @@ func _draw_menu_planet(info: Dictionary, vp: Vector2) -> void:
 	draw_circle(c, r, base)
 
 	# Latitude bands: horizontal chords. Each is sized to the NARROWER of its
-	# two edges so it stays inside the disc — using the centre width let the
+	# two edges so it stays inside the disc - using the centre width let the
 	# corners poke past the limb and the planet came out visibly stepped.
 	var rows := int(r / 3.0)
 	for i in rows:

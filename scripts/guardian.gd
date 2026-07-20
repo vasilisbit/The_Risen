@@ -57,7 +57,7 @@ const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
 const PUSH_TIME := 0.4           # s a wind gust / boss slam takes to shove you
 const STEP_DISTANCE := 2.2       # m of travel between footstep sounds
 
-## Multiplies gravity — a low-gravity Area3D (Mars) sets this to 0.4.
+## Multiplies gravity - a low-gravity Area3D (Mars) sets this to 0.4.
 var gravity_scale: float = 1.0
 ## Fraction of incoming damage ignored (Mars buff: -15% -> 0.15).
 var damage_reduction: float = 0.0
@@ -65,9 +65,9 @@ var damage_reduction: float = 0.0
 var max_health_bonus: float = 0.0
 ## Fall-respawn point (Mars platforming); updated by checkpoint triggers.
 var checkpoint: Vector3
-## Ignores all incoming damage — Juggernaut Charge (T-0023) sets this.
+## Ignores all incoming damage - Juggernaut Charge (T-0023) sets this.
 var invulnerable: bool = false
-## Scales melee damage — Juggernaut Charge sets 3.0. Read by T-0025's melee.
+## Scales melee damage - Juggernaut Charge sets 3.0. Read by T-0025's melee.
 var melee_multiplier: float = 1.0
 ## This class's ability kit. Both rebuilt whenever the class changes.
 var super_ability: Ability          # T-0023, Q
@@ -260,7 +260,7 @@ func apply_class_stats() -> void:
 	health_changed.emit(health, max_hp())
 
 
-## Swap in this class's ability kit — super (T-0023) and grenade (T-0024).
+## Swap in this class's ability kit - super (T-0023) and grenade (T-0024).
 ## Both are replaced outright, so changing class mid-session can't leave the
 ## previous class's abilities attached.
 func _build_kit(stats: Dictionary) -> void:
@@ -322,7 +322,7 @@ func take_damage(amount: float, source: String = "") -> void:
 		return
 	if source != "":
 		_last_damage_source = source
-	# Juggernaut Charge (T-0023) is total immunity — checked before armour and
+	# Juggernaut Charge (T-0023) is total immunity - checked before armour and
 	# shield, so the Tank passive's -20% never even comes into it.
 	if invulnerable:
 		return
@@ -417,7 +417,7 @@ func checkpoint_here() -> void:
 	checkpoint = (hit["position"] as Vector3) + Vector3(0, 0.2, 0) if not hit.is_empty() else global_position
 
 
-## Respawn at the last checkpoint after a fall (fall damage disabled — a flat
+## Respawn at the last checkpoint after a fall (fall damage disabled - a flat
 ## -10 HP penalty instead, per GDD §3.3). Does not kill the player.
 func fall_respawn() -> void:
 	if is_dead:
@@ -430,7 +430,7 @@ func fall_respawn() -> void:
 
 
 ## Environmental hazard hit (Venus lava, T-0020): lose HP, then return to the
-## last checkpoint. The damage goes straight to health — it deliberately
+## last checkpoint. The damage goes straight to health - it deliberately
 ## bypasses the shield and armour reduction, because GDD §3.4 specifies lava as
 ## a flat "instant -50% HP" and a recharging shield would otherwise make the
 ## first two dunks free. Non-lethal (floors at 1 HP) like fall_respawn(), so a
@@ -439,7 +439,7 @@ func hazard_respawn(damage: float) -> void:
 	if is_dead:
 		return
 	# Juggernaut Charge negates the burn, but you still get pulled out of the
-	# lava — standing in it unharmed for 5 s would be worse than the hazard.
+	# lava - standing in it unharmed for 5 s would be worse than the hazard.
 	if not invulnerable:
 		health = maxf(1.0, health - damage)
 		_time_since_damage = 0.0
@@ -464,7 +464,7 @@ func _on_death() -> void:
 	get_tree().create_timer(RESPAWN_DELAY).timeout.connect(_respawn)
 
 
-## Respawn after death at the last checkpoint, NOT at the level spawn point —
+## Respawn after death at the last checkpoint, NOT at the level spawn point -
 ## on Venus that would be a 200 m climb away. `checkpoint` starts at the spawn
 ## point, so a level with no checkpoints behaves exactly as it did before.
 func _respawn() -> void:
@@ -487,7 +487,7 @@ func _respawn() -> void:
 
 ## Destiny-style HUD: the ability cluster bottom-left (super diamond + grenade
 ## and melee tiles) and the weapon panel bottom-right. One cluster owns all
-## three ability slots so they can share a layout — the earlier design was a
+## three ability slots so they can share a layout - the earlier design was a
 ## separate node per ability and couldn't.
 func _build_ability_hud() -> void:
 	var layer := get_node_or_null("DebugHUD")
@@ -507,7 +507,7 @@ func _build_ability_hud() -> void:
 
 ## Holster everything in a non-combat scene: no firing, no viewmodel, and no
 ## weapon or ability HUD. The abilities themselves stay built so the class kit
-## is still inspectable — only the input and the display are suppressed.
+## is still inspectable - only the input and the display are suppressed.
 func _apply_combat_mode() -> void:
 	var wm := get_node_or_null("WeaponManager")
 	if wm:

@@ -4,7 +4,7 @@ extends Ability
 ## Tank super (T-0023, GDD §2.4): 5 s of invulnerability with melee damage x3,
 ## 60 s cooldown.
 ##
-## Invulnerability is total — it short-circuits Guardian.take_damage() ahead of
+## Invulnerability is total - it short-circuits Guardian.take_damage() ahead of
 ## armour and shield, so the class passive's -20% never even comes into play.
 ## The melee multiplier is written to Guardian.melee_multiplier, which the melee
 ## attack in T-0025 reads; until that card lands the x3 has nothing to scale,

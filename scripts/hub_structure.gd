@@ -1,7 +1,7 @@
 extends StaticBody3D
-## T-0006 hub blockout: builds a 2-room starship interior in code —
+## T-0006 hub blockout: builds a 2-room starship interior in code -
 ## Cockpit 10x10 m (with a 5x3 m viewport window) joined by a 3 m doorway to a
-## Weapon Bay 8x8 m — plus interior lighting. Geometry is BoxMesh + BoxShape3D
+## Weapon Bay 8x8 m - plus interior lighting. Geometry is BoxMesh + BoxShape3D
 ## parented to this StaticBody3D. Meant to sit under a NavigationRegion3D, which
 ## this script bakes at runtime so AI pathfinding is ready.
 

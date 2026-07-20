@@ -13,7 +13,7 @@ var duration: float = 5.0
 var heal_per_second: float = 10.0
 var tint: Color = Color(0.35, 0.95, 0.55)
 
-## Total HP actually restored — exposed for tests.
+## Total HP actually restored - exposed for tests.
 var healed: float = 0.0
 
 var _life: float = 0.0

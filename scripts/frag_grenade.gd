@@ -2,7 +2,7 @@ class_name FragGrenade
 extends Grenade
 
 ## Assault grenade (T-0024, GDD §2.4): 150 damage in a 4 m radius.
-## Flat damage across the radius rather than falloff — same reasoning as the
+## Flat damage across the radius rather than falloff - same reasoning as the
 ## Exploder's hard-radius AoE: deterministic and testable, and at 4 m there is
 ## not enough room for falloff to read as anything but inconsistency.
 

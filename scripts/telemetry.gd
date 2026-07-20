@@ -12,7 +12,7 @@ extends Node
 ## it to run unchanged.
 ##
 ## The file handle stays open and is flushed periodically rather than reopened
-## per event — a mission produces hundreds of lines and reopening each time
+## per event - a mission produces hundreds of lines and reopening each time
 ## would be needless syscalls.
 
 const LOG_DIR := "user://logs"
@@ -73,7 +73,7 @@ func _close() -> void:
 		_file = null
 
 
-## Absolute path of today's log — handy for tests and for finding it on disk.
+## Absolute path of today's log - handy for tests and for finding it on disk.
 func log_path() -> String:
 	return ProjectSettings.globalize_path(_path)
 

@@ -5,7 +5,7 @@ extends MeleeAbility
 ## Reuses EnemyBase.stun() from the Flashbang (T-0024), so a stunned target
 ## stops acting entirely but still falls under gravity.
 ##
-## The damage is minor next to the blade or the slam — this is a panic button
+## The damage is minor next to the blade or the slam - this is a panic button
 ## for peeling something off you, which fits Support having the least
 ## self-defence in its kit.
 
@@ -14,7 +14,7 @@ const STUN := 3.0
 const REACH := 2.0
 const HALF_ARC_DEG := 45.0        # narrower than the blade: it's a punch
 
-## Enemies hit / stunned by the last punch — exposed for tests.
+## Enemies hit / stunned by the last punch - exposed for tests.
 var last_hits: int = 0
 
 

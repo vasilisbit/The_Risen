@@ -1,7 +1,7 @@
 extends StaticBody3D
 ## T-0012 Earth mission blockout, generated in code (like the hub). Three linear
-## zones — Street (open), Subway (enclosed, dark), Rooftop (raised, reached by a
-## ramp) — ending in a 20x20 m boss arena with 4 cover crates. Geometry is
+## zones - Street (open), Subway (enclosed, dark), Rooftop (raised, reached by a
+## ramp) - ending in a 20x20 m boss arena with 4 cover crates. Geometry is
 ## BoxMesh + BoxShape3D; 30 spawn markers (group "spawn_point"), a player spawn
 ## and a boss spawn, interior/overcast lighting. Bakes the parent
 ## NavigationRegion3D at runtime so AI pathfinding is ready across all zones.

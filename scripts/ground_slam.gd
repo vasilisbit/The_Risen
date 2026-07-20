@@ -4,7 +4,7 @@ extends MeleeAbility
 ## Tank melee (T-0025): ground slam, 250 damage and a 2 m knockback to
 ## everything within 3 m.
 ##
-## Omnidirectional, not a cone — a slam hits the ground, so facing shouldn't
+## Omnidirectional, not a cone - a slam hits the ground, so facing shouldn't
 ## matter, and it is the Tank's answer to being surrounded.
 ##
 ## The card reads "250 dmg, 3m, knockback 2m"; GDD §2.4 writes it as "250
@@ -15,7 +15,7 @@ const DAMAGE := 250.0
 const RADIUS := 3.0
 const KNOCKBACK := 2.0            # metres, exact (EnemyBase.apply_push)
 
-## Enemies hit by the last slam — exposed for tests.
+## Enemies hit by the last slam - exposed for tests.
 var last_hits: int = 0
 
 

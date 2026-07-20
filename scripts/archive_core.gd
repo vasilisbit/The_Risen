@@ -34,7 +34,7 @@ func _ready() -> void:
 	add_child(mesh)
 
 	_prompt = Label3D.new()
-	_prompt.text = "Press E — Archive Core"
+	_prompt.text = "Press E - Archive Core"
 	_prompt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_prompt.no_depth_test = true
 	_prompt.position = Vector3(0, 1.4, 0)

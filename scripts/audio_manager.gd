@@ -6,8 +6,8 @@ extends Node
 ## GDD §5.3 specifies Suno AI music and Freesound SFX. This project has a
 ## standing zero-external-asset policy (see the GDQuest licensing decision in
 ## the devlog), and no audio files exist in the repo, so every track and effect
-## here is SYNTHESISED IN CODE. The system is real — buses, crossfades,
-## attenuation, volume persistence — and swapping in authored audio later is
+## here is SYNTHESISED IN CODE. The system is real - buses, crossfades,
+## attenuation, volume persistence - and swapping in authored audio later is
 ## just assigning a different stream to the same players.
 ##
 ## Music is picked from world state rather than pushed by each scene: the
@@ -43,7 +43,7 @@ var _music_cache: Dictionary = {}
 var _sfx_cache: Dictionary = {}
 var _director_timer: float = 0.0
 var _fade: Tween
-## Music synthesis runs on a worker thread — the boss loop alone takes ~280 ms
+## Music synthesis runs on a worker thread - the boss loop alone takes ~280 ms
 ## to generate, and it would otherwise be built the instant a boss spawns,
 ## hitching the exact moment the fight starts. SFX are 1-2 ms, so those stay
 ## lazy on the main thread.
@@ -93,7 +93,7 @@ func _process(delta: float) -> void:
 # --- buses ------------------------------------------------------------------
 
 ## Master / Music / SFX, created in code so there is no bus-layout resource to
-## keep in sync. Idempotent — safe if the layout already defines them.
+## keep in sync. Idempotent - safe if the layout already defines them.
 func _ensure_buses() -> void:
 	for bus_name in [MUSIC_BUS, SFX_BUS]:
 		if AudioServer.get_bus_index(bus_name) != -1:

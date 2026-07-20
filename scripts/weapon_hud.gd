@@ -5,7 +5,7 @@ extends Control
 ## the other three weapons stacked below as dim rows with a coloured slot
 ## accent down the right edge.
 ##
-## Reserves read as an infinity glyph because the game has no reserve ammo —
+## Reserves read as an infinity glyph because the game has no reserve ammo -
 ## weapons reload from an unlimited pool (TDD §4.2 lists reserves, but nothing
 ## tracks them). Showing infinity is honest rather than inventing a number.
 
@@ -175,7 +175,7 @@ func _sync() -> void:
 	var head_h := HEAD_HEIGHT
 
 	# Name on its own line at the top, count below. Everything is sized to sit
-	# inside HEAD_HEIGHT — the count used to be a 48 px box starting at the
+	# inside HEAD_HEIGHT - the count used to be a 48 px box starting at the
 	# vertical centre, which pushed its bottom past the panel edge.
 	_name_label.position = Vector2(14, 4)
 	_name_label.size = Vector2(PANEL.x - 30, 16)

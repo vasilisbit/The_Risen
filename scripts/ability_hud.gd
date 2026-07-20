@@ -4,7 +4,7 @@ extends Control
 ## HUD: a diamond for the super with a long energy bar running off it, and a
 ## row of squares for the grenade and melee charges beneath.
 ##
-## Everything is drawn with draw_polygon / draw_rect so it needs no textures —
+## Everything is drawn with draw_polygon / draw_rect so it needs no textures -
 ## the glyphs are simple vector shapes built in code, same approach as the rest
 ## of the game's placeholder art.
 ##
@@ -190,7 +190,7 @@ func _draw_outline(pts: PackedVector2Array, col: Color, w: float) -> void:
 	draw_polyline(loop, col, w, true)
 
 
-## Sutherland-Hodgman against the single half-plane y >= line — the portion of
+## Sutherland-Hodgman against the single half-plane y >= line - the portion of
 ## a convex polygon below a horizontal cut, used to fill the diamond partway.
 func _clip_below(pts: PackedVector2Array, line: float) -> PackedVector2Array:
 	var out := PackedVector2Array()

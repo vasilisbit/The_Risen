@@ -1,8 +1,8 @@
 extends Node3D
 
 ## Planet seen through the hub's cockpit window (T-0028). A sphere with the
-## procedural planet shader, showing the world you were LAST DEPLOYED TO —
-## the ship is parked in orbit around it — and Earth before your first mission.
+## procedural planet shader, showing the world you were LAST DEPLOYED TO -
+## the ship is parked in orbit around it - and Earth before your first mission.
 ##
 ## `last_mission` is written by the mission drivers when a mission starts, so
 ## this reflects where you actually went rather than what the save flags say
@@ -37,7 +37,7 @@ const PLANETS := {
 	},
 }
 
-## Which planet is currently shown — exposed for tests.
+## Which planet is currently shown - exposed for tests.
 var shown: String = "Earth"
 
 var _mesh: MeshInstance3D
