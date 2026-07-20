@@ -27,7 +27,7 @@ func _init() -> void:
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
-	if _tick_stun(delta):
+	if _tick_status(delta):
 		return
 	if _attack_timer > 0.0:
 		_attack_timer -= delta

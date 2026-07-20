@@ -50,7 +50,7 @@ func _physics_process(delta: float) -> void:
 	_pulse(delta)
 	if _dead:
 		return
-	if _tick_stun(delta):
+	if _tick_status(delta):
 		return
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
