@@ -14,6 +14,7 @@ signal all_waves_complete
 const RUSHER := "res://scenes/enemies/rusher.tscn"
 const SHOOTER := "res://scenes/enemies/shooter.tscn"
 const EXPLODER := "res://scenes/enemies/exploder.tscn"
+const PORTAL_SCENE := "res://scenes/vfx/portal_vfx.tscn"
 
 const STAGGER := 0.5           # s between successive portal openings
 const PORTAL_LEAD := 2.0       # s a portal is visible before its enemy appears
@@ -99,7 +100,11 @@ func _spawn_one(type_path: String, pos: Vector3) -> void:
 	var vfx := _portal_vfx(pos)
 	await get_tree().create_timer(PORTAL_LEAD).timeout
 	if is_instance_valid(vfx):
-		vfx.queue_free()
+		# Let the portal close gracefully (stops emitting, frees once faded).
+		if vfx.has_method("close"):
+			vfx.close()
+		else:
+			vfx.queue_free()
 	var scene := load(type_path)
 	if scene != null:
 		var e := scene.instantiate() as Node3D
@@ -183,28 +188,18 @@ func _room_markers(room: int) -> Array:
 	return res
 
 
+## Open the T-0017 GPUParticles3D portal at a spawn marker.
 func _portal_vfx(pos: Vector3) -> Node3D:
-	var mi := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.55
-	torus.outer_radius = 0.95
-	mi.mesh = torus
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.25, 0.5, 1.0)
-	m.emission_enabled = true
-	m.emission = Color(0.35, 0.6, 1.0)
-	m.emission_energy_multiplier = 3.0
-	mi.material_override = m
+	var scene := load(PORTAL_SCENE)
+	if scene == null:
+		return null
+	var vfx := scene.instantiate() as Node3D
 	var host := get_tree().current_scene
 	if host == null:
 		host = get_tree().root
-	host.add_child(mi)
-	mi.global_position = pos + Vector3(0, 1.0, 0)
-	mi.rotation.x = PI * 0.5                      # lie flat like a gateway
-	var tw := mi.create_tween().set_loops()
-	tw.tween_property(mi, "scale", Vector3.ONE * 1.25, 0.6)
-	tw.tween_property(mi, "scale", Vector3.ONE * 0.9, 0.6)
-	return mi
+	host.add_child(vfx)
+	vfx.global_position = pos + Vector3(0, 1.0, 0)
+	return vfx
 
 
 # --- UI ---------------------------------------------------------------------
