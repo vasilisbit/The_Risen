@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/difficulty_select.gd" id="6_diffsel"]
 [ext_resource type="Script" path="res://scripts/hub_planet.gd" id="7_planet"]
 [ext_resource type="Shader" path="res://shaders/space_sky.gdshader" id="8_sky"]
+[ext_resource type="Script" path="res://scripts/hub_notice.gd" id="9_notice"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_space"]
 shader = ExtResource("8_sky")
@@ -94,3 +95,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10.5)
 
 [node name="HubPlanet" type="Node3D" parent="."]
 script = ExtResource("7_planet")
+
+[node name="HubNotice" type="Control" parent="HubUI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("9_notice")

@@ -48,7 +48,7 @@ func try_interact() -> void:
 func _launch_mission(mission: String) -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("is_mission_unlocked") and not sm.is_mission_unlocked(mission):
-		print("Mission locked: %s (complete the previous mission first)" % mission)
+		_notify("%s is locked — complete %s first." % [mission, _previous_mission(mission)])
 		return
 	if not MISSION_SCENES.has(mission):
 		print("Mission not implemented yet: %s" % mission)
@@ -60,6 +60,29 @@ func _launch_mission(mission: String) -> void:
 		prompt.open(mission)
 	else:
 		_start_mission(mission)          # no prompt in the scene: go directly
+
+
+## Bottom-left notice in the hub. Falls back to a print if the hub has no
+## notice node, so this stays usable from a bare test scene.
+func _notify(message: String) -> void:
+	var notice := get_tree().get_first_node_in_group("hub_notice")
+	if notice and notice.has_method("notify"):
+		notice.notify(message)
+	else:
+		print(message)
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx("ui_hover")
+
+
+## The mission that gates `mission`, for the locked message.
+func _previous_mission(mission: String) -> String:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm == null or not ("MISSION_ORDER" in sm):
+		return "the previous mission"
+	var order: Array = sm.MISSION_ORDER
+	var idx := order.find(mission)
+	return String(order[idx - 1]) if idx > 0 else "the previous mission"
 
 
 func _start_mission(mission: String) -> void:
