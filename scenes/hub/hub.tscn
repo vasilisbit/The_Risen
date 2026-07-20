@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://cpmdlc3cn6dup" path="res://scripts/hub_structure.gd" id="4_ajtfx"]
 [ext_resource type="PackedScene" path="res://ui/class_select.tscn" id="5_clssel"]
 [ext_resource type="Script" path="res://scripts/difficulty_select.gd" id="6_diffsel"]
+[ext_resource type="Script" path="res://scripts/hub_planet.gd" id="7_planet"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_koree"]
 
@@ -85,3 +86,6 @@ script = ExtResource("4_ajtfx")
 
 [node name="VendorSpawn" type="Marker3D" parent="." unique_id=1313974092]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10.5)
+
+[node name="HubPlanet" type="Node3D" parent="."]
+script = ExtResource("7_planet")

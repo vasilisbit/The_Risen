@@ -12,7 +12,11 @@ const T := 0.3      # wall / slab thickness
 func _ready() -> void:
 	var wall := _mat(Color(0.20, 0.22, 0.28), 0.0, 0.85)
 	var floor_mat := _mat(Color(0.13, 0.14, 0.17), 0.1, 0.7)
-	var glass := _mat(Color(0.10, 0.25, 0.60), 0.0, 0.2, true, Color(0.20, 0.45, 1.0), 1.4)
+	# Actually transparent, so the T-0028 planet outside is visible through it.
+	# It used to be an opaque emissive slab, which just read as a blue panel.
+	var glass := _mat(Color(0.30, 0.45, 0.70, 0.14), 0.0, 0.1, true, Color(0.25, 0.5, 1.0), 0.25)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	# --- Cockpit 10x10, centered at origin (X[-5,5], Z[-5,5]) ---
 	_box(Vector3(0, -T * 0.5, 0), Vector3(10, T, 10), floor_mat)     # floor

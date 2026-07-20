@@ -11,7 +11,10 @@ extends Control
 const GOLD := Color(0.95, 0.78, 0.32)
 const DIM := Color(0.5, 0.53, 0.60)
 const LOCKED := Color(0.35, 0.36, 0.40)
-const CARD_SIZE := Vector2(228, 150)
+## Compact and stacked down the left edge. A centred row of tall cards sat
+## directly in front of the cockpit window, hiding the T-0028 planet, and the
+## bottom of the screen is taken by the ability cluster and weapon panel.
+const CARD_SIZE := Vector2(252, 62)
 
 var _cards: Dictionary = {}          # id -> PanelContainer
 var _note: Label
@@ -69,28 +72,23 @@ func _build() -> void:
 	var tiers: Array = diff.TIERS if diff else []
 
 	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	# Lifted well clear of the bottom-right weapon panel, which the cards
-	# overlapped when they sat just above the bottom edge.
-	root.position = Vector2(-((CARD_SIZE.x + 12.0) * 3.0) * 0.5, -CARD_SIZE.y - 250.0)
+	root.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	root.position = Vector2(24.0, -((CARD_SIZE.y + 8.0) * 3.0 + 48.0) * 0.5)
 	root.add_theme_constant_override("separation", 8)
 	add_child(root)
 
 	var title := Label.new()
 	title.text = "DIFFICULTY"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", 15)
 	title.add_theme_color_override("font_color", GOLD)
 	root.add_child(title)
 
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	root.add_child(row)
 	for t in tiers:
-		row.add_child(_build_card(t))
+		root.add_child(_build_card(t))
 
 	_note = Label.new()
-	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.custom_minimum_size = Vector2(CARD_SIZE.x, 0)
 	_note.add_theme_font_size_override("font_size", 12)
 	_note.add_theme_color_override("font_color", DIM)
 	root.add_child(_note)
@@ -105,33 +103,30 @@ func _build_card(tier: Dictionary) -> PanelContainer:
 
 	var style := StyleBoxFlat.new()
 	style.set_corner_radius_all(5)
-	style.set_content_margin_all(12)
+	style.set_content_margin_all(8)
 	card.add_theme_stylebox_override("panel", style)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", 2)
 	card.add_child(col)
 
 	var name_label := Label.new()
 	name_label.text = String(tier["title"])
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 21)
+	name_label.add_theme_font_size_override("font_size", 17)
 	name_label.add_theme_color_override("font_color", tier["color"])
 	col.add_child(name_label)
 
 	var blurb := Label.new()
 	blurb.text = String(tier["blurb"])
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	blurb.add_theme_font_size_override("font_size", 12)
+	blurb.add_theme_font_size_override("font_size", 11)
 	blurb.modulate = Color(0.78, 0.80, 0.86)
 	blurb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(blurb)
 
 	var lock := Label.new()
 	lock.text = "LOCKED — clear Venus"
-	lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lock.add_theme_font_size_override("font_size", 11)
+	lock.add_theme_font_size_override("font_size", 10)
 	lock.add_theme_color_override("font_color", LOCKED)
 	col.add_child(lock)
 	card.set_meta("lock", lock)
