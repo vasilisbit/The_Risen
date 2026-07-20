@@ -11,6 +11,7 @@ signal mission_selected(mission: String)
 ## to a debug print until their levels exist.
 const MISSION_SCENES := {
 	"Earth": "res://scenes/missions/earth/earth.tscn",
+	"Mars": "res://scenes/missions/mars/mars.tscn",
 }
 
 

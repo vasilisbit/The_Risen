@@ -36,6 +36,11 @@ var is_dead: bool = false
 
 const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
 
+## Multiplies gravity — a low-gravity Area3D (Mars) sets this to 0.4.
+var gravity_scale: float = 1.0
+## Fall-respawn point (Mars platforming); updated by checkpoint triggers.
+var checkpoint: Vector3
+
 var _knockback: Vector3 = Vector3.ZERO
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
@@ -43,6 +48,7 @@ var _spawn_point: Vector3
 var _death_screen: CanvasLayer
 
 const RESPAWN_DELAY := 2.5    # s before respawning at the spawn point
+const FALL_PENALTY := 10.0    # HP lost on a fall respawn (GDD §3.3)
 
 
 func _ready() -> void:
@@ -51,6 +57,7 @@ func _ready() -> void:
 	# Stop the SpringArm3D from colliding with the player's own body.
 	_spring_arm.add_excluded_object(get_rid())
 	_spawn_point = global_position
+	checkpoint = global_position
 	_build_death_screen()
 	# TODO(T-0004): apply class stat modifiers from SaveManager at spawn.
 	health_changed.emit(health, MAX_HEALTH)
@@ -77,14 +84,14 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		# Keep falling but ignore input while dead.
 		if not is_on_floor():
-			velocity.y -= _gravity * delta
+			velocity.y -= _gravity * gravity_scale * delta
 		velocity.x = move_toward(velocity.x, 0.0, WALK_SPEED)
 		velocity.z = move_toward(velocity.z, 0.0, WALK_SPEED)
 		move_and_slide()
 		return
 
 	if not is_on_floor():
-		velocity.y -= _gravity * delta
+		velocity.y -= _gravity * gravity_scale * delta
 
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		# v = sqrt(2 * g * h) reaches exactly JUMP_HEIGHT at apex.
@@ -144,6 +151,23 @@ func take_damage(amount: float) -> void:
 func apply_knockback(impulse: Vector3) -> void:
 	velocity.y += impulse.y
 	_knockback = Vector3(impulse.x, 0.0, impulse.z)
+
+
+## Set the fall-respawn point (Mars checkpoint triggers).
+func set_checkpoint(pos: Vector3) -> void:
+	checkpoint = pos
+
+
+## Respawn at the last checkpoint after a fall (fall damage disabled — a flat
+## -10 HP penalty instead, per GDD §3.3). Does not kill the player.
+func fall_respawn() -> void:
+	if is_dead:
+		return
+	global_position = checkpoint
+	velocity = Vector3.ZERO
+	_knockback = Vector3.ZERO
+	health = maxf(1.0, health - FALL_PENALTY)
+	health_changed.emit(health, MAX_HEALTH)
 
 
 func _on_death() -> void:

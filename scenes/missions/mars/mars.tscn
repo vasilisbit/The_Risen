@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://bqj8np63sq5po"]
+
+[ext_resource type="Script" uid="uid://4ctmgtuhc0yp" path="res://scripts/mars_level.gd" id="1_acncv"]
+[ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="1_jx450"]
+
+[sub_resource type="Environment" id="Environment_27qac"]
+background_mode = 1
+background_color = Color(0.55, 0.33, 0.25, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.38, 0.32, 1)
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.6, 0.38, 0.28, 1)
+fog_density = 0.008
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_rx1gp"]
+geometry_parsed_geometry_type = 1
+agent_height = 1.8
+
+[node name="Mars" type="Node3D" unique_id=679572922]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=969895365]
+environment = SubResource("Environment_27qac")
+
+[node name="Nav" type="NavigationRegion3D" parent="." unique_id=1871302899]
+navigation_mesh = SubResource("NavigationMesh_rx1gp")
+
+[node name="Structure" type="StaticBody3D" parent="Nav" unique_id=1419792165]
+script = ExtResource("1_acncv")
+
+[node name="Guardian" parent="." unique_id=1754395905 instance=ExtResource("1_jx450")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 4)
