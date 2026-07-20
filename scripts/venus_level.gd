@@ -151,9 +151,9 @@ func _on_wind_gust() -> void:
 	if _wind_area == null:
 		return
 	for body in _wind_area.get_overlapping_bodies():
-		if not body.is_in_group("player") or not body.has_method("apply_wind_push"):
+		if not body.is_in_group("player") or not body.has_method("apply_push"):
 			continue
-		body.apply_wind_push(Vector3(0.0, 0.0, WIND_PUSH))    # +Z = back downhill
+		body.apply_push(Vector3(0.0, 0.0, WIND_PUSH))         # +Z = back downhill
 
 
 # --- Section 2: Interior Descent -------------------------------------------
