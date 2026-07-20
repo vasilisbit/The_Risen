@@ -6,7 +6,7 @@ extends EnemyBase
 ## chases at 9 m/s via NavigationAgent3D, and melees for 150 damage at 2 m on a
 ## 1.5 s cooldown. HP 150; drops loot on death (EnemyBase).
 
-const SPRINT_SPEED := 9.0        # m/s
+const SPRINT_SPEED := 5.0        # m/s (below the player's 6 m/s walk — kiteable)
 const DETECT_RANGE := 10.0       # m
 const ATTACK_RANGE := 2.0        # m
 const MELEE_DAMAGE := 150.0

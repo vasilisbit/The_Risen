@@ -7,7 +7,7 @@ extends EnemyBase
 ## Continuously pulses a red emissive material and beeps with a pitch/tempo that
 ## rises as it closes on the player.
 
-const SPRINT_SPEED := 10.0
+const SPRINT_SPEED := 5.5         # m/s (below the player's 6 m/s walk)
 const DETECT_RANGE := 8.0
 const CONTACT_RANGE := 1.6        # centre distance that triggers detonation
 const EXPLOSION_DAMAGE := 200.0

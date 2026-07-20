@@ -1,27 +1,22 @@
 class_name EnemyProjectile
 extends Node3D
 
-## Homing enemy projectile (T-0008). Built and fired from code by the Shooter —
-## no scene file needed. Steers toward the target with a capped turn rate (so it
-## catches a strafing player but can be dodged with hard direction changes),
-## checks walls with a ray each step, and hits the player by proximity so the
-## logic is deterministic and testable without physics-server callbacks.
+## Linear enemy projectile (T-0008, retuned). Fired straight toward where the
+## player's chest was when the shot left the muzzle — no homing, so it travels in
+## a straight line and can be dodged by strafing. Raycasts each step for wall and
+## player hits (allies are excluded so bolts pass through other enemies).
 
 const SPEED := 18.0            # m/s
-const TURN_RATE := 3.0         # rad/s max steering toward the target
 const LIFETIME := 5.0          # s
-const HIT_RADIUS := 0.8        # m to target chest
 const TARGET_CHEST := Vector3(0.0, 1.0, 0.0)
 
 var damage: float = 100.0
 var _dir: Vector3 = Vector3.FORWARD
-var _target: Node3D = null
 var _shooter_rid: RID
 var _life: float = 0.0
 
 
 func setup(from: Vector3, target: Node3D, shooter_rid: RID) -> void:
-	_target = target
 	_shooter_rid = shooter_rid
 	position = from
 	if target != null:
@@ -50,18 +45,11 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
-	# Steer toward the target with a capped turn rate.
-	if _target != null and is_instance_valid(_target):
-		var desired := (_target.global_position + TARGET_CHEST - global_position).normalized()
-		var angle := _dir.angle_to(desired)
-		if angle > 0.0001:
-			var t := clampf(TURN_RATE * delta / angle, 0.0, 1.0)
-			_dir = _dir.slerp(desired, t).normalized()
-
+	# Straight-line step (no steering).
 	var step := _dir * SPEED * delta
 
-	# Wall check along this step (world layer 1). Enemies are excluded so bolts
-	# pass allies; hitting the player body counts as a hit.
+	# Wall/player check along this step (world layer 1). Enemies are excluded so
+	# bolts pass allies; hitting the player body counts as a hit.
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(global_position, global_position + step, 1)
 	var excludes: Array[RID] = [_shooter_rid]
@@ -79,11 +67,6 @@ func _physics_process(delta: float) -> void:
 		return
 
 	global_position += step
-
-	# Proximity hit on the target (deterministic, no Area3D callback needed).
-	if _target != null and is_instance_valid(_target):
-		if global_position.distance_to(_target.global_position + TARGET_CHEST) <= HIT_RADIUS:
-			_hit_player(_target)
 
 
 func _hit_player(node: Node) -> void:
