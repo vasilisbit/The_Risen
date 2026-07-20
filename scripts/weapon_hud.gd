@@ -5,16 +5,17 @@ extends Control
 ## the other three weapons stacked below as dim rows with a coloured slot
 ## accent down the right edge.
 ##
-## Reserves read "INF" because the game has no reserve ammo — weapons reload
-## from an unlimited pool (TDD §4.2 lists reserves, but nothing tracks them).
-## Showing infinity is honest rather than inventing a number.
+## Reserves read as an infinity glyph because the game has no reserve ammo —
+## weapons reload from an unlimited pool (TDD §4.2 lists reserves, but nothing
+## tracks them). Showing infinity is honest rather than inventing a number.
 
 const MARGIN := Vector2(34, 30)
-const PANEL := Vector2(330, 152)
+const PANEL := Vector2(330, 166)
 const ROW_HEIGHT := 28.0
 const ACCENT_WIDTH := 4.0
 ## Height of the equipped-weapon block. Tall enough for the name to sit above
-## the magazine count instead of colliding with it.
+## the magazine count AND for the count's own minimum height (a 32 px font
+## needs ~45 px) to fit inside the band, so it doesn't grow past its box.
 const HEAD_HEIGHT := PANEL.y - ROW_HEIGHT * 3.0 - 6.0
 
 const EMPTY := Color(0.10, 0.11, 0.13, 0.85)
@@ -86,7 +87,8 @@ func _draw() -> void:
 	var divider := head.end.x - 62.0
 	draw_line(Vector2(divider, head.position.y + 24.0),
 		Vector2(divider, head.end.y - 6.0), FRAME, 1.5)
-	_draw_weapon_glyph(Vector2(38, head.position.y + head.size.y * 0.62), accent, 1.0)
+	_draw_weapon_glyph(weapons[active].weapon_name,
+		Vector2(38, head.position.y + head.size.y * 0.62), accent, 1.0)
 
 	# The other three weapons, dimmed.
 	var slot := 0
@@ -99,18 +101,40 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2(row.end.x - ACCENT_WIDTH, row.position.y),
 			Vector2(ACCENT_WIDTH, row.size.y)),
 			SLOT_COLORS[i % SLOT_COLORS.size()].darkened(0.25))
-		_draw_weapon_glyph(Vector2(30, y + row.size.y * 0.5), DIM, 0.62)
+		_draw_weapon_glyph(weapons[i].weapon_name, Vector2(30, y + row.size.y * 0.5), DIM, 0.62)
 		slot += 1
 
 
-## Simple side-on rifle silhouette: body, barrel, magazine, stock.
-func _draw_weapon_glyph(c: Vector2, col: Color, scale: float) -> void:
+## Side-on silhouette per weapon type, so a glance at the stack tells you which
+## row is which without reading names. Barrel points left.
+func _draw_weapon_glyph(kind: String, c: Vector2, col: Color, scale: float) -> void:
 	var w := 34.0 * scale
 	var h := 7.0 * scale
-	draw_rect(Rect2(c + Vector2(-w * 0.5, -h * 0.5), Vector2(w, h)), col)
-	draw_rect(Rect2(c + Vector2(w * 0.35, -h * 0.22), Vector2(w * 0.4, h * 0.45)), col)
-	draw_rect(Rect2(c + Vector2(-w * 0.12, h * 0.4), Vector2(h * 0.9, h * 1.5)), col)
-	draw_rect(Rect2(c + Vector2(-w * 0.62, -h * 0.1), Vector2(w * 0.2, h * 0.8)), col)
+	match kind:
+		"Shotgun":
+			# Short fat body, wide double barrel, pump under it.
+			draw_rect(Rect2(c + Vector2(-w * 0.25, -h * 0.6), Vector2(w * 0.55, h * 1.2)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.62, -h * 0.55), Vector2(w * 0.4, h * 0.5)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.62, h * 0.05), Vector2(w * 0.4, h * 0.4)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.45, h * 0.5), Vector2(w * 0.22, h * 0.5)), col)
+		"Sniper":
+			# Long thin barrel with a scope sitting proud on top.
+			draw_rect(Rect2(c + Vector2(-w * 0.15, -h * 0.35), Vector2(w * 0.5, h * 0.8)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.75, -h * 0.12), Vector2(w * 0.62, h * 0.3)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.1, -h * 0.95), Vector2(w * 0.36, h * 0.4)), col)
+			draw_rect(Rect2(c + Vector2(w * 0.3, -h * 0.4), Vector2(w * 0.2, h * 0.9)), col)
+		"Hand Cannon":
+			# Stubby: short barrel, fat cylinder, steep grip.
+			draw_rect(Rect2(c + Vector2(-w * 0.1, -h * 0.45), Vector2(w * 0.34, h * 0.9)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.44, -h * 0.2), Vector2(w * 0.36, h * 0.4)), col)
+			draw_circle(c + Vector2(w * 0.02, h * 0.05), h * 0.62, col)
+			draw_rect(Rect2(c + Vector2(w * 0.14, h * 0.3), Vector2(w * 0.16, h * 1.2)), col)
+		_:
+			# Auto rifle: boxy receiver, long thin barrel, tall magazine.
+			draw_rect(Rect2(c + Vector2(-w * 0.2, -h * 0.5), Vector2(w * 0.55, h)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.66, -h * 0.18), Vector2(w * 0.5, h * 0.36)), col)
+			draw_rect(Rect2(c + Vector2(-w * 0.05, h * 0.4), Vector2(h * 0.85, h * 1.5)), col)
+			draw_rect(Rect2(c + Vector2(w * 0.3, -h * 0.35), Vector2(w * 0.18, h * 0.8)), col)
 
 
 func _build_labels() -> void:
@@ -119,7 +143,9 @@ func _build_labels() -> void:
 	add_child(_name_label)
 	_ammo_label = _make_label(32, HORIZONTAL_ALIGNMENT_RIGHT)
 	add_child(_ammo_label)
-	_reserve_label = _make_label(18, HORIZONTAL_ALIGNMENT_CENTER)
+	# The infinity glyph reads small at text sizes, so it gets a larger size
+	# than a two-letter label would need.
+	_reserve_label = _make_label(26, HORIZONTAL_ALIGNMENT_CENTER)
 	_reserve_label.modulate = DIM
 	add_child(_reserve_label)
 	for i in 3:
@@ -156,16 +182,21 @@ func _sync() -> void:
 	_name_label.text = "%s%s" % [w.weapon_name.to_upper(),
 		"   RELOADING" if w.is_reloading() else ""]
 
+	# Count and reserve share one vertical band, both centred in it, so their
+	# midlines agree. Giving them separate y/height made the big number sit
+	# visibly lower than the reserve and crowd the panel edge.
 	var divider := PANEL.x - 62.0
-	_ammo_label.position = Vector2(PANEL.x - 210, 22)
-	_ammo_label.size = Vector2(divider - 8.0 - (PANEL.x - 210), head_h - 26)
+	var band_y := 21.0
+	var band_h := head_h - band_y - 5.0
+	_ammo_label.position = Vector2(PANEL.x - 210, band_y)
+	_ammo_label.size = Vector2(divider - 8.0 - (PANEL.x - 210), band_h)
 	_ammo_label.text = str(w.ammo)
 	# Flash the count red when the magazine is empty.
 	_ammo_label.modulate = Color(1.0, 0.45, 0.4) if w.ammo <= 0 else Color(1, 1, 1)
 
-	_reserve_label.position = Vector2(divider + 4.0, 24)
-	_reserve_label.size = Vector2(PANEL.x - divider - 12.0, head_h - 28)
-	_reserve_label.text = "INF"
+	_reserve_label.position = Vector2(divider + 4.0, band_y)
+	_reserve_label.size = Vector2(PANEL.x - divider - 12.0, band_h)
+	_reserve_label.text = "∞"
 
 	var slot := 0
 	for i in weapons.size():

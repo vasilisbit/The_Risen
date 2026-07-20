@@ -29,6 +29,9 @@ func _ready() -> void:
 		add_child(w)
 		w.state_changed.connect(_update_hud)
 		_weapons.append(w)
+	# Give the viewmodel the starting weapon's silhouette.
+	if _viewmodel and _viewmodel.has_method("set_weapon") and not _weapons.is_empty():
+		_viewmodel.set_weapon(_weapons[_active].weapon_name)
 	_update_hud()
 
 
@@ -64,6 +67,8 @@ func _switch(index: int) -> void:
 		return
 	active_weapon().cancel_reload()      # switching cancels an in-progress reload
 	_active = index
+	if _viewmodel and _viewmodel.has_method("set_weapon"):
+		_viewmodel.set_weapon(active_weapon().weapon_name)
 	_update_hud()
 
 

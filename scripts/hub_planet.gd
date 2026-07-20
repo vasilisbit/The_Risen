@@ -1,13 +1,12 @@
 extends Node3D
 
 ## Planet seen through the hub's cockpit window (T-0028). A sphere with the
-## procedural planet shader, showing the mission you are heading to next:
-## Earth (blue) until Earth is cleared, then Mars (red), then Venus (orange).
+## procedural planet shader, showing the world you were LAST DEPLOYED TO —
+## the ship is parked in orbit around it — and Earth before your first mission.
 ##
-## "Texture per last completed mission" in the card reads as progress-driven,
-## and the DoD — clear Earth, return to the hub, see Mars — means it shows the
-## NEXT target rather than the one just finished. That is also the more useful
-## thing to look at from the mission table.
+## `last_mission` is written by the mission drivers when a mission starts, so
+## this reflects where you actually went rather than what the save flags say
+## you have finished. Entering Earth and dying still leaves you in Earth orbit.
 ##
 ## Rotation lives in the shader against TIME, so it is frame-rate independent
 ## and there is no per-frame script work to stutter.
@@ -54,7 +53,7 @@ func _ready() -> void:
 ## so _ready covers the normal path; this exists for tests and for any future
 ## in-place refresh.
 func refresh() -> void:
-	shown = _next_target()
+	shown = _last_visited()
 	var look: Dictionary = PLANETS.get(shown, PLANETS["Earth"])
 	if _mat == null:
 		return
@@ -66,16 +65,13 @@ func refresh() -> void:
 	_mat.set_shader_parameter("cloud_amount", look["clouds"])
 
 
-## The first mission not yet completed; once everything is done, stay on Venus.
-func _next_target() -> String:
+## The mission most recently deployed to, defaulting to Earth before the first.
+func _last_visited() -> String:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm == null:
 		return "Earth"
-	var flags: Dictionary = sm.data.get("mission_completion_flags", {})
-	for mission in ["Earth", "Mars", "Venus"]:
-		if not bool(flags.get(mission, false)):
-			return mission
-	return "Venus"
+	var last := String(sm.data.get("last_mission", "Earth"))
+	return last if PLANETS.has(last) else "Earth"
 
 
 func _build() -> void:
