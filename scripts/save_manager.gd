@@ -25,6 +25,10 @@ func _default_data() -> Dictionary:
 		"player_level": 1,
 		"current_xp": 0,
 		"selected_class": "Assault",
+		# False until the player picks on the class-selection screen (T-0022).
+		# selected_class already has a value, so this is what marks it a default
+		# rather than a real choice. Backfilled into older saves on load.
+		"class_chosen": false,
 		"owned_weapons": [],
 		"owned_armor": [],
 		"flux_currency": 0,
@@ -96,6 +100,18 @@ func is_mission_unlocked(mission: String) -> bool:
 	var prev: String = MISSION_ORDER[idx - 1]
 	var flags: Dictionary = data.get("mission_completion_flags", {})
 	return bool(flags.get(prev, false))
+
+
+## Record the player's class choice (T-0022) and persist it.
+func select_class(class_name_: String) -> void:
+	data["selected_class"] = class_name_
+	data["class_chosen"] = true
+	save_game()
+
+
+## True once the player has actually been through the class picker.
+func has_chosen_class() -> bool:
+	return bool(data.get("class_chosen", false))
 
 
 ## Start a brand-new save (defaults) and persist it.
