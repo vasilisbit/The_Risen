@@ -37,6 +37,7 @@ var shield: float = MAX_SHIELD
 var is_dead: bool = false
 
 const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
+const WIND_PUSH_TIME := 0.4      # s a wind gust takes to shove the player (Venus)
 
 ## Multiplies gravity — a low-gravity Area3D (Mars) sets this to 0.4.
 var gravity_scale: float = 1.0
@@ -49,6 +50,8 @@ var checkpoint: Vector3
 
 var _air_speed: float = WALK_SPEED     # horizontal speed locked in at take-off
 var _knockback: Vector3 = Vector3.ZERO
+var _wind_velocity: Vector3 = Vector3.ZERO
+var _wind_time_left: float = 0.0
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
@@ -126,6 +129,14 @@ func _physics_process(delta: float) -> void:
 	velocity.z += _knockback.z
 	_knockback = _knockback.move_toward(Vector3.ZERO, KNOCKBACK_DECAY * delta)
 
+	# Wind gusts (Venus) are a displacement budget rather than a decaying
+	# impulse: spending exactly WIND_PUSH_TIME seconds of _wind_velocity moves
+	# the player exactly the requested distance, whatever the frame rate.
+	if _wind_time_left > 0.0 and delta > 0.0:
+		var wind_dt: float = minf(delta, _wind_time_left)
+		velocity += _wind_velocity * (wind_dt / delta)
+		_wind_time_left -= wind_dt
+
 	move_and_slide()
 	_update_shield(delta)
 
@@ -172,6 +183,17 @@ func apply_knockback(impulse: Vector3) -> void:
 	_knockback = Vector3(impulse.x, 0.0, impulse.z)
 
 
+## Shove the player a precise distance (Venus wind gusts, T-0020). Unlike
+## apply_knockback() the total travel equals offset.length() exactly, so the
+## design spec "gusts push the player back 2 m" is literally what happens.
+## Obstacles still absorb it — move_and_slide() resolves the collision.
+func apply_wind_push(offset: Vector3) -> void:
+	if is_dead or offset == Vector3.ZERO:
+		return
+	_wind_velocity = offset / WIND_PUSH_TIME
+	_wind_time_left = WIND_PUSH_TIME
+
+
 ## Set the fall-respawn point (Mars checkpoint triggers).
 func set_checkpoint(pos: Vector3) -> void:
 	checkpoint = pos
@@ -187,6 +209,24 @@ func fall_respawn() -> void:
 	_knockback = Vector3.ZERO
 	health = maxf(1.0, health - FALL_PENALTY)
 	health_changed.emit(health, max_hp())
+
+
+## Environmental hazard hit (Venus lava, T-0020): lose HP, then return to the
+## last checkpoint. The damage goes straight to health — it deliberately
+## bypasses the shield and armour reduction, because GDD §3.4 specifies lava as
+## a flat "instant -50% HP" and a recharging shield would otherwise make the
+## first two dunks free. Non-lethal (floors at 1 HP) like fall_respawn(), so a
+## platforming mistake costs progress and health, never the whole run.
+func hazard_respawn(damage: float) -> void:
+	if is_dead:
+		return
+	health = maxf(1.0, health - damage)
+	_time_since_damage = 0.0
+	health_changed.emit(health, max_hp())
+	global_position = checkpoint
+	velocity = Vector3.ZERO
+	_knockback = Vector3.ZERO
+	_wind_time_left = 0.0
 
 
 func _on_death() -> void:
