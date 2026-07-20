@@ -19,6 +19,9 @@ extends Node3D
 
 signal state_changed                       # ammo / reload changed
 
+## Scales outgoing damage — Mars wave buffs raise this (e.g. +20% -> 1.2).
+var damage_multiplier: float = 1.0
+
 var ammo: int = 0
 var _cooldown: float = 0.0
 var _reloading: bool = false
@@ -55,7 +58,7 @@ func fire(origin: Vector3, direction: Vector3, world: World3D, exclude: Array = 
 		return []
 	ammo -= 1
 	_cooldown = 60.0 / rpm
-	var per_pellet := damage / float(max(1, pellets))
+	var per_pellet := damage * damage_multiplier / float(max(1, pellets))
 	var results: Array = []
 	var space := world.direct_space_state
 	for i in pellets:

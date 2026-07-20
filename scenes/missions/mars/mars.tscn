@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://4ctmgtuhc0yp" path="res://scripts/mars_level.gd" id="1_acncv"]
 [ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="1_jx450"]
+[ext_resource type="Script" uid="uid://3kmilolmyo21" path="res://scripts/wave_manager.gd" id="3_27qac"]
 
 [sub_resource type="Environment" id="Environment_27qac"]
 background_mode = 1
@@ -30,3 +31,6 @@ script = ExtResource("1_acncv")
 
 [node name="Guardian" parent="." unique_id=1754395905 instance=ExtResource("1_jx450")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 4)
+
+[node name="WaveManager" type="Node" parent="." unique_id=1210423846]
+script = ExtResource("3_27qac")
