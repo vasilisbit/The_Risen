@@ -8,9 +8,13 @@ extends Control
 const RADIUS := 34.0
 const THICKNESS := 7.0
 const MARGIN := Vector2(28, 28)
+const GAP := 14.0                 # horizontal space between adjacent rings
 const DIM := Color(0.25, 0.26, 0.30)
 
 var ability: Ability
+## Which slot this ring occupies, counting right-to-left from the corner:
+## 0 = super (rightmost), 1 = grenade, 2 = melee (T-0025).
+var slot: int = 0
 
 var _centre: Label
 var _name_label: Label
@@ -24,9 +28,10 @@ func _ready() -> void:
 	anchor_top = 1.0
 	anchor_right = 1.0
 	anchor_bottom = 1.0
-	offset_left = -(RADIUS * 2.0 + MARGIN.x)
+	var shift := float(slot) * (RADIUS * 2.0 + GAP)
+	offset_left = -(RADIUS * 2.0 + MARGIN.x) - shift
 	offset_top = -(RADIUS * 2.0 + MARGIN.y)
-	offset_right = -MARGIN.x
+	offset_right = -MARGIN.x - shift
 	offset_bottom = -MARGIN.y
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_labels()
@@ -37,10 +42,10 @@ func _process(_delta: float) -> void:
 		visible = false
 		return
 	visible = true
-	# One centre label: the "Q" prompt when the super is usable, otherwise the
+	# One centre label: the key prompt when the ability is usable, otherwise the
 	# seconds remaining. Showing both at once just made them overlap.
 	var ready_now := ability.is_ready()
-	_centre.text = "Q" if ready_now else str(int(ceil(ability.cooldown_left())))
+	_centre.text = ability.input_prompt if ready_now else str(int(ceil(ability.cooldown_left())))
 	_centre.modulate = ability.ability_color if ready_now else DIM
 	_name_label.text = ability.ability_name
 	queue_redraw()

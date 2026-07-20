@@ -27,6 +27,8 @@ func _init() -> void:
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
+	if _tick_stun(delta):
+		return
 	if _attack_timer > 0.0:
 		_attack_timer -= delta
 	if not is_on_floor():

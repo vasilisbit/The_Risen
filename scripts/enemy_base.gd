@@ -31,6 +31,8 @@ var loot_rarity_override: String = ""
 
 var max_health: float = 100.0
 var health: float = 100.0
+## Seconds of Flashbang blindness left; while > 0 the enemy takes no actions.
+var stun_left: float = 0.0
 var _dead: bool = false
 var _player: Node3D = null
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
@@ -56,6 +58,31 @@ func _ensure_player() -> bool:
 func _halt_horizontal() -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
+
+
+## Blind/stun this enemy (Flashbang, T-0024). Takes the longer of the current
+## and new duration so a second flash can't cut an existing one short.
+func stun(seconds: float) -> void:
+	stun_left = maxf(stun_left, seconds)
+
+
+func is_stunned() -> bool:
+	return stun_left > 0.0
+
+
+## Advance the stun timer and hold the enemy in place. Returns true while the
+## caller should skip the rest of its _physics_process — subclasses call this
+## right after their `_dead` guard. Gravity still applies, so a stunned enemy
+## falls instead of hanging in mid-air.
+func _tick_stun(delta: float) -> bool:
+	if stun_left <= 0.0:
+		return false
+	stun_left = maxf(0.0, stun_left - delta)
+	if not is_on_floor():
+		velocity.y -= _gravity * delta
+	_halt_horizontal()
+	move_and_slide()
+	return true
 
 
 ## Horizontal steering direction toward a NavigationAgent3D waypoint. The

@@ -12,9 +12,14 @@ signal became_ready
 
 const COOLDOWN := 60.0            # s, all three supers (GDD §2.4)
 
-## Display name / colour used by the cooldown HUD.
+## Per-ability cooldown. Supers keep the 60 s default; grenades (T-0024) set
+## 30 s and melee (T-0025) 5 s, so the slots can't share one constant.
+var cooldown_time: float = COOLDOWN
+
+## Display name / colour / key prompt used by the cooldown HUD.
 var ability_name: String = "Super"
 var ability_color: Color = Color(1, 1, 1)
+var input_prompt: String = "Q"
 
 var _cooldown_left: float = 0.0
 
@@ -41,7 +46,9 @@ func cooldown_left() -> float:
 
 ## 0.0 while fully on cooldown, 1.0 when ready — what the radial HUD fills to.
 func cooldown_fraction() -> float:
-	return 1.0 - (_cooldown_left / COOLDOWN)
+	if cooldown_time <= 0.0:
+		return 1.0
+	return 1.0 - (_cooldown_left / cooldown_time)
 
 
 ## Fire the super. Returns false (and does nothing) if still on cooldown, which
@@ -52,7 +59,7 @@ func activate() -> bool:
 		return false
 	if player == null or not is_instance_valid(player):
 		return false
-	_cooldown_left = COOLDOWN
+	_cooldown_left = cooldown_time
 	_execute()
 	activated.emit()
 	return true
