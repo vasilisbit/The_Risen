@@ -29,12 +29,29 @@ const PLANETS := {
 const LOCKED_BRIGHTNESS := 0.35
 const UNLOCKED_BRIGHTNESS := 1.0
 
+## Label sits just above each sphere (spheres are radius 0.25 at y = 1.5).
+const LABEL_HEIGHT := 0.42
+const LABEL_SIZE := 0.10
+
 var _materials: Dictionary = {}          # mission -> ShaderMaterial
+var _labels: Dictionary = {}             # mission -> Label3D
+var _flicker: float = 0.0
 
 
 func _ready() -> void:
 	_build()
 	refresh()
+
+
+## Labels flicker in sympathy with the projections they name, so the text reads
+## as part of the hologram rather than as UI floating in the room.
+func _process(delta: float) -> void:
+	_flicker += delta
+	var wobble := 0.88 + 0.12 * sin(_flicker * 9.0)
+	for mission in _labels:
+		var label: Label3D = _labels[mission]
+		var base: float = float(label.get_meta("base_alpha"))
+		label.modulate.a = base * wobble
 
 
 ## Repaint from save progress. The hub reloads on return from a mission, so
@@ -48,6 +65,12 @@ func refresh() -> void:
 		var mat: ShaderMaterial = _materials[mission]
 		mat.set_shader_parameter("brightness",
 			UNLOCKED_BRIGHTNESS if unlocked else LOCKED_BRIGHTNESS)
+		if _labels.has(mission):
+			var label: Label3D = _labels[mission]
+			# A locked world still names itself, but says so. The suffix goes on
+			# its own line — inline, the three labels ran into each other.
+			label.text = mission.to_upper() if unlocked else "%s\nLOCKED" % mission.to_upper()
+			label.set_meta("base_alpha", 0.95 if unlocked else 0.45)
 
 
 func _build() -> void:
@@ -70,3 +93,25 @@ func _build() -> void:
 		mat.set_shader_parameter("rot_speed", 0.045 + 0.015 * float(_materials.size()))
 		mesh.material_override = mat
 		_materials[mission] = mat
+		_labels[mission] = _build_label(mesh.get_parent() as Node3D, info["base"])
+
+
+## Floating name above a projection. Billboarded and depth-test-free so it is
+## readable from anywhere around the table, and tinted to match its planet.
+func _build_label(anchor: Node3D, tint: Color) -> Label3D:
+	var label := Label3D.new()
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.shaded = false
+	label.double_sided = true
+	label.pixel_size = 0.0012
+	label.font_size = 64
+	label.outline_size = 0
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.line_spacing = -8.0
+	label.modulate = Color(tint.lightened(0.45), 0.95)
+	label.position = Vector3(0, LABEL_HEIGHT, 0)
+	label.scale = Vector3.ONE * LABEL_SIZE * 10.0
+	label.set_meta("base_alpha", 0.95)
+	anchor.add_child(label)
+	return label
