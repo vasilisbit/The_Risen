@@ -12,9 +12,10 @@ const T := 0.3      # wall / slab thickness
 func _ready() -> void:
 	var wall := _mat(Color(0.20, 0.22, 0.28), 0.0, 0.85)
 	var floor_mat := _mat(Color(0.13, 0.14, 0.17), 0.1, 0.7)
-	# Actually transparent, so the T-0028 planet outside is visible through it.
-	# It used to be an opaque emissive slab, which just read as a blue panel.
-	var glass := _mat(Color(0.30, 0.45, 0.70, 0.14), 0.0, 0.1, true, Color(0.25, 0.5, 1.0), 0.25)
+	# Near-clear, faintly cool glass. Earlier passes tinted and lit it enough
+	# that space read as bright blue through the window instead of black; the
+	# pane should be almost invisible and only catch a little edge light.
+	var glass := _mat(Color(0.55, 0.62, 0.72, 0.05), 0.0, 0.05)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
 

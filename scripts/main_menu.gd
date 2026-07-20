@@ -13,18 +13,24 @@ const HUB := "res://scenes/hub/hub.tscn"
 const GOLD := Color(0.95, 0.78, 0.32)
 const DIM := Color(0.55, 0.58, 0.66)
 const STAR_COUNT := 260
-## Screen widths per second at full parallax depth. Was 14 — far too fast.
-const STAR_DRIFT := 1.6
+## Screen widths per second at full parallax depth; each star scales this by
+## its own depth. This is a distant field behind a menu, not a warp tunnel.
+## Measured: at 0.35 a mid-depth star still crossed in under 6 s, which read as
+## travelling. At 0.10 the nearest take ~10 s and the furthest around a minute.
+const STAR_DRIFT := 0.10
 
-## Background planets: x/y in screen fractions, radius in pixels, and the two
-## tones its banded surface mixes between. Drawn behind the menu text, right of
-## the entries so they never sit under a label.
+## Background planets. `spin` turns the surface; `orbit`/`sway` move the whole
+## body on a slow sine so it drifts and returns instead of scrolling off — a
+## menu backdrop should loop, not go anywhere.
 const MENU_PLANETS := [
-	{"pos": Vector2(0.78, 0.32), "radius": 120.0, "drift": 0.35,
+	{"pos": Vector2(0.78, 0.34), "radius": 120.0,
+		"spin": 0.05, "orbit": 0.045, "sway": Vector2(0.030, 0.016),
 		"base": Color(0.16, 0.30, 0.55), "band": Color(0.35, 0.62, 0.85)},
-	{"pos": Vector2(0.60, 0.78), "radius": 46.0, "drift": 0.7,
+	{"pos": Vector2(0.58, 0.80), "radius": 46.0,
+		"spin": 0.09, "orbit": 0.062, "sway": Vector2(0.045, 0.022),
 		"base": Color(0.42, 0.18, 0.12), "band": Color(0.72, 0.36, 0.20)},
-	{"pos": Vector2(0.92, 0.72), "radius": 28.0, "drift": 1.1,
+	{"pos": Vector2(0.93, 0.70), "radius": 28.0,
+		"spin": 0.13, "orbit": 0.085, "sway": Vector2(0.028, 0.034),
 		"base": Color(0.45, 0.34, 0.14), "band": Color(0.78, 0.62, 0.28)},
 ]
 
@@ -106,11 +112,18 @@ func _draw() -> void:
 func _draw_menu_planet(info: Dictionary, vp: Vector2) -> void:
 	var frac: Vector2 = info["pos"]
 	var r: float = info["radius"]
-	# Wraps across the screen far slower than the stars, at its own rate.
-	var x := fposmod(frac.x - _time * float(info["drift"]) * 0.004, 1.3) - 0.15
-	var c := Vector2(x * vp.x, frac.y * vp.y)
+	# Periodic drift: a slow Lissajous around the anchor point, so each planet
+	# wanders and comes back rather than scrolling away and wrapping.
+	var orbit: float = float(info["orbit"])
+	var sway: Vector2 = info["sway"]
+	var offset := Vector2(
+		sin(_time * orbit) * sway.x,
+		cos(_time * orbit * 0.73) * sway.y)
+	var c := (frac + offset) * vp
 	if c.x < -r * 2.0 or c.x > vp.x + r * 2.0:
 		return
+	# Surface rotation: the band pattern scrolls through its own phase.
+	var spin: float = _time * float(info["spin"])
 
 	var base: Color = info["base"]
 	var band: Color = info["band"]
@@ -127,7 +140,7 @@ func _draw_menu_planet(info: Dictionary, vp: Vector2) -> void:
 		var half := sqrt(maxf(0.0, 1.0 - outer * outer)) * r
 		if half <= 0.5:
 			continue
-		var shade := 0.5 + 0.5 * sin(t0 * 7.0 + frac.x * 12.0)
+		var shade := 0.5 + 0.5 * sin(t0 * 7.0 + frac.x * 12.0 + spin * TAU)
 		var col := base.lerp(band, shade * 0.55)
 		draw_rect(Rect2(Vector2(c.x - half, c.y + t0 * r),
 			Vector2(half * 2.0, (t1 - t0) * r + 0.5)), col)

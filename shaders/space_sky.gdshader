@@ -7,10 +7,12 @@ shader_type sky;
 // Stars come from a hashed cell grid rather than a texture, so they are stable
 // (a given direction always has the same star) and cost nothing to author.
 
-uniform vec3 horizon_color : source_color = vec3(0.03, 0.04, 0.07);
-uniform vec3 zenith_color : source_color = vec3(0.01, 0.01, 0.03);
-uniform vec3 nebula_color : source_color = vec3(0.10, 0.06, 0.22);
-uniform float nebula_strength = 0.5;
+// Deep navy fading to near-black. Kept dark on purpose: anything brighter and
+// the window reads as a blue panel rather than an opening onto space.
+uniform vec3 horizon_color : source_color = vec3(0.015, 0.022, 0.045);
+uniform vec3 zenith_color : source_color = vec3(0.004, 0.005, 0.012);
+uniform vec3 nebula_color : source_color = vec3(0.06, 0.04, 0.14);
+uniform float nebula_strength = 0.35;
 uniform float star_density = 0.965;   // higher = fewer stars
 uniform float star_brightness = 1.0;
 

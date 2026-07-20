@@ -10,6 +10,16 @@ const WEAPON_PATHS := [
 	"res://scenes/weapons/hand_cannon.tscn",
 ]
 
+## Per-shot camera kick, in radians. `pitch` climbs the aim permanently (so
+## sustained fire walks upward and has to be pulled back down); `shake` is the
+## decaying jitter on top. Roughly tracks each weapon's damage per shot.
+const CAMERA_RECOIL := {
+	"Auto Rifle": {"pitch": 0.006, "shake": 0.004},
+	"Shotgun": {"pitch": 0.045, "shake": 0.030},
+	"Sniper": {"pitch": 0.055, "shake": 0.022},
+	"Hand Cannon": {"pitch": 0.028, "shake": 0.016},
+}
+
 var _weapons: Array[Weapon] = []
 var _active: int = 0
 var _camera: Camera3D
@@ -76,6 +86,11 @@ func _fire() -> void:
 	var w := active_weapon()
 	if w == null or _camera == null:
 		return
+	# Guard the action, not just the input polling: disabling _process stops the
+	# player firing, but any other caller would still have gone through.
+	var owner_body := get_parent()
+	if owner_body and ("combat_enabled" in owner_body) and not owner_body.combat_enabled:
+		return
 	if not w.can_fire():
 		return
 	var origin := _camera.global_position
@@ -86,6 +101,12 @@ func _fire() -> void:
 	w.fire(origin, dir, get_world_3d(), exclude)
 	if _viewmodel != null:
 		_viewmodel.kick()                # recoil the on-screen viewmodel
+	# Camera recoil, weighted per weapon so the shotgun throws the view and the
+	# auto rifle only nudges it.
+	var player := get_parent()
+	if player and player.has_method("add_recoil"):
+		var r: Dictionary = CAMERA_RECOIL.get(w.weapon_name, CAMERA_RECOIL["Auto Rifle"])
+		player.add_recoil(float(r["pitch"]), float(r["shake"]))
 
 
 func _update_hud() -> void:
