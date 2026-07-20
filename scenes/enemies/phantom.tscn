@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://bbtxrcv55ehip"]
+
+[ext_resource type="Script" uid="uid://dcx8k137xa2bi" path="res://scripts/phantom.gd" id="1_xraoj"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_q5kw4"]
+radius = 0.6
+height = 2.4
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_ylqix"]
+radius = 0.6
+height = 2.4
+
+[node name="Phantom" type="CharacterBody3D" unique_id=677695616]
+script = ExtResource("1_xraoj")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1443628055]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+shape = SubResource("CapsuleShape3D_q5kw4")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=989409631]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+mesh = SubResource("CapsuleMesh_ylqix")
