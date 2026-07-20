@@ -123,6 +123,9 @@ func slam() -> void:
 func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
 		return
+	amount = absorb_shield(amount)
+	if amount <= 0.0:
+		return
 	if shield > 0.0:
 		shield = maxf(0.0, shield - amount)
 		_update_shield_vfx()

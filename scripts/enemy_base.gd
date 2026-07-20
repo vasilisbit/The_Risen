@@ -34,6 +34,13 @@ var health: float = 100.0
 ## Seconds of stun left; while > 0 the enemy takes no actions.
 var stun_left: float = 0.0
 
+## Heroic/Legendary shield pool (T-0027), absorbed before health. GDD §7 calls
+## for ELEMENTAL shields that must be matched by the weapon's element — weapons
+## have no elements yet (mods are unimplemented), so this is the same mechanic
+## without the matching rule. Wire the element check in when weapon mods land.
+var elemental_shield: float = 0.0
+var max_elemental_shield: float = 0.0
+
 ## Knockback displacement budget (Ground Slam), spent over PUSH_TIME seconds.
 const PUSH_TIME := 0.3
 var _push_velocity: Vector3 = Vector3.ZERO
@@ -45,8 +52,23 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 
 
 func _ready() -> void:
 	add_to_group("enemy")
+	_apply_difficulty()
 	health = max_health
 	_player = _find_player()
+
+
+## Scale this enemy for the selected difficulty tier (T-0027). Applied at
+## spawn, before health is filled, so a Heroic Rusher is 225/225 rather than
+## 150/225. Enemies spawned mid-mission get it too, since every one runs this.
+func _apply_difficulty() -> void:
+	var diff := get_node_or_null("/root/Difficulty")
+	if diff == null:
+		return
+	max_health *= float(diff.enemy_health_mult())
+	var fraction: float = diff.enemy_shield_fraction()
+	if fraction > 0.0:
+		elemental_shield = max_health * fraction
+		max_elemental_shield = elemental_shield
 
 
 func _find_player() -> Node3D:
@@ -139,10 +161,24 @@ func is_headshot(world_point: Vector3) -> bool:
 func take_damage(amount: float) -> void:
 	if _dead:
 		return
+	amount = absorb_shield(amount)
+	if amount <= 0.0:
+		play_sfx("enemy_hit")
+		return
 	health = maxf(0.0, health - amount)
 	play_sfx("enemy_hit")
 	if health <= 0.0:
 		_die()
+
+
+## Spend the Heroic/Legendary shield pool first and return what gets through.
+## Subclasses with their own damage handling (the bosses) call this too.
+func absorb_shield(amount: float) -> float:
+	if elemental_shield <= 0.0 or amount <= 0.0:
+		return amount
+	var taken := minf(elemental_shield, amount)
+	elemental_shield -= taken
+	return amount - taken
 
 
 ## Positional effect at this enemy (T-0034). No-ops without the autoload, so
