@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://cv5t0esp8itvn" path="res://ui/vendor_shop.tscn" id="3_koree"]
 [ext_resource type="Script" uid="uid://cpmdlc3cn6dup" path="res://scripts/hub_structure.gd" id="4_ajtfx"]
 [ext_resource type="PackedScene" path="res://ui/class_select.tscn" id="5_clssel"]
+[ext_resource type="Script" path="res://scripts/difficulty_select.gd" id="6_diffsel"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_koree"]
 
@@ -66,6 +67,15 @@ shape = SubResource("BoxShape3D_ursuo")
 [node name="VendorShop" parent="HubUI" unique_id=1779289198 instance=ExtResource("3_koree")]
 
 [node name="ClassSelect" parent="HubUI" instance=ExtResource("5_clssel")]
+
+[node name="DifficultySelect" type="Control" parent="HubUI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("6_diffsel")
 
 [node name="Nav" type="NavigationRegion3D" parent="." unique_id=458862026]
 navigation_mesh = SubResource("NavigationMesh_ajtfx")

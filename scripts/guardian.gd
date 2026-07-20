@@ -190,6 +190,10 @@ func _physics_process(delta: float) -> void:
 
 func _update_shield(delta: float) -> void:
 	_time_since_damage += delta
+	# Legendary: the shield never comes back (T-0027, GDD §7).
+	var diff := get_node_or_null("/root/Difficulty")
+	if diff and diff.no_shield_regen():
+		return
 	if shield < MAX_SHIELD and _time_since_damage >= SHIELD_RECHARGE_DELAY:
 		shield = minf(MAX_SHIELD, shield + SHIELD_RECHARGE_RATE * delta)
 		shield_changed.emit(shield, MAX_SHIELD)

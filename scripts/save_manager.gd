@@ -34,6 +34,8 @@ func _default_data() -> Dictionary:
 		"flux_currency": 0,
 		"mission_completion_flags": {"Earth": false, "Mars": false, "Venus": false},
 		"difficulty_unlocks": {"Heroic": false, "Legendary": false},
+		# Selected modifier tier (T-0027); unlocks after Venus.
+		"selected_difficulty": "Normal",
 		"total_kills": 0,
 		"total_deaths": 0,
 		"total_playtime": 0.0,
@@ -92,6 +94,10 @@ func complete_mission(mission: String) -> void:
 	flags[mission] = true
 	data["mission_completion_flags"] = flags
 	save_game()
+	# Clearing Venus opens the Heroic/Legendary modifiers (T-0027, GDD §7).
+	var diff := get_node_or_null("/root/Difficulty")
+	if diff and diff.has_method("unlock_after"):
+		diff.unlock_after(mission)
 
 
 ## True if a mission is playable: the first one, or the previous is complete.

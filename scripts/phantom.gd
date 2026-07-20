@@ -98,6 +98,9 @@ func teleport() -> void:
 func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
 		return
+	amount = absorb_shield(amount)
+	if amount <= 0.0:
+		return
 	health = maxf(0.0, health - amount)
 	if health <= 0.0:
 		_die()

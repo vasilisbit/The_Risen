@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="2_4ylf5"]
 [ext_resource type="Script" uid="uid://dxhey7uqt8ij6" path="res://scripts/objective_manager.gd" id="3_qfysw"]
 [ext_resource type="Script" uid="uid://d1gsvxgaifpwh" path="res://scripts/earth_mission.gd" id="4_3icjv"]
+[ext_resource type="Script" path="res://scripts/mission_timer.gd" id="5_timer"]
 
 [sub_resource type="Environment" id="Environment_45g3f"]
 background_mode = 1
@@ -38,3 +39,7 @@ script = ExtResource("3_qfysw")
 
 [node name="Mission" type="Node" parent="." unique_id=1000977802]
 script = ExtResource("4_3icjv")
+
+[node name="MissionTimer" type="Node" parent="."]
+script = ExtResource("5_timer")
+mission_id = "Earth"

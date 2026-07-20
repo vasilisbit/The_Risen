@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="2_guard"]
 [ext_resource type="Script" uid="uid://dxhey7uqt8ij6" path="res://scripts/objective_manager.gd" id="3_obj"]
 [ext_resource type="Script" path="res://scripts/venus_mission.gd" id="4_mission"]
+[ext_resource type="Script" path="res://scripts/mission_timer.gd" id="5_timer"]
 
 [sub_resource type="Environment" id="Environment_venus"]
 background_mode = 1
@@ -40,3 +41,7 @@ mission_id = "Venus"
 
 [node name="Mission" type="Node" parent="."]
 script = ExtResource("4_mission")
+
+[node name="MissionTimer" type="Node" parent="."]
+script = ExtResource("5_timer")
+mission_id = "Venus"

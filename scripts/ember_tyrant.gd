@@ -243,6 +243,9 @@ func take_damage(amount: float) -> void:
 		return
 	if shielded:
 		return
+	amount = absorb_shield(amount)
+	if amount <= 0.0:
+		return
 	health = maxf(0.0, health - amount)
 	if health <= 0.0:
 		_die()
