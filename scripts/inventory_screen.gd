@@ -1,26 +1,26 @@
 extends Control
 
 ## Inventory overlay, toggled with I. Lists the weapons and armour you have
-## picked up, coloured by rarity, plus your Flux balance.
+## earned, each with a rarity-boxed icon and its stats, and lets you EQUIP them:
+## up to three weapons are carried into a mission (weapon slots 1-3) and one
+## armour piece per slot grants passive damage reduction.
 ##
-## Until now loot went straight into SaveManager and the only feedback was a
-## running count in the corner - you could not see what you had actually
-## collected. This is that screen.
-##
-## Read-only for the moment: equipping is not implemented (weapons come from
-## the fixed loadout, and nothing reads owned_armor yet), so the panel says so
-## rather than implying a slot system that does not exist.
+## Loadout changes go through SaveManager, which emits loadout_changed - the
+## WeaponManager rebuilds the carried guns and the Guardian refreshes its armour
+## bonus off that signal, so an equip here is reflected in the next mission (and
+## live, if you open this mid-fight).
 
 const GOLD := Color(0.95, 0.78, 0.32)
-const DIM := Color(0.55, 0.58, 0.66)
-const PANEL_SIZE := Vector2(720, 470)
+const DIM := Color(0.62, 0.65, 0.72)
+const PANEL_SIZE := Vector2(860, 560)
 
-## Matches loot_drop.gd so a Rare here is the same blue it was on the floor.
-const RARITY_COLORS := {
-	"Common": Color(0.88, 0.90, 0.94),
-	"Rare": Color(0.35, 0.62, 1.00),
-	"Epic": Color(0.65, 0.35, 1.00),
-	"Exotic": Color(1.00, 0.80, 0.20),
+## Base (Common) stats per weapon kind, mirroring the four weapon scenes, so the
+## inventory can show what a given rarity roll actually does without loading them.
+const WEAPON_BASE := {
+	"Auto Rifle": {"dmg": 20.0, "rpm": 600, "mag": 30},
+	"Shotgun": {"dmg": 80.0, "rpm": 60, "mag": 8},
+	"Sniper": {"dmg": 300.0, "rpm": 40, "mag": 5},
+	"Hand Cannon": {"dmg": 60.0, "rpm": 180, "mag": 12},
 }
 
 var _flux: Label
@@ -29,6 +29,7 @@ var _armor_list: VBoxContainer
 var _weapon_head: Label
 var _armor_head: Label
 var _empty_note: Label
+var _status: Label
 
 
 func _ready() -> void:
@@ -82,47 +83,183 @@ func refresh() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	var weapons: Array = sm.data.get("owned_weapons", []) if sm else []
 	var armor: Array = sm.data.get("owned_armor", []) if sm else []
+	var equipped_w: Array = sm.data.get("equipped_weapons", []) if sm else []
 	_flux.text = "FLUX  %d" % (int(sm.data.get("flux_currency", 0)) if sm else 0)
-	_weapon_head.text = "WEAPONS  (%d)" % weapons.size()
+	_weapon_head.text = "WEAPONS  (%d/%d slots)" % [equipped_w.size(),
+		sm.MAX_EQUIPPED_WEAPONS if sm else 3]
 	_armor_head.text = "ARMOUR  (%d)" % armor.size()
-	_fill(_weapon_list, weapons)
-	_fill(_armor_list, armor)
-	_empty_note.visible = weapons.is_empty() and armor.is_empty()
+	_fill_weapons(weapons, sm)
+	_fill_armor(armor, sm)
+	_empty_note.visible = weapons.size() <= 1 and armor.is_empty()
 
 
-func _fill(list: VBoxContainer, items: Array) -> void:
-	for child in list.get_children():
+func _fill_weapons(items: Array, sm: Node) -> void:
+	for child in _weapon_list.get_children():
 		child.queue_free()
 	for item in items:
 		if typeof(item) != TYPE_DICTIONARY:
 			continue
-		list.add_child(_build_row(item))
+		_weapon_list.add_child(_build_weapon_row(item, sm))
 
 
-func _build_row(item: Dictionary) -> Control:
+func _fill_armor(items: Array, sm: Node) -> void:
+	for child in _armor_list.get_children():
+		child.queue_free()
+	for item in items:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		_armor_list.add_child(_build_armor_row(item, sm))
+
+
+func _build_weapon_row(item: Dictionary, sm: Node) -> Control:
+	var id := String(item.get("id", ""))
+	var kind := String(item.get("name", "Auto Rifle"))
 	var rarity := String(item.get("rarity", "Common"))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	var equipped: bool = sm != null and sm.is_weapon_equipped(id)
 
-	# Rarity swatch, so the list scans by colour before you read it.
-	var swatch := ColorRect.new()
-	swatch.color = RARITY_COLORS.get(rarity, Color.WHITE)
-	swatch.custom_minimum_size = Vector2(6, 22)
-	row.add_child(swatch)
+	var row := _row_panel(equipped)
+	var hbox: HBoxContainer = row.get_child(0)
 
-	var name_label := Label.new()
-	name_label.text = String(item.get("name", "Unknown"))
-	name_label.custom_minimum_size = Vector2(200, 0)
-	name_label.add_theme_font_size_override("font_size", 16)
-	row.add_child(name_label)
+	hbox.add_child(_icon(kind, rarity, false))
 
-	var rarity_label := Label.new()
-	rarity_label.text = rarity
-	rarity_label.add_theme_font_size_override("font_size", 14)
-	rarity_label.add_theme_color_override("font_color",
-		RARITY_COLORS.get(rarity, Color.WHITE))
-	row.add_child(rarity_label)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 1)
+	hbox.add_child(info)
+	info.add_child(_name_line(kind, rarity))
+	info.add_child(_stat_line(_weapon_stats_text(kind, rarity)))
+
+	var btn := _equip_button(equipped)
+	if equipped:
+		btn.pressed.connect(func() -> void: _on_unequip_weapon(id))
+	else:
+		btn.pressed.connect(func() -> void: _on_equip_weapon(id))
+	hbox.add_child(btn)
 	return row
+
+
+func _build_armor_row(item: Dictionary, sm: Node) -> Control:
+	var id := String(item.get("id", ""))
+	var slot := String(item.get("name", "Chest Plate"))
+	var rarity := String(item.get("rarity", "Common"))
+	var equipped: bool = sm != null and sm.is_armor_equipped(id)
+
+	var row := _row_panel(equipped)
+	var hbox: HBoxContainer = row.get_child(0)
+
+	hbox.add_child(_icon(slot, rarity, true))
+
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 1)
+	hbox.add_child(info)
+	info.add_child(_name_line(slot, rarity))
+	var reduction := int(round(float(sm.ARMOR_REDUCTION.get(rarity, 0.0)) * 100.0)) if sm else 0
+	info.add_child(_stat_line("-%d%% damage taken" % reduction))
+
+	var btn := _equip_button(equipped)
+	if equipped:
+		btn.pressed.connect(func() -> void: _on_unequip_armor(slot))
+	else:
+		btn.pressed.connect(func() -> void: _on_equip_armor(id))
+	hbox.add_child(btn)
+	return row
+
+
+# --- equip actions ----------------------------------------------------------
+
+func _on_equip_weapon(id: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.equip_weapon(id):
+		_note("Equipped. Carried weapons: switch with 1-3.")
+	refresh()
+
+
+func _on_unequip_weapon(id: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and not sm.unequip_weapon(id):
+		_note("You must carry at least one weapon.")
+	refresh()
+
+
+func _on_equip_armor(id: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.equip_armor(id):
+		_note("Armour equipped.")
+	refresh()
+
+
+func _on_unequip_armor(slot: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm:
+		sm.unequip_armor(slot)
+	refresh()
+
+
+func _note(text: String) -> void:
+	if _status:
+		_status.text = text
+
+
+# --- stat text --------------------------------------------------------------
+
+func _weapon_stats_text(kind: String, rarity: String) -> String:
+	var base: Dictionary = WEAPON_BASE.get(kind, WEAPON_BASE["Auto Rifle"])
+	var mods: Dictionary = Weapon.RARITY_MODS.get(rarity, Weapon.RARITY_MODS["Common"])
+	var dmg := int(round(float(base["dmg"]) * float(mods["dmg"])))
+	var mag := int(round(float(base["mag"]) * float(mods["mag"])))
+	return "DMG %d    RPM %d    MAG %d" % [dmg, int(base["rpm"]), mag]
+
+
+# --- widget builders --------------------------------------------------------
+
+func _icon(kind: String, rarity: String, armor: bool) -> Control:
+	var icon := Control.new()
+	icon.set_script(load("res://scripts/weapon_icon.gd"))
+	icon.custom_minimum_size = Vector2(54, 54)
+	icon.call("configure", kind, rarity, armor)
+	return icon
+
+
+func _row_panel(equipped: bool) -> PanelContainer:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.12, 0.16, 0.9) if equipped else Color(0.07, 0.08, 0.10, 0.7)
+	if equipped:
+		style.border_color = GOLD
+		style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(7)
+	panel.add_theme_stylebox_override("panel", style)
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 12)
+	panel.add_child(hbox)
+	return panel
+
+
+func _name_line(name_: String, rarity: String) -> Label:
+	var l := Label.new()
+	l.text = "%s   %s" % [name_, rarity]
+	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_color_override("font_color",
+		LootIcon.RARITY_COLORS.get(rarity, Color.WHITE).lightened(0.2))
+	return l
+
+
+func _stat_line(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 12)
+	l.add_theme_color_override("font_color", DIM)
+	return l
+
+
+func _equip_button(equipped: bool) -> Button:
+	var btn := Button.new()
+	btn.text = "EQUIPPED" if equipped else "EQUIP"
+	btn.custom_minimum_size = Vector2(112, 0)
+	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return btn
 
 
 func _build() -> void:
@@ -165,7 +302,7 @@ func _build() -> void:
 	header.add_child(_flux)
 
 	var hint := Label.new()
-	hint.text = "Spend Flux at the Forge Master in the hub.   Equipping is not implemented yet."
+	hint.text = "Equip up to 3 weapons (slots 1-3) and one piece per armour slot. Buy more from the Forge Master."
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", DIM)
 	col.add_child(hint)
@@ -175,38 +312,50 @@ func _build() -> void:
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(columns)
 
-	var left := VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	columns.add_child(left)
 	_weapon_head = _section_header()
-	left.add_child(_weapon_head)
 	_weapon_list = VBoxContainer.new()
-	_weapon_list.add_theme_constant_override("separation", 4)
-	left.add_child(_weapon_list)
+	_weapon_list.add_theme_constant_override("separation", 6)
+	columns.add_child(_column(_weapon_head, _weapon_list))
 
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	columns.add_child(right)
 	_armor_head = _section_header()
-	right.add_child(_armor_head)
 	_armor_list = VBoxContainer.new()
-	_armor_list.add_theme_constant_override("separation", 4)
-	right.add_child(_armor_list)
+	_armor_list.add_theme_constant_override("separation", 6)
+	columns.add_child(_column(_armor_head, _armor_list))
 
 	_empty_note = Label.new()
-	_empty_note.text = "Nothing collected yet. Defeated enemies drop loot - walk over it and press E."
+	_empty_note.text = "Defeated enemies sometimes drop loot - walk over it and press E to collect."
 	_empty_note.add_theme_font_size_override("font_size", 14)
 	_empty_note.add_theme_color_override("font_color", DIM)
 	col.add_child(_empty_note)
 
-	var close_row := HBoxContainer.new()
-	close_row.alignment = BoxContainer.ALIGNMENT_END
-	col.add_child(close_row)
+	var footer := HBoxContainer.new()
+	col.add_child(footer)
+	_status = Label.new()
+	_status.text = ""
+	_status.add_theme_font_size_override("font_size", 13)
+	_status.add_theme_color_override("font_color", Color(0.55, 0.9, 0.65))
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(_status)
 	var close_btn := Button.new()
 	close_btn.text = "CLOSE  (I)"
 	close_btn.custom_minimum_size = Vector2(160, 40)
 	close_btn.pressed.connect(close)
-	close_row.add_child(close_btn)
+	footer.add_child(close_btn)
+
+
+## A titled, scrolling column so a long weapon list stays inside the panel.
+func _column(head: Label, list: VBoxContainer) -> Control:
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(head)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, 360)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	box.add_child(scroll)
+	return box
 
 
 func _section_header() -> Label:

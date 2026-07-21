@@ -28,6 +28,12 @@ static func reset_modifiers() -> void:
 
 ## Force a loot rarity on death (e.g. a boss guaranteeing an Epic). Empty = roll.
 var loot_rarity_override: String = ""
+## Probability this enemy drops anything at all (GDD §2.7: loot is a chance, not
+## a guarantee, so the floor doesn't carpet with pickups). Bosses/minibosses set
+## this to 1.0, and a forced rarity always drops regardless.
+var loot_chance: float = 0.3
+## Probability a drop is armour rather than a weapon. Armour is the rarer find.
+var armor_drop_chance: float = 0.18
 
 var max_health: float = 100.0
 var health: float = 100.0
@@ -238,6 +244,10 @@ func _enemy_type_name() -> String:
 ## Spawn loot at the death position + a random offset within a 1 m radius
 ## (GDD §2.7). Uses `loot_scene` if set, else the shared loot_drop.tscn.
 func _drop_loot(where: Vector3) -> void:
+	# Not every kill drops. A forced rarity (boss guarantee) always does; a
+	# regular enemy rolls against loot_chance so pickups stay meaningful.
+	if loot_rarity_override == "" and randf() > loot_chance:
+		return
 	var drop: Node3D = null
 	if loot_scene != null:
 		drop = loot_scene.instantiate() as Node3D
@@ -250,6 +260,10 @@ func _drop_loot(where: Vector3) -> void:
 	# Force rarity (e.g. boss Epic) before the drop enters the tree and rolls.
 	if loot_rarity_override != "" and ("forced_rarity" in drop):
 		drop.forced_rarity = loot_rarity_override
+	# A minority of drops are armour instead of a weapon (unless the scene fixes
+	# the category itself, e.g. a boss's guaranteed armour reward).
+	if ("category" in drop) and drop.category == "weapon" and randf() < armor_drop_chance:
+		drop.category = "armor"
 	# Parent to the scene (not self - we are about to free) so the drop persists.
 	var host := get_tree().current_scene
 	if host == null:

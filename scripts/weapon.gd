@@ -17,6 +17,24 @@ extends Node3D
 @export var headshot_mult: float = 1.0
 @export var automatic: bool = false
 
+## Rarity multipliers on the scene's base stats (GDD §2.7: rarity is the roll
+## that makes one drop worth keeping over another). A better roll hits harder,
+## reloads faster, kicks less and - from Epic up - holds a bigger magazine.
+## Applied once by apply_rarity() at build time, so the four scene defaults stay
+## the Common baseline.
+const RARITY_MODS := {
+	"Common": {"dmg": 1.00, "reload": 1.00, "recoil": 1.00, "mag": 1.00},
+	"Rare":   {"dmg": 1.15, "reload": 0.92, "recoil": 0.90, "mag": 1.00},
+	"Epic":   {"dmg": 1.30, "reload": 0.85, "recoil": 0.80, "mag": 1.15},
+	"Exotic": {"dmg": 1.50, "reload": 0.75, "recoil": 0.65, "mag": 1.30},
+}
+
+## The rarity this instance was rolled/built at, kept for the HUD and inventory.
+var rarity: String = "Common"
+## Scales the camera recoil the WeaponManager applies (rarer = steadier). Set by
+## apply_rarity; 1.0 leaves the per-weapon recoil untouched.
+var recoil_mult: float = 1.0
+
 signal state_changed                       # ammo / reload changed
 
 ## Scales outgoing damage - Mars wave buffs raise this (e.g. +20% -> 1.2).
@@ -34,6 +52,20 @@ var _reload_left: float = 0.0
 
 
 func _ready() -> void:
+	ammo = mag_size
+
+
+## Scale this weapon's base stats for its loot rarity. Call it BEFORE the node
+## enters the tree (before _ready fills the magazine), so the bigger Epic/Exotic
+## magazine is reflected in the starting ammo. Idempotent per instance is not
+## needed - each drop is built fresh.
+func apply_rarity(rarity_: String) -> void:
+	rarity = rarity_ if RARITY_MODS.has(rarity_) else "Common"
+	var mods: Dictionary = RARITY_MODS[rarity]
+	damage *= float(mods["dmg"])
+	reload_time *= float(mods["reload"])
+	recoil_mult = float(mods["recoil"])
+	mag_size = int(round(mag_size * float(mods["mag"])))
 	ammo = mag_size
 
 
