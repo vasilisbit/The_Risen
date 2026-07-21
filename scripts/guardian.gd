@@ -61,6 +61,10 @@ const STEP_DISTANCE := 2.2       # m of travel between footstep sounds
 var gravity_scale: float = 1.0
 ## Fraction of incoming damage ignored (Mars buff: -15% -> 0.15).
 var damage_reduction: float = 0.0
+## Fraction ignored from equipped armour (summed across slots by SaveManager).
+## Kept apart from damage_reduction so the Mars buff and the Tank passive don't
+## overwrite the armour bonus (and vice versa); take_damage adds the two.
+var armor_damage_reduction: float = 0.0
 ## Extra max health from buffs (+50 HP option).
 var max_health_bonus: float = 0.0
 ## Fall-respawn point (Mars platforming); updated by checkpoint triggers.
@@ -113,6 +117,10 @@ func _ready() -> void:
 	_build_death_screen()
 	_build_ability_hud()       # before apply_class_stats, which wires the super in
 	apply_class_stats()
+	refresh_armor_bonus()
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.has_signal("loadout_changed"):
+		sm.loadout_changed.connect(refresh_armor_bonus)
 	_apply_combat_mode()
 	health = max_hp()          # spawn at full, including the Support bonus
 	health_changed.emit(health, max_hp())
@@ -241,6 +249,14 @@ func max_hp() -> float:
 	return MAX_HEALTH + max_health_bonus
 
 
+## Pull the passive damage reduction from the currently equipped armour. Called
+## at spawn and whenever the loadout changes (equip in the inventory), so armour
+## is no longer just a collectible - it actually softens hits now.
+func refresh_armor_bonus() -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	armor_damage_reduction = sm.armor_reduction_total() if sm and sm.has_method("armor_reduction_total") else 0.0
+
+
 ## Apply the saved class's passive (T-0022, GDD §2.4). Called at spawn.
 ##   Assault +10% weapon damage / Support +50 max HP / Tank -20% damage taken.
 ## Public so it can be re-applied (and tested) after a class change without
@@ -331,7 +347,7 @@ func take_damage(amount: float, source: String = "") -> void:
 		amount = (super_ability as GuardianDome).absorb(amount, global_position)
 		if amount <= 0.0:
 			return
-	amount *= (1.0 - clampf(damage_reduction, 0.0, 0.9))
+	amount *= (1.0 - clampf(damage_reduction + armor_damage_reduction, 0.0, 0.9))
 	_time_since_damage = 0.0
 	_sfx("player_hit")
 

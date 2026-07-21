@@ -1,11 +1,10 @@
 class_name WaveManager
 extends Node
-## T-0016 Mars wave spawner. 12 waves across the 3 chambers (4 waves each, GDD
-## §3.3 compositions). Enemies spawn at random room spawn_point markers with a
-## 0.5 s stagger, each telegraphed by a portal VFX 2 s ahead. A wave counter UI
-## shows "Wave n/12" and the remaining count; clearing a wave starts a 15 s
-## intermission then the buff selection, and clearing wave 12 completes the
-## mission (save + fade to hub).
+## T-0016 Mars wave spawner. 5 waves across the 3 chambers. Enemies spawn at
+## random room spawn_point markers with a 0.5 s stagger, each telegraphed by a
+## portal VFX 2 s ahead. A wave counter UI shows "Wave n/5" and the remaining
+## count; clearing a wave starts a 15 s intermission then the buff selection,
+## and clearing the last wave completes the mission (save + fade to hub).
 
 signal wave_started(number: int)
 signal wave_cleared(number: int)
@@ -23,12 +22,15 @@ const PORTAL_LEAD := 2.0       # s a portal is visible before its enemy appears
 const INTERMISSION := 15.0     # s countdown after a wave is cleared
 const BUFF_TIMEOUT := 10.0     # s before the buff picker auto-selects
 
-## GDD §3.3 wave table - [rushers, shooters, exploders] per wave.
-## Wave 12 also gets the Teleporting Phantom once T-0019 lands.
+## Wave table - [rushers, shooters, exploders] per wave. Five escalating waves
+## spread across the three chambers (see room_for_wave). The final wave also
+## brings the Teleporting Phantom mini-boss (T-0019).
 const WAVES := [
-	[8, 2, 0], [6, 4, 2], [10, 5, 0], [8, 5, 2],        # Room 1, waves 1-4
-	[10, 5, 0], [12, 4, 2], [15, 5, 0], [12, 6, 2],     # Room 2, waves 5-8
-	[15, 5, 0], [12, 8, 2], [18, 7, 0], [10, 5, 0],     # Room 3, waves 9-12
+	[8, 3, 0],       # Room 1
+	[10, 4, 2],      # Room 1
+	[12, 5, 2],      # Room 2
+	[14, 6, 2],      # Room 2
+	[12, 6, 3],      # Room 3 (+ Teleporting Phantom)
 ]
 ## Marker z-bands per chamber (Mars rooms centred at -121.5 / -136.5 / -151.5).
 const ROOM_BANDS := [[-129.0, -114.0], [-144.0, -129.0], [-159.0, -144.0]]
@@ -187,8 +189,11 @@ func _on_all_complete() -> void:
 
 # --- helpers ----------------------------------------------------------------
 
+## Spread the waves evenly over the three chambers, so with 5 waves the fight
+## still walks the player through all three rooms (0,0,1,1,2) instead of
+## clustering in the first one.
 func room_for_wave(index: int) -> int:
-	return clampi(index / 4, 0, ROOM_BANDS.size() - 1)
+	return clampi(index * ROOM_BANDS.size() / WAVES.size(), 0, ROOM_BANDS.size() - 1)
 
 
 func _wave_types(index: int) -> Array:

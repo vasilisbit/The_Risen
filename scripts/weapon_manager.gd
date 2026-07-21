@@ -3,12 +3,15 @@ extends Node3D
 ## (1-4), reload (R), and fire (LMB - full-auto for the Auto Rifle, semi for the
 ## rest), raycasting from the player camera. Updates the ammo HUD label.
 
-const WEAPON_PATHS := [
-	"res://scenes/weapons/auto_rifle.tscn",
-	"res://scenes/weapons/shotgun.tscn",
-	"res://scenes/weapons/sniper.tscn",
-	"res://scenes/weapons/hand_cannon.tscn",
-]
+## Weapon scene per kind name. The active loadout no longer holds all four - it
+## is built from the weapons the player has earned and equipped (SaveManager),
+## so a fresh Guardian carries just the starting Auto Rifle.
+const KIND_SCENES := {
+	"Auto Rifle": "res://scenes/weapons/auto_rifle.tscn",
+	"Shotgun": "res://scenes/weapons/shotgun.tscn",
+	"Sniper": "res://scenes/weapons/sniper.tscn",
+	"Hand Cannon": "res://scenes/weapons/hand_cannon.tscn",
+}
 
 ## Per-shot camera kick, in radians. `pitch` climbs the aim permanently (so
 ## sustained fire walks upward and has to be pulled back down); `shake` is the
@@ -34,8 +37,27 @@ func _ready() -> void:
 	_body = player as CollisionObject3D
 	_ammo_label = player.get_node_or_null("DebugHUD/Ammo") as Label
 	_viewmodel = _camera.get_node_or_null("WeaponViewmodel") as Node3D
-	for path in WEAPON_PATHS:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.has_signal("loadout_changed"):
+		sm.loadout_changed.connect(rebuild)
+	rebuild()
+
+
+## (Re)build the active weapons from the equipped loadout, applying each item's
+## rarity to its stats. Called on ready and whenever the player changes their
+## loadout in the inventory, so an equip is reflected immediately.
+func rebuild() -> void:
+	for w in _weapons:
+		w.queue_free()
+	_weapons.clear()
+	_active = 0
+	var sm := get_node_or_null("/root/SaveManager")
+	var items: Array = sm.equipped_weapon_items() if sm and sm.has_method("equipped_weapon_items") else []
+	for item in items:
+		var kind := String(item.get("name", "Auto Rifle"))
+		var path: String = KIND_SCENES.get(kind, KIND_SCENES["Auto Rifle"])
 		var w := load(path).instantiate() as Weapon
+		w.apply_rarity(String(item.get("rarity", "Common")))   # before add_child, so ammo fills the rolled magazine
 		add_child(w)
 		w.state_changed.connect(_update_hud)
 		_weapons.append(w)
@@ -106,7 +128,8 @@ func _fire() -> void:
 	var player := get_parent()
 	if player and player.has_method("add_recoil"):
 		var r: Dictionary = CAMERA_RECOIL.get(w.weapon_name, CAMERA_RECOIL["Auto Rifle"])
-		player.add_recoil(float(r["pitch"]), float(r["shake"]))
+		# A rarer roll kicks less (recoil_mult < 1 from Rare up).
+		player.add_recoil(float(r["pitch"]) * w.recoil_mult, float(r["shake"]) * w.recoil_mult)
 
 
 func _update_hud() -> void:
