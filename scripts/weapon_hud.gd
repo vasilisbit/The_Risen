@@ -81,6 +81,11 @@ func _draw() -> void:
 	draw_rect(head, EMPTY)
 	draw_rect(head, FRAME, false, 2.0)
 	var accent: Color = SLOT_COLORS[active % SLOT_COLORS.size()]
+	# An elemental weapon flies its element's colour on the accent bar, so you can
+	# see at a glance whether you're holding the right element for a shield.
+	var active_w: Weapon = weapons[active]
+	if active_w.element != "Kinetic":
+		accent = Weapon.ELEMENT_COLORS.get(active_w.element, accent)
 	draw_rect(Rect2(Vector2(head.end.x - ACCENT_WIDTH, head.position.y),
 		Vector2(ACCENT_WIDTH, head.size.y)), accent)
 	# Divider between magazine and reserve, as in the reference.

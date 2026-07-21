@@ -30,6 +30,10 @@ var _weapon_head: Label
 var _armor_head: Label
 var _empty_note: Label
 var _status: Label
+var _mod_picker: Control
+var _mod_picker_list: VBoxContainer
+var _mod_picker_title: Label
+var _pending_weapon: String = ""
 
 
 func _ready() -> void:
@@ -53,7 +57,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle()
 		get_viewport().set_input_as_handled()
 	elif visible and event.is_action_pressed("ui_cancel"):
-		close()
+		# Esc backs out of the mod picker first, then the inventory itself.
+		if _mod_picker and _mod_picker.visible:
+			_mod_picker.visible = false
+		else:
+			close()
 		get_viewport().set_input_as_handled()
 
 
@@ -73,6 +81,8 @@ func open() -> void:
 
 func close() -> void:
 	visible = false
+	if _mod_picker:
+		_mod_picker.visible = false
 	get_tree().paused = false
 	# The hub still wants a captured mouse; only the menus release it.
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -122,12 +132,16 @@ func _build_weapon_row(item: Dictionary, sm: Node) -> Control:
 
 	hbox.add_child(_icon(kind, rarity, false))
 
+	var mods: Array = item.get("mods", [])
+	var element := _weapon_element(mods)
+
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_theme_constant_override("separation", 1)
 	hbox.add_child(info)
-	info.add_child(_name_line(kind, rarity))
-	info.add_child(_stat_line(_weapon_stats_text(kind, rarity)))
+	info.add_child(_name_line(kind, rarity, element))
+	info.add_child(_stat_line(_weapon_stats_text(kind, rarity, mods)))
+	info.add_child(_mod_chips(id, rarity, mods))
 
 	var btn := _equip_button(equipped)
 	if equipped:
@@ -203,12 +217,115 @@ func _note(text: String) -> void:
 
 # --- stat text --------------------------------------------------------------
 
-func _weapon_stats_text(kind: String, rarity: String) -> String:
+func _weapon_stats_text(kind: String, rarity: String, mods: Array) -> String:
 	var base: Dictionary = WEAPON_BASE.get(kind, WEAPON_BASE["Auto Rifle"])
-	var mods: Dictionary = Weapon.RARITY_MODS.get(rarity, Weapon.RARITY_MODS["Common"])
-	var dmg := int(round(float(base["dmg"]) * float(mods["dmg"])))
-	var mag := int(round(float(base["mag"]) * float(mods["mag"])))
-	return "DMG %d    RPM %d    MAG %d" % [dmg, int(base["rpm"]), mag]
+	var rmods: Dictionary = Weapon.RARITY_MODS.get(rarity, Weapon.RARITY_MODS["Common"])
+	var dmg := int(round(float(base["dmg"]) * float(rmods["dmg"])))
+	var rpm := float(base["rpm"])
+	var mag := float(base["mag"]) * float(rmods["mag"])
+	# Fold in installed stat mods so the numbers match what the weapon builds to.
+	if mods.has("rpm"):
+		rpm *= 1.2
+	if mods.has("mag"):
+		mag *= 1.5
+	return "DMG %d    RPM %d    MAG %d" % [dmg, int(round(rpm)), int(round(mag))]
+
+
+## The weapon's element, derived from whichever element mod (if any) is installed.
+func _weapon_element(mods: Array) -> String:
+	for id in mods:
+		var m: Dictionary = Weapon.MODS.get(id, {})
+		if m.has("element"):
+			return String(m["element"])
+	return "Kinetic"
+
+
+## The mod-slot row under a weapon: filled slots as removable chips, empty slots
+## as a "+ Mod" button that opens the picker. Common weapons (0 slots) say so.
+func _mod_chips(weapon_id: String, rarity: String, mods: Array) -> Control:
+	var box := HBoxContainer.new()
+	box.add_theme_constant_override("separation", 5)
+	var slots := int(Weapon.MOD_SLOTS.get(rarity, 0))
+	if slots == 0:
+		var l := _stat_line("No mod slots (Rare+ only)")
+		box.add_child(l)
+		return box
+	for i in slots:
+		if i < mods.size():
+			box.add_child(_mod_chip(weapon_id, String(mods[i])))
+		else:
+			var add := Button.new()
+			add.text = "+ Mod"
+			add.add_theme_font_size_override("font_size", 12)
+			add.pressed.connect(func() -> void: _open_mod_picker(weapon_id))
+			box.add_child(add)
+	return box
+
+
+func _mod_chip(weapon_id: String, mod_id: String) -> Button:
+	var m: Dictionary = Weapon.MODS.get(mod_id, {})
+	var chip := Button.new()
+	chip.text = "%s  x" % String(m.get("name", mod_id))
+	chip.tooltip_text = "%s - click to remove" % String(m.get("desc", ""))
+	chip.add_theme_font_size_override("font_size", 12)
+	if m.has("element"):
+		chip.add_theme_color_override("font_color",
+			Weapon.ELEMENT_COLORS.get(String(m["element"]), Color.WHITE))
+	chip.pressed.connect(func() -> void: _on_remove_mod(weapon_id, mod_id))
+	return chip
+
+
+func _on_remove_mod(weapon_id: String, mod_id: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.remove_mod(weapon_id, mod_id):
+		_note("Mod removed.")
+	refresh()
+
+
+func _open_mod_picker(weapon_id: String) -> void:
+	_pending_weapon = weapon_id
+	var sm := get_node_or_null("/root/SaveManager")
+	var w: Dictionary = sm.weapon_by_id(weapon_id) if sm else {}
+	_mod_picker_title.text = "INSTALL MOD  -  %s %s   (Flux %d)" % [
+		String(w.get("name", "")), String(w.get("rarity", "")),
+		int(sm.data.get("flux_currency", 0)) if sm else 0]
+	for child in _mod_picker_list.get_children():
+		child.queue_free()
+	for mod_id in Weapon.MODS:
+		_mod_picker_list.add_child(_mod_option_row(String(mod_id)))
+	_mod_picker.visible = true
+
+
+func _mod_option_row(mod_id: String) -> Control:
+	var m: Dictionary = Weapon.MODS[mod_id]
+	var row := _row_panel(false)
+	var hbox: HBoxContainer = row.get_child(0)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(info)
+	var name_l := Label.new()
+	name_l.text = String(m["name"])
+	name_l.add_theme_font_size_override("font_size", 15)
+	if m.has("element"):
+		name_l.add_theme_color_override("font_color",
+			Weapon.ELEMENT_COLORS.get(String(m["element"]), Color.WHITE))
+	info.add_child(name_l)
+	info.add_child(_stat_line("%s   -   %d Flux" % [String(m["desc"]), int(m["cost"])]))
+	var btn := Button.new()
+	btn.text = "INSTALL"
+	btn.custom_minimum_size = Vector2(112, 0)
+	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	btn.pressed.connect(func() -> void: _on_install_mod(mod_id))
+	hbox.add_child(btn)
+	return row
+
+
+func _on_install_mod(mod_id: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm:
+		_note(sm.install_mod(_pending_weapon, mod_id))
+	_mod_picker.visible = false
+	refresh()
 
 
 # --- widget builders --------------------------------------------------------
@@ -237,9 +354,10 @@ func _row_panel(equipped: bool) -> PanelContainer:
 	return panel
 
 
-func _name_line(name_: String, rarity: String) -> Label:
+func _name_line(name_: String, rarity: String, element: String = "Kinetic") -> Label:
 	var l := Label.new()
-	l.text = "%s   %s" % [name_, rarity]
+	var suffix := "   · %s" % element if element != "Kinetic" else ""
+	l.text = "%s   %s%s" % [name_, rarity, suffix]
 	l.add_theme_font_size_override("font_size", 16)
 	l.add_theme_color_override("font_color",
 		LootIcon.RARITY_COLORS.get(rarity, Color.WHITE).lightened(0.2))
@@ -341,6 +459,59 @@ func _build() -> void:
 	close_btn.custom_minimum_size = Vector2(160, 40)
 	close_btn.pressed.connect(close)
 	footer.add_child(close_btn)
+
+	_build_mod_picker()
+
+
+## A modal-over-modal for choosing which mod to install on the pending weapon.
+## Sits above the inventory panel and is hidden until "+ Mod" is pressed.
+func _build_mod_picker() -> void:
+	_mod_picker = Control.new()
+	_mod_picker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_mod_picker.mouse_filter = Control.MOUSE_FILTER_STOP
+	_mod_picker.visible = false
+	add_child(_mod_picker)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_mod_picker.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_mod_picker.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(520, 460)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.10, 0.14, 0.99)
+	style.border_color = GOLD
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	panel.add_child(col)
+
+	_mod_picker_title = Label.new()
+	_mod_picker_title.add_theme_font_size_override("font_size", 20)
+	_mod_picker_title.add_theme_color_override("font_color", GOLD)
+	col.add_child(_mod_picker_title)
+
+	_mod_picker_list = VBoxContainer.new()
+	_mod_picker_list.add_theme_constant_override("separation", 6)
+	_mod_picker_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_mod_picker_list)
+
+	var cancel := Button.new()
+	cancel.text = "CANCEL"
+	cancel.custom_minimum_size = Vector2(140, 36)
+	cancel.pressed.connect(func() -> void: _mod_picker.visible = false)
+	col.add_child(cancel)
 
 
 ## A titled, scrolling column so a long weapon list stays inside the panel.
