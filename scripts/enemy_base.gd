@@ -45,12 +45,21 @@ var flux_value: int = 3
 ## Seconds of stun left; while > 0 the enemy takes no actions.
 var stun_left: float = 0.0
 
-## Heroic/Legendary shield pool (T-0027), absorbed before health. GDD §7 calls
-## for ELEMENTAL shields that must be matched by the weapon's element - weapons
-## have no elements yet (mods are unimplemented), so this is the same mechanic
-## without the matching rule. Wire the element check in when weapon mods land.
+## Heroic/Legendary shield pool (T-0027), absorbed before health. GDD §2.8: an
+## elemental shield takes BONUS damage from a matching-element weapon and only
+## chip damage from a mismatched one. shield_element is the element that counters
+## it; "Kinetic" means a plain (non-elemental) shield that any damage breaks.
 var elemental_shield: float = 0.0
 var max_elemental_shield: float = 0.0
+var shield_element: String = "Kinetic"
+## Element of the shot currently being absorbed, stamped by mark_damage_source
+## just before take_damage (which weapons always call). Consumed - and reset to
+## Kinetic - by absorb_shield, so each shield hit uses its own shot's element.
+var incoming_element: String = "Kinetic"
+
+## Shield damage multipliers vs an elemental shield (GDD §2.8).
+const SHIELD_MATCH_MULT := 2.0     # matching element: breaks the shield fast
+const SHIELD_MISMATCH_MULT := 0.35 # off-element / Kinetic: chip damage only
 
 ## Knockback displacement budget (Ground Slam), spent over PUSH_TIME seconds.
 const PUSH_TIME := 0.3
@@ -80,6 +89,9 @@ func _apply_difficulty() -> void:
 	if fraction > 0.0:
 		elemental_shield = max_health * fraction
 		max_elemental_shield = elemental_shield
+		# Randomise which element counters this shield, so a single-element
+		# loadout can't trivially melt every shielded enemy (GDD §2.8).
+		shield_element = ["Solar", "Arc", "Void"][randi() % 3]
 
 
 func _find_player() -> Node3D:
@@ -184,12 +196,25 @@ func take_damage(amount: float) -> void:
 
 ## Spend the Heroic/Legendary shield pool first and return what gets through.
 ## Subclasses with their own damage handling (the bosses) call this too.
+##
+## Element (GDD §2.8): a matching-element shot does SHIELD_MATCH_MULT damage to
+## the shield, a mismatched one only SHIELD_MISMATCH_MULT, so the raw damage a
+## shot spends breaking the shield differs from the shield HP it removes. Any
+## damage left after the shield breaks carries over to health at the normal 1x
+## rate. A plain shield (shield_element Kinetic) uses 1x and behaves as before.
 func absorb_shield(amount: float) -> float:
 	if elemental_shield <= 0.0 or amount <= 0.0:
+		incoming_element = "Kinetic"
 		return amount
-	var taken := minf(elemental_shield, amount)
-	elemental_shield -= taken
-	return amount - taken
+	var mult := 1.0
+	if shield_element != "Kinetic":
+		mult = SHIELD_MATCH_MULT if incoming_element == shield_element else SHIELD_MISMATCH_MULT
+	incoming_element = "Kinetic"                 # consume this shot's element
+	var shield_dmg := amount * mult
+	var removed := minf(elemental_shield, shield_dmg)
+	elemental_shield -= removed
+	var raw_spent := removed / mult              # portion of `amount` used on the shield
+	return maxf(0.0, amount - raw_spent)         # remainder passes to health at 1x
 
 
 ## Positional effect at this enemy (T-0034). No-ops without the autoload, so
@@ -208,9 +233,10 @@ var last_hit_by: String = "Unknown"
 var last_hit_headshot: bool = false
 
 
-func mark_damage_source(source: String, headshot: bool = false) -> void:
+func mark_damage_source(source: String, headshot: bool = false, element: String = "Kinetic") -> void:
 	last_hit_by = source
 	last_hit_headshot = headshot
+	incoming_element = element
 
 
 func _die() -> void:

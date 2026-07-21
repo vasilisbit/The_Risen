@@ -35,6 +35,37 @@ var rarity: String = "Common"
 ## apply_rarity; 1.0 leaves the per-weapon recoil untouched.
 var recoil_mult: float = 1.0
 
+## Damage element (GDD §2.6). Kinetic is the neutral default; an Elemental mod
+## sets Solar/Arc/Void, which then does bonus damage to a matching elemental
+## shield and chip damage to a mismatched one (GDD §2.8).
+const ELEMENTS := ["Kinetic", "Solar", "Arc", "Void"]
+var element: String = "Kinetic"
+
+## Craftable weapon mods (GDD §2.6). Each installed mod is applied once by
+## apply_mod() at build time. Element mods are mutually exclusive (a weapon has
+## one element); the other mods stack. Flux cost matches the GDD (100 each);
+## blueprints are deferred, so mods are crafted straight from Flux in the
+## inventory rather than from a dropped blueprint.
+const MODS := {
+	"rpm":   {"name": "Fire-Rate Coil",  "desc": "+20% rate of fire",     "cost": 100},
+	"mag":   {"name": "Extended Mag",    "desc": "+50% magazine",         "cost": 100},
+	"solar": {"name": "Solar Injector",  "desc": "Solar element",         "cost": 100, "element": "Solar"},
+	"arc":   {"name": "Arc Injector",    "desc": "Arc element",           "cost": 100, "element": "Arc"},
+	"void":  {"name": "Void Injector",   "desc": "Void element",          "cost": 100, "element": "Void"},
+}
+## Mod slots per rarity (GDD §2.7: Epic +1, Exotic +2). Levels 5/8 gate slots in
+## the GDD, but XP/levels are unimplemented (M6), so slots come from rarity - the
+## progression axis the game actually has.
+const MOD_SLOTS := {"Common": 0, "Rare": 1, "Epic": 2, "Exotic": 2}
+
+## Element colours for HUD/inventory tinting.
+const ELEMENT_COLORS := {
+	"Kinetic": Color(0.85, 0.88, 0.95),
+	"Solar": Color(1.00, 0.55, 0.18),
+	"Arc": Color(0.35, 0.80, 1.00),
+	"Void": Color(0.70, 0.40, 1.00),
+}
+
 signal state_changed                       # ammo / reload changed
 
 ## Scales outgoing damage - Mars wave buffs raise this (e.g. +20% -> 1.2).
@@ -67,6 +98,23 @@ func apply_rarity(rarity_: String) -> void:
 	recoil_mult = float(mods["recoil"])
 	mag_size = int(round(mag_size * float(mods["mag"])))
 	ammo = mag_size
+
+
+## Apply one installed mod's effect. Called by the WeaponManager after
+## apply_rarity and before the node enters the tree, so a magazine mod is
+## reflected in the starting ammo. Unknown ids are ignored.
+func apply_mod(mod_id: String) -> void:
+	var m: Dictionary = MODS.get(mod_id, {})
+	if m.is_empty():
+		return
+	if m.has("element"):
+		element = String(m["element"])
+	match mod_id:
+		"rpm":
+			rpm *= 1.2
+		"mag":
+			mag_size = int(round(mag_size * 1.5))
+			ammo = mag_size
 
 
 func tick(delta: float) -> void:
@@ -121,9 +169,11 @@ func fire(origin: Vector3, direction: Vector3, world: World3D, exclude: Array = 
 			if collider.has_method("is_headshot") and collider.is_headshot(hit["position"]):
 				dmg *= headshot_mult
 				head = true
-			# Attribute before the hit: a lethal shot frees the node.
+			# Attribute before the hit: a lethal shot frees the node. The element
+			# rides along here so a matching elemental shield (Heroic/Legendary)
+			# takes bonus damage - no extra argument on take_damage needed.
 			if collider.has_method("mark_damage_source"):
-				collider.mark_damage_source(weapon_name, head)
+				collider.mark_damage_source(weapon_name, head, element)
 			collider.take_damage(dmg)
 			results.append({"collider": collider, "headshot": head, "damage": dmg})
 	state_changed.emit()

@@ -117,6 +117,9 @@ func _normalize_loadout() -> void:
 	for w in owned:
 		if typeof(w) == TYPE_DICTIONARY:
 			owned_ids[w.get("id", "")] = true
+			# Backfill the mods array so pre-mod saves are managed uniformly.
+			if not w.has("mods"):
+				w["mods"] = []
 	var equipped: Array = data.get("equipped_weapons", [])
 	var clean: Array = []
 	for id in equipped:
@@ -293,6 +296,68 @@ func unequip_armor(slot: String) -> bool:
 
 func is_armor_equipped(id: String) -> bool:
 	return id in (data.get("equipped_armor", {}) as Dictionary).values()
+
+
+# --- weapon mods -------------------------------------------------------------
+
+## Number of mod slots a weapon has, from its rarity (Weapon.MOD_SLOTS).
+func weapon_mod_slots(id: String) -> int:
+	var w := weapon_by_id(id)
+	if w.is_empty():
+		return 0
+	return int(Weapon.MOD_SLOTS.get(String(w.get("rarity", "Common")), 0))
+
+
+## Install a mod on a weapon, paying its Flux cost. Enforces the slot count, one
+## element mod per weapon, and no duplicates. Returns a status string (also shown
+## in the inventory). Crafting-from-Flux stands in for the GDD's blueprint craft
+## until blueprints exist.
+func install_mod(weapon_id: String, mod_id: String) -> String:
+	var w := weapon_by_id(weapon_id)
+	if w.is_empty():
+		return "Unknown weapon"
+	var mod: Dictionary = Weapon.MODS.get(mod_id, {})
+	if mod.is_empty():
+		return "Unknown mod"
+	var mods: Array = w.get("mods", [])
+	if mods.has(mod_id):
+		return "Already installed"
+	if mods.size() >= weapon_mod_slots(weapon_id):
+		return "No free mod slot"
+	if mod.has("element") and _has_element_mod(mods):
+		return "One element mod per weapon"
+	var cost := int(mod.get("cost", 0))
+	if int(data.get("flux_currency", 0)) < cost:
+		return "Need %d Flux" % cost
+	data["flux_currency"] = int(data.get("flux_currency", 0)) - cost
+	mods.append(mod_id)
+	w["mods"] = mods
+	save_game()
+	flux_changed.emit(int(data.get("flux_currency", 0)))
+	loadout_changed.emit()
+	return "Installed %s" % String(mod.get("name", mod_id))
+
+
+## Remove an installed mod (no Flux refund). Returns true if it changed.
+func remove_mod(weapon_id: String, mod_id: String) -> bool:
+	var w := weapon_by_id(weapon_id)
+	if w.is_empty():
+		return false
+	var mods: Array = w.get("mods", [])
+	if not mods.has(mod_id):
+		return false
+	mods.erase(mod_id)
+	w["mods"] = mods
+	save_game()
+	loadout_changed.emit()
+	return true
+
+
+func _has_element_mod(mods: Array) -> bool:
+	for id in mods:
+		if Weapon.MODS.get(id, {}).has("element"):
+			return true
+	return false
 
 
 ## Total passive damage reduction from the currently equipped armour, summed
