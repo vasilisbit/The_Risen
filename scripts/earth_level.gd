@@ -119,10 +119,30 @@ func _build_arena() -> void:
 	_box(Vector3(-13, 5.0, -80), Vector3(T, 4, 22), _wall)
 	_box(Vector3(13, 5.0, -80), Vector3(T, 4, 22), _wall)
 	_box(Vector3(0, 5.0, -91), Vector3(26, 4, T), _wall)          # back wall (open to rooftop at the front)
-	for pos in [Vector3(-6, 4.25, -75), Vector3(6, 4.25, -75), Vector3(-6, 4.25, -85), Vector3(6, 4.25, -85),
-			Vector3(-10, 4.25, -80), Vector3(10, 4.25, -80)]:
-		var c := _box(pos, Vector3(2.5, 2.5, 2.5), _crate)
-		c.add_to_group("cover_crate", true)
+	for pos in [Vector3(-6, 3.0, -75), Vector3(6, 3.0, -75), Vector3(-6, 3.0, -85), Vector3(6, 3.0, -85),
+			Vector3(-10, 3.0, -80), Vector3(10, 3.0, -80)]:
+		_cover_crate(pos)
+
+
+## A real crate model as cover, with a matching collision box, in the
+## "cover_crate" group the Shooter AI reads. `base` is the point on the floor
+## the crate sits on.
+const PROP_DIR := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/"
+
+func _cover_crate(base: Vector3) -> void:
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(2.1, 2.1, 2.1)
+	col.shape = shape
+	col.position = base + Vector3(0, 1.05, 0)
+	add_child(col)
+	var scene := load(PROP_DIR + "Prop_Crate.gltf")
+	if scene is PackedScene:
+		var m := (scene as PackedScene).instantiate() as Node3D
+		m.scale = Vector3.ONE * 1.35        # ~2.1 m crate
+		m.position = base
+		m.add_to_group("cover_crate", true)
+		add_child(m)
 
 
 func _build_lights() -> void:
