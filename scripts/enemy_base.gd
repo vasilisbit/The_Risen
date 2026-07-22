@@ -90,8 +90,43 @@ func _ready() -> void:
 	_apply_difficulty()
 	health = max_health
 	_player = _find_player()
+	_apply_external_model()
 	if show_nameplate:
 		_build_nameplate()
+
+
+## Swap the primitive capsule for a real model if one has been dropped in at
+## `assets/thirdparty/characters/<type>.{glb,gltf,tscn,scn}` (type = the scene
+## basename, e.g. `rusher`, `shielded_brute`). The imported model must face -Z
+## (forward) and stand ~1.8 m; pre-orient it in the import if not. The capsule
+## collision is untouched - the model is visual only. Dormant until a file
+## exists, so nothing changes today (mirrors the weapon pipeline).
+func _apply_external_model() -> void:
+	var base := "res://assets/thirdparty/characters/" + _to_snake(_enemy_type_name())
+	for ext in ["glb", "gltf", "tscn", "scn"]:
+		var path := "%s.%s" % [base, ext]
+		if ResourceLoader.exists(path):
+			var res := load(path)
+			if res is PackedScene:
+				add_child((res as PackedScene).instantiate())
+				var placeholder := get_node_or_null("Mesh")
+				if placeholder is Node3D:
+					(placeholder as Node3D).visible = false
+				return
+
+
+## "ShieldedBrute" -> "shielded_brute", matching the scene file names.
+func _to_snake(s: String) -> String:
+	var out := ""
+	for i in s.length():
+		var c := s[i]
+		if c >= "A" and c <= "Z":
+			if i > 0:
+				out += "_"
+			out += c.to_lower()
+		else:
+			out += c
+	return out
 
 
 ## Attach the floating name + health bar (and, for a shielded enemy, the shield

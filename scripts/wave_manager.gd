@@ -227,11 +227,10 @@ func _on_all_complete() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("complete_mission"):
 		sm.complete_mission(mission_id)
-	var gs := get_node_or_null("/root/GameState")
-	if gs and gs.has_method("transition_to"):
-		gs.transition_to(return_scene)
-	else:
-		get_tree().change_scene_to_file(return_scene)
+	# Loot window (grab the Phantom's drops) before returning to the ship.
+	var ec := ExtractionCountdown.new()
+	add_child(ec)
+	ec.begin(30.0, return_scene)
 
 
 # --- helpers ----------------------------------------------------------------

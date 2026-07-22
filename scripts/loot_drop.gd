@@ -137,7 +137,13 @@ func pickup() -> void:
 	if sm:
 		var slot := "owned_armor" if category == "armor" else "owned_weapons"
 		var owned: Array = sm.data.get(slot, [])
-		owned.append({"id": "loot_%d" % Time.get_ticks_usec(), "name": kind, "rarity": rarity})
+		var item := {"id": "loot_%d" % Time.get_ticks_usec(), "name": kind, "rarity": rarity}
+		# Weapons roll individual stats within their rarity band, so two of the
+		# same weapon and rarity still differ.
+		if category != "armor":
+			item["mods"] = []
+			item["rolls"] = Weapon.roll_stats()
+		owned.append(item)
 		sm.data[slot] = owned
 		sm.save_game()
 	var tel := get_node_or_null("/root/Telemetry")

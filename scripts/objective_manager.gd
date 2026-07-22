@@ -10,6 +10,8 @@ signal all_complete
 
 @export var mission_id: String = "Earth"
 @export var return_scene: String = "res://scenes/hub/hub.tscn"
+## Seconds to loot the area after the last objective before returning to the ship.
+@export var extraction_time: float = 30.0
 
 # Ordered objectives per mission. "kill" uses target; "flag" objectives are
 # completed by notify_flag(<flag>). Picked by mission_id at _ready().
@@ -105,14 +107,14 @@ func _on_all_complete() -> void:
 	var tel := get_node_or_null("/root/Telemetry")
 	if tel:
 		tel.mission_completed(mission_id)
+	# Bank the completion now (flag + Flux persist even if the player quits during
+	# the loot window), then give them time to grab drops before extracting.
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("complete_mission"):
 		sm.complete_mission(mission_id)
-	var gs := get_node_or_null("/root/GameState")
-	if gs and gs.has_method("transition_to"):
-		gs.transition_to(return_scene)
-	else:
-		get_tree().change_scene_to_file(return_scene)
+	var ec := ExtractionCountdown.new()
+	add_child(ec)
+	ec.begin(extraction_time, return_scene)
 
 
 func _build_ui() -> void:

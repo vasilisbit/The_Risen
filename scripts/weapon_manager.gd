@@ -57,7 +57,9 @@ func rebuild() -> void:
 		var kind := String(item.get("name", "Auto Rifle"))
 		var path: String = KIND_SCENES.get(kind, KIND_SCENES["Auto Rifle"])
 		var w := load(path).instantiate() as Weapon
-		w.apply_rarity(String(item.get("rarity", "Common")))   # before add_child, so ammo fills the rolled magazine
+		# Rarity + this item's stored stat rolls, before add_child so ammo fills
+		# the rolled magazine.
+		w.apply_stats(String(item.get("rarity", "Common")), item.get("rolls", {}))
 		for mod_id in item.get("mods", []):                    # installed mods: element + stat tweaks
 			w.apply_mod(String(mod_id))
 		add_child(w)

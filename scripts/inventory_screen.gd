@@ -17,10 +17,10 @@ const PANEL_SIZE := Vector2(860, 560)
 ## Base (Common) stats per weapon kind, mirroring the four weapon scenes, so the
 ## inventory can show what a given rarity roll actually does without loading them.
 const WEAPON_BASE := {
-	"Auto Rifle": {"dmg": 20.0, "rpm": 600, "mag": 30},
-	"Shotgun": {"dmg": 80.0, "rpm": 60, "mag": 8},
-	"Sniper": {"dmg": 300.0, "rpm": 40, "mag": 5},
-	"Hand Cannon": {"dmg": 60.0, "rpm": 180, "mag": 12},
+	"Auto Rifle": {"dmg": 20.0, "rpm": 600, "mag": 30, "reload": 2.0},
+	"Shotgun": {"dmg": 80.0, "rpm": 60, "mag": 8, "reload": 2.5},
+	"Sniper": {"dmg": 300.0, "rpm": 40, "mag": 5, "reload": 3.0},
+	"Hand Cannon": {"dmg": 60.0, "rpm": 180, "mag": 12, "reload": 1.5},
 }
 
 var _flux: Label
@@ -140,7 +140,7 @@ func _build_weapon_row(item: Dictionary, sm: Node) -> Control:
 	info.add_theme_constant_override("separation", 1)
 	hbox.add_child(info)
 	info.add_child(_name_line(kind, rarity, element))
-	info.add_child(_stat_line(_weapon_stats_text(kind, rarity, mods)))
+	info.add_child(_stat_line(_weapon_stats_text(kind, rarity, mods, item.get("rolls", {}))))
 	info.add_child(_mod_chips(id, rarity, mods))
 
 	var btn := _equip_button(equipped)
@@ -148,7 +148,8 @@ func _build_weapon_row(item: Dictionary, sm: Node) -> Control:
 		btn.pressed.connect(func() -> void: _on_unequip_weapon(id))
 	else:
 		btn.pressed.connect(func() -> void: _on_equip_weapon(id))
-	hbox.add_child(btn)
+	hbox.add_child(_action_column(btn, sm.sell_value(item) if sm else 0,
+		func() -> void: _on_sell_weapon(id)))
 	return row
 
 
@@ -176,8 +177,42 @@ func _build_armor_row(item: Dictionary, sm: Node) -> Control:
 		btn.pressed.connect(func() -> void: _on_unequip_armor(slot))
 	else:
 		btn.pressed.connect(func() -> void: _on_equip_armor(id))
-	hbox.add_child(btn)
+	hbox.add_child(_action_column(btn, sm.sell_value(item) if sm else 0,
+		func() -> void: _on_sell_armor(id)))
 	return row
+
+
+## The equip button with a SELL button beneath it, stacked so a row stays narrow.
+func _action_column(equip_btn: Button, sell_value: int, on_sell: Callable) -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 3)
+	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	col.add_child(equip_btn)
+	var sell := Button.new()
+	sell.text = "SELL  %d" % sell_value
+	sell.tooltip_text = "Sell for %d Flux" % sell_value
+	sell.custom_minimum_size = Vector2(112, 0)
+	sell.add_theme_font_size_override("font_size", 12)
+	sell.pressed.connect(on_sell)
+	col.add_child(sell)
+	return col
+
+
+func _on_sell_weapon(id: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm:
+		var got: int = sm.sell_weapon(id)
+		_note("Sold for %d Flux." % got if got >= 0 else "Can't sell your last weapon.")
+	refresh()
+
+
+func _on_sell_armor(id: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm:
+		var got: int = sm.sell_armor(id)
+		if got >= 0:
+			_note("Sold for %d Flux." % got)
+	refresh()
 
 
 # --- equip actions ----------------------------------------------------------
@@ -217,18 +252,19 @@ func _note(text: String) -> void:
 
 # --- stat text --------------------------------------------------------------
 
-func _weapon_stats_text(kind: String, rarity: String, mods: Array) -> String:
+func _weapon_stats_text(kind: String, rarity: String, mods: Array, rolls: Dictionary) -> String:
 	var base: Dictionary = WEAPON_BASE.get(kind, WEAPON_BASE["Auto Rifle"])
-	var rmods: Dictionary = Weapon.RARITY_MODS.get(rarity, Weapon.RARITY_MODS["Common"])
-	var dmg := int(round(float(base["dmg"]) * float(rmods["dmg"])))
-	var rpm := float(base["rpm"])
-	var mag := float(base["mag"]) * float(rmods["mag"])
-	# Fold in installed stat mods so the numbers match what the weapon builds to.
-	if mods.has("rpm"):
-		rpm *= 1.2
+	# Same rarity+roll bands the weapon builds with, so the numbers here match the
+	# gun in hand and two same-rarity drops read differently.
+	var dmg := int(round(float(base["dmg"]) * Weapon.stat_band("damage", rarity, float(rolls.get("damage", 0.5)))))
+	var reload := float(base["reload"]) * Weapon.stat_band("reload", rarity, float(rolls.get("reload", 0.5)))
+	var recoil := Weapon.stat_band("recoil", rarity, float(rolls.get("recoil", 0.5)))
+	var mag := float(base["mag"]) * Weapon.stat_band("mag", rarity, float(rolls.get("mag", 0.5)))
 	if mods.has("mag"):
 		mag *= 1.5
-	return "DMG %d    RPM %d    MAG %d" % [dmg, int(round(rpm)), int(round(mag))]
+	# Stability is the readable inverse of recoil (higher = steadier).
+	var stability := int(clampf((1.15 - recoil) / 0.6 * 100.0, 5.0, 99.0))
+	return "DMG %d   MAG %d   RLD %.2fs   STAB %d" % [dmg, int(round(mag)), reload, stability]
 
 
 ## The weapon's element, derived from whichever element mod (if any) is installed.

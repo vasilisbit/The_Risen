@@ -30,11 +30,24 @@ var _peek_target: Vector3
 var _peek_side: float = 1.0      # flips each peek so both sides get tried
 var _shoot_timer: float = 0.0
 var shots_fired: int = 0         # exposed for tests/telemetry
+## Per-instance cadence, so a group of shooters doesn't peek and volley in
+## lockstep. Randomised in _ready around the base constants.
+var _peek_interval: float = PEEK_INTERVAL
+var _shoot_cd: float = SHOOT_COOLDOWN
 
 
 func _init() -> void:
 	max_health = 100.0
 	flux_value = 5
+
+
+func _ready() -> void:
+	super._ready()
+	# Desync: each shooter gets its own peek rhythm, fire cadence, and a random
+	# starting phase, so they trickle fire instead of all shooting at once.
+	_peek_interval = PEEK_INTERVAL * randf_range(0.7, 1.35)
+	_shoot_cd = SHOOT_COOLDOWN * randf_range(0.75, 1.3)
+	_peek_timer = randf() * _peek_interval
 
 
 func _physics_process(delta: float) -> void:
@@ -70,7 +83,7 @@ func _physics_process(delta: float) -> void:
 			_halt_horizontal()
 			_face(_player.global_position)
 			_peek_timer += delta
-			if _peek_timer >= PEEK_INTERVAL:
+			if _peek_timer >= _peek_interval:
 				_begin_peek()
 		State.PEEK:
 			_peek_elapsed += delta
@@ -180,7 +193,7 @@ func _los_from(from: Vector3) -> bool:
 
 
 func _shoot() -> void:
-	_shoot_timer = SHOOT_COOLDOWN
+	_shoot_timer = _shoot_cd
 	shots_fired += 1
 	var p := load("res://scripts/enemy_projectile.gd").new() as Node3D
 	p.source_name = "Shooter"
