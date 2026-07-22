@@ -117,19 +117,25 @@ func _build_vendor_stall() -> void:
 	if clerk_scene is PackedScene:
 		var clerk := (clerk_scene as PackedScene).instantiate() as Node3D
 		add_child(clerk)
-		# The model's textures don't bind here (folder-case mismatch), so it would
-		# render flat white; a bronze metal override turns it into a deliberate
-		# forge-master automaton instead. Also hide the diorama backdrop.
-		var bronze := _mat(Color(0.52, 0.36, 0.18), 0.85, 0.35, true, Color(0.35, 0.20, 0.06), 0.25)
+		# The model ships as a diorama - hide its backdrop planes ("portal") and
+		# skull pedestal ("cherep") and keep just the fighter. (Textures now bind
+		# after the folder-case fix, so no material override needed.)
 		for m in clerk.find_children("*", "VisualInstance3D", true, false):
 			var nm := String(m.name).to_lower()
 			if nm.contains("portal") or nm.contains("cherep"):
 				(m as Node3D).visible = false
-			elif m is MeshInstance3D:
-				(m as MeshInstance3D).material_override = bronze
 		clerk.position = Vector3(0, 0.25, 12.2)    # feet on the floor
-		clerk.rotation.y = 0.0                     # face the counter/player
-		clerk.scale = Vector3.ONE * 0.95           # a bit taller so he clears the counter
+		clerk.rotation.y = PI                      # turn to face the counter/player
+		clerk.scale = Vector3.ONE * 0.95
+
+	# Invisible full-height barrier at the counter, so the player can't jump the
+	# counter and walk into the shop area behind it.
+	var bar := CollisionShape3D.new()
+	var bshape := BoxShape3D.new()
+	bshape.size = Vector3(8, H, 0.4)
+	bar.shape = bshape
+	bar.position = Vector3(0, H * 0.5, 11.4)
+	add_child(bar)
 	var nameplate := Label3D.new()
 	nameplate.text = "FORGE MASTER"
 	nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED

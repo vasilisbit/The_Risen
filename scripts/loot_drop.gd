@@ -76,7 +76,7 @@ func _build_visual() -> void:
 	var scene := load(CHEST_PATH)
 	if scene is PackedScene:
 		_visual = (scene as PackedScene).instantiate() as Node3D
-		_visual.scale = Vector3.ONE * 0.9
+		_visual.scale = Vector3.ONE * 0.5
 	else:
 		var mi := MeshInstance3D.new()
 		var box := BoxMesh.new()
@@ -102,8 +102,8 @@ func _build_visual() -> void:
 	add_child(light)
 	var disc := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.5
-	cyl.bottom_radius = 0.5
+	cyl.top_radius = 0.4
+	cyl.bottom_radius = 0.4
 	cyl.height = 0.02
 	disc.mesh = cyl
 	var dm := StandardMaterial3D.new()
