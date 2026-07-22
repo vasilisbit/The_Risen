@@ -89,6 +89,18 @@ func _ready() -> void:
 	_build_shield_vfx()
 
 
+func nameplate_tier() -> String:
+	return "boss"
+
+
+func nameplate_head_y() -> float:
+	return 4.7
+
+
+func nameplate_shell_radius() -> float:
+	return 1.7
+
+
 func _physics_process(delta: float) -> void:
 	if _dead or _state == State.DYING:
 		return

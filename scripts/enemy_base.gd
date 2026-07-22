@@ -15,6 +15,21 @@ signal died(where: Vector3)
 ## as a headshot - matches the 1.8 m capsule (top hemisphere).
 const HEAD_MIN_LOCAL_Y := 1.4
 const LOOT_SCENE_PATH := "res://scenes/weapons/loot_drop.tscn"
+const NAMEPLATE_SCENE_PATH := "res://scripts/enemy_nameplate.gd"
+
+## Display names for the floating nameplate, keyed by the subclass class_name.
+const NAMES := {
+	"Rusher": "Risen Rusher",
+	"Shooter": "Risen Shooter",
+	"Exploder": "Volatile Exploder",
+	"ShieldedBrute": "Shielded Brute",
+	"Phantom": "Teleporting Phantom",
+	"EmberTyrant": "Ember Tyrant",
+}
+
+## Whether this enemy shows a floating nameplate. On by default; a subclass can
+## suppress it (e.g. if it drives its own dedicated boss UI).
+var show_nameplate: bool = true
 
 ## Mission-wide enemy modifiers set by the Mars debuff picks (T-0018). Static so
 ## they apply to every enemy, including ones spawned later. Reset per mission.
@@ -75,6 +90,59 @@ func _ready() -> void:
 	_apply_difficulty()
 	health = max_health
 	_player = _find_player()
+	if show_nameplate:
+		_build_nameplate()
+
+
+## Attach the floating name + health bar (and, for a shielded enemy, the shield
+## bar + elemental shell). Runs after _apply_difficulty so the shield stats and
+## element are already set.
+func _build_nameplate() -> void:
+	var plate := Node3D.new()
+	plate.set_script(load(NAMEPLATE_SCENE_PATH))
+	plate.setup(self)
+	add_child(plate)
+
+
+# --- nameplate data (overridable by subclasses) -----------------------------
+
+## Human-readable name shown on the nameplate.
+func display_name() -> String:
+	return String(NAMES.get(_enemy_type_name(), _enemy_type_name()))
+
+
+## "normal" or "boss" - bosses get a larger, gold nameplate.
+func nameplate_tier() -> String:
+	return "boss" if is_in_group("boss") else "normal"
+
+
+## Local height the nameplate floats at (above the ~1.8 m capsule). Taller
+## bosses override this so the plate clears their head.
+func nameplate_head_y() -> float:
+	return 2.15
+
+
+## Radius of the elemental shield shell around the body. Bosses override it.
+func nameplate_shell_radius() -> float:
+	return 0.72
+
+
+## Current / max shield shown on the nameplate. Defaults to the elemental pool;
+## a boss with its own gate shield (the Shielded Brute) overrides these.
+func nameplate_shield() -> float:
+	return elemental_shield
+
+
+func nameplate_shield_max() -> float:
+	return max_elemental_shield
+
+
+## Colour of the shield segment / shell: the element's colour for an elemental
+## shield, a neutral shield-blue for a plain one.
+func nameplate_shield_color() -> Color:
+	if shield_element != "Kinetic":
+		return Weapon.ELEMENT_COLORS.get(shield_element, Color(0.55, 0.75, 1.0))
+	return Color(0.55, 0.75, 1.0)
 
 
 ## Scale this enemy for the selected difficulty tier (T-0027). Applied at
