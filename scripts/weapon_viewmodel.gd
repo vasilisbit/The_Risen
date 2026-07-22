@@ -23,10 +23,10 @@ const EXTERNAL_EXTS := ["glb", "gltf", "tscn", "scn"]
 ## asset in. The barrel should point down -Z (forward), grip toward -Y. Defaults
 ## suit a ~0.4 m gun already modelled facing forward.
 const MODEL_FIT := {
-	"Auto Rifle": {"scale": 1.0, "rot": Vector3(0, 90, 0), "offset": Vector3.ZERO},
-	"Shotgun": {"scale": 1.0, "rot": Vector3(0, 90, 0), "offset": Vector3.ZERO},
-	"Sniper": {"scale": 1.0, "rot": Vector3(0, 90, 0), "offset": Vector3.ZERO},
-	"Hand Cannon": {"scale": 1.0, "rot": Vector3(0, 90, 0), "offset": Vector3.ZERO},
+	"Auto Rifle": {"scale": 1.55, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
+	"Shotgun": {"scale": 1.55, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
+	"Sniper": {"scale": 1.55, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
+	"Hand Cannon": {"scale": 1.3, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
 }
 
 ## Per-weapon recoil, so the heavy guns shove harder.

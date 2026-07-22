@@ -110,13 +110,36 @@ func _build_vendor_stall() -> void:
 	_prop("Prop_Crate", Vector3(-1.6, 0, 12.4), PI, 1.0)
 	_prop("Prop_Crate", Vector3(1.6, 0, 12.4), PI, 1.0)
 
-	# Robot clerk: a hovering Sci-Fi drone (matches the art) tending the counter.
-	var drone_scene := load("res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Enemy_EyeDrone.gltf")
-	if drone_scene is PackedScene:
-		var drone := (drone_scene as PackedScene).instantiate() as Node3D
-		add_child(drone)
-		drone.position = Vector3(0, 1.5, 12.1)
-		drone.scale = Vector3.ONE * 1.1
+	# The Forge Master himself: a Fab warrior character behind the counter, with
+	# his name over his head. The model ships as a diorama, so hide its backdrop
+	# planes ("portal") and skull pedestal ("cherep") and keep just the fighter.
+	var clerk_scene := load("res://assets/thirdparty/fab/warrior/gltf/scene.gltf")
+	if clerk_scene is PackedScene:
+		var clerk := (clerk_scene as PackedScene).instantiate() as Node3D
+		add_child(clerk)
+		# The model's textures don't bind here (folder-case mismatch), so it would
+		# render flat white; a bronze metal override turns it into a deliberate
+		# forge-master automaton instead. Also hide the diorama backdrop.
+		var bronze := _mat(Color(0.52, 0.36, 0.18), 0.85, 0.35, true, Color(0.35, 0.20, 0.06), 0.25)
+		for m in clerk.find_children("*", "VisualInstance3D", true, false):
+			var nm := String(m.name).to_lower()
+			if nm.contains("portal") or nm.contains("cherep"):
+				(m as Node3D).visible = false
+			elif m is MeshInstance3D:
+				(m as MeshInstance3D).material_override = bronze
+		clerk.position = Vector3(0, 0.25, 12.2)    # feet on the floor
+		clerk.rotation.y = 0.0                     # face the counter/player
+		clerk.scale = Vector3.ONE * 0.95           # a bit taller so he clears the counter
+	var nameplate := Label3D.new()
+	nameplate.text = "FORGE MASTER"
+	nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	nameplate.no_depth_test = true
+	nameplate.pixel_size = 0.006
+	nameplate.modulate = Color(0.95, 0.78, 0.32)   # gold, matching the UI
+	nameplate.outline_modulate = Color(0, 0, 0, 0.85)
+	nameplate.outline_size = 14
+	nameplate.position = Vector3(0, 2.5, 12.2)
+	add_child(nameplate)
 	# Warm forge glow over the counter.
 	_omni(Vector3(0, 2.4, 11.6), 7.0, 2.2, Color(1.0, 0.72, 0.4))
 
