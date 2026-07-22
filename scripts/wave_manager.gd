@@ -47,6 +47,15 @@ var _wave_active: bool = false
 var _label: Label
 var _buff_layer: CanvasLayer
 
+## Live enemies of the current wave. `remaining` is derived from this (not from
+## the died signal alone), so an enemy that vanishes without emitting died can't
+## leave a phantom count that blocks the wave from ever clearing.
+var _alive: Array = []
+## Seconds since the count last dropped. If it stalls, the survivors are probably
+## stuck out of the player's reach, so we pull them back into the room.
+var _stuck_time: float = 0.0
+const STUCK_TIMEOUT := 18.0
+
 
 ## Waves begin when the player crosses into the first chamber rather than on a
 ## timer - otherwise enemies would spawn while the player is still platforming.
@@ -65,13 +74,36 @@ func _ready() -> void:
 	_update_label("Reach the Nexus Chamber")
 
 
-func _physics_process(_delta: float) -> void:
-	if _started:
+func _physics_process(delta: float) -> void:
+	if not _started:
+		var p := get_tree().get_first_node_in_group("player")
+		if p != null and (p as Node3D).global_position.z <= START_TRIGGER_Z:
+			_started = true
+			start_wave(0)
 		return
-	var p := get_tree().get_first_node_in_group("player")
-	if p != null and (p as Node3D).global_position.z <= START_TRIGGER_Z:
-		_started = true
-		start_wave(0)
+	# Once fighting: keep the count honest (catch enemies freed without a died
+	# signal) and rescue any that stall out of reach.
+	if not _wave_active or not _spawn_done or _pending > 0:
+		return
+	_recount()
+	if remaining > 0:
+		_stuck_time += delta
+		if _stuck_time >= STUCK_TIMEOUT:
+			_stuck_time = 0.0
+			_unstick_survivors()
+
+
+## Pull stuck survivors back to a spawn marker in the current room, so a couple
+## of stranded enemies can't leave the wave uncompletable (and the player can
+## actually find and kill them - now they even have nameplates).
+func _unstick_survivors() -> void:
+	var markers := _room_markers(room_for_wave(wave_index))
+	if markers.is_empty():
+		return
+	for e in _alive:
+		if is_instance_valid(e) and e is Node3D:
+			var m: Node3D = markers[randi() % markers.size()]
+			(e as Node3D).global_position = m.global_position + Vector3(0, 1, 0)
 
 
 # --- wave lifecycle ---------------------------------------------------------
@@ -84,6 +116,8 @@ func start_wave(index: int) -> void:
 	_pending = 0
 	_spawn_done = false
 	_wave_active = true
+	_alive.clear()
+	_stuck_time = 0.0
 	# Each wave is a checkpoint. Mars has no ObjectiveManager, and without this
 	# a death on wave 11 would drop the player back at the last platforming
 	# checkpoint, outside the chambers entirely.
@@ -135,16 +169,29 @@ func _spawn_one(type_path: String, pos: Vector3) -> void:
 		if host:
 			host.add_child(e)
 			e.global_position = pos + Vector3(0, 1, 0)
-			remaining += 1
+			_alive.append(e)
 			if e.has_signal("died"):
 				e.died.connect(_on_enemy_died)
 	_pending -= 1
-	_update_label()
-	_check_cleared()
+	_recount()
 
 
 func _on_enemy_died(_where: Vector3) -> void:
-	remaining = maxi(0, remaining - 1)
+	_recount()
+
+
+## Recompute `remaining` from the live enemies, pruning any that were freed
+## (whether or not they emitted died). This is the single source of truth for the
+## count, so it can never get stuck above the number actually alive.
+func _recount() -> void:
+	var pruned: Array = []
+	for e in _alive:
+		if is_instance_valid(e) and not e.is_queued_for_deletion():
+			pruned.append(e)
+	if pruned.size() < _alive.size():
+		_stuck_time = 0.0
+	_alive = pruned
+	remaining = _alive.size()
 	_update_label()
 	_check_cleared()
 

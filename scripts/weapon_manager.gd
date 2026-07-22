@@ -73,6 +73,15 @@ func active_weapon() -> Weapon:
 	return _weapons[_active] if _active < _weapons.size() else null
 
 
+## Top every weapon back up instantly (used on respawn) - no reload wait, any
+## in-progress reload cancelled. You come back ready to fight, not mid-reload.
+func reset_all_ammo() -> void:
+	for w in _weapons:
+		w.cancel_reload()
+		w.ammo = w.mag_size
+		w.state_changed.emit()
+
+
 func _process(delta: float) -> void:
 	var w := active_weapon()
 	if w == null:
