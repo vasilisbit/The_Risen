@@ -10,6 +10,25 @@ extends Node3D
 const REST_POS := Vector3(0.32, -0.26, -0.7)
 const RECOVER := 14.0        # recovery speed
 
+## Where the game looks for a real weapon model before falling back to the
+## built-in primitive silhouette. Drop a file named after the weapon (lowercase,
+## spaces -> underscores) here - e.g. `auto_rifle.glb` from the CC0 Kenney
+## Blaster Kit, or your own Fab export - and it is used automatically. Supported
+## extensions in priority order:
+const EXTERNAL_DIR := "res://assets/thirdparty/weapons/"
+const EXTERNAL_EXTS := ["glb", "gltf", "tscn", "scn"]
+
+## Per-weapon fit for imported models - imported meshes arrive at all sizes and
+## facings, so tune scale / rotation (degrees) / offset here when you drop a real
+## asset in. The barrel should point down -Z (forward), grip toward -Y. Defaults
+## suit a ~0.4 m gun already modelled facing forward.
+const MODEL_FIT := {
+	"Auto Rifle": {"scale": 1.0, "rot": Vector3.ZERO, "offset": Vector3.ZERO},
+	"Shotgun": {"scale": 1.0, "rot": Vector3.ZERO, "offset": Vector3.ZERO},
+	"Sniper": {"scale": 1.0, "rot": Vector3.ZERO, "offset": Vector3.ZERO},
+	"Hand Cannon": {"scale": 1.0, "rot": Vector3.ZERO, "offset": Vector3.ZERO},
+}
+
 ## Per-weapon recoil, so the heavy guns shove harder.
 const KICK := {
 	"Auto Rifle": {"back": 0.07, "up": 0.045},
@@ -38,6 +57,13 @@ func set_weapon(name_: String) -> void:
 		_model.queue_free()
 	_model = Node3D.new()
 	add_child(_model)
+	# Prefer a real imported model if one has been dropped in; otherwise fall
+	# back to the built-in primitive silhouette so the game always shows a gun.
+	var external := _load_external(name_)
+	if external != null:
+		_model.add_child(external)
+		_apply_fit(external, name_)
+		return
 	match name_:
 		"Shotgun":
 			_build_shotgun()
@@ -47,6 +73,28 @@ func set_weapon(name_: String) -> void:
 			_build_hand_cannon()
 		_:
 			_build_auto_rifle()
+
+
+## Load a real weapon model from EXTERNAL_DIR if one exists for this weapon.
+## Returns an instanced Node3D, or null to use the primitive fallback.
+func _load_external(name_: String) -> Node3D:
+	var base := EXTERNAL_DIR + name_.to_lower().replace(" ", "_")
+	for ext in EXTERNAL_EXTS:
+		var path := "%s.%s" % [base, ext]
+		if ResourceLoader.exists(path):
+			var res := load(path)
+			if res is PackedScene:
+				return (res as PackedScene).instantiate() as Node3D
+	return null
+
+
+## Apply the tuning transform for an imported model.
+func _apply_fit(model: Node3D, name_: String) -> void:
+	var fit: Dictionary = MODEL_FIT.get(name_, MODEL_FIT["Auto Rifle"])
+	model.scale = Vector3.ONE * float(fit["scale"])
+	var r: Vector3 = fit["rot"]
+	model.rotation = Vector3(deg_to_rad(r.x), deg_to_rad(r.y), deg_to_rad(r.z))
+	model.position = fit["offset"]
 
 
 func kick() -> void:

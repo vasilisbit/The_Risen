@@ -79,9 +79,9 @@ func _physics_process(delta: float) -> void:
 				_halt_horizontal()
 				if _shoot_timer <= 0.0:
 					_shoot()
-					_state = State.SEEK_COVER    # slip back into cover
+					_return_to_cover()           # slip back into fresh cover
 			elif _peek_elapsed >= PEEK_TIMEOUT:
-				_state = State.SEEK_COVER        # could not clear LOS; retry later
+				_return_to_cover()               # LOS never cleared; reposition on the player
 			else:
 				_move_straight_to(_peek_target)
 
@@ -113,6 +113,15 @@ func _pick_cover() -> Vector3:
 	if best_any != null:
 		return best_any.global_position
 	return global_position
+
+
+## Re-pick cover relative to the player's CURRENT position, then seek it. Cover
+## used to be chosen once on first detection and never updated, so if the player
+## moved (or respawned elsewhere after dying) the Shooter kept returning to stale
+## cover and could never clear line of sight again - it just stopped firing.
+func _return_to_cover() -> void:
+	_cover_pos = _pick_cover()
+	_state = State.SEEK_COVER
 
 
 func _begin_peek() -> void:

@@ -41,6 +41,10 @@ func _ready() -> void:
 	var head_y: float = _enemy.nameplate_head_y() if _enemy.has_method("nameplate_head_y") else HEAD_Y
 	position = Vector3(0, head_y, 0)
 	var is_boss: bool = _enemy.has_method("nameplate_tier") and _enemy.nameplate_tier() == "boss"
+	# Decide shield presence up front so the name can sit clear of the shield bar
+	# (it used to be placed before this was known and overlapped it).
+	_has_shield = _enemy.has_method("nameplate_shield_max") and _enemy.nameplate_shield_max() > 0.0
+	_elemental = String(_enemy.get("shield_element")) != "Kinetic"
 	_build_name(is_boss)
 	_build_health_bar(is_boss)
 	_build_shield_bar()
@@ -57,7 +61,9 @@ func _build_name(is_boss: bool) -> void:
 	label.modulate = BOSS_COLOR if is_boss else NORMAL_COLOR
 	label.outline_modulate = Color(0, 0, 0, 0.85)
 	label.outline_size = 14
-	label.position = Vector3(0, 0.15 if not _has_shield else 0.20, 0)
+	# Sit above the health bar, and higher still when a shield bar is stacked on
+	# top of it, so the name never overlaps the bars.
+	label.position = Vector3(0, 0.28 if _has_shield else 0.16, 0)
 	add_child(label)
 
 
@@ -70,10 +76,8 @@ func _build_health_bar(is_boss: bool) -> void:
 
 
 func _build_shield_bar() -> void:
-	if not _enemy.has_method("nameplate_shield_max") or _enemy.nameplate_shield_max() <= 0.0:
+	if not _has_shield:
 		return
-	_has_shield = true
-	_elemental = String(_enemy.get("shield_element")) != "Kinetic"
 	var y := BAR_H * 0.5 + SHIELD_H * 0.5 + 0.02
 	_shield_bg = _quad(BAR_W + 0.03, SHIELD_H + 0.02, Color(0, 0, 0, 0.75), 1)
 	_shield_bg.position = Vector3(0, y, 0)

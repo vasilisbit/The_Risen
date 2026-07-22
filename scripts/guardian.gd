@@ -495,6 +495,8 @@ func _respawn() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if has_node("WeaponManager"):
 		$WeaponManager.set_process(true)
+		# Come back with full magazines, not mid-reload from when you died.
+		$WeaponManager.reset_all_ammo()
 	if _death_screen:
 		_death_screen.visible = false
 	health_changed.emit(health, max_hp())
