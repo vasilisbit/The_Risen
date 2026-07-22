@@ -31,9 +31,11 @@ var kind: String = "Auto Rifle"
 
 var _player_in_range: bool = false
 var _picked: bool = false
-var _mesh: MeshInstance3D
+var _visual: Node3D
 var _prompt: Label3D
 var _spin: float = 0.0
+
+const CHEST_PATH := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Prop_Chest.gltf"
 
 
 func _ready() -> void:
@@ -69,19 +71,50 @@ func _roll_kind() -> String:
 
 
 func _build_visual() -> void:
-	_mesh = MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.35, 0.35, 0.35)
-	_mesh.mesh = box
-	var mat := StandardMaterial3D.new()
 	var c: Color = RARITY_COLORS.get(rarity, Color.WHITE)
-	mat.albedo_color = c
-	mat.emission_enabled = true
-	mat.emission = c
-	mat.emission_energy_multiplier = 2.5
-	_mesh.material_override = mat
-	_mesh.position = Vector3(0, 0.35, 0)
-	add_child(_mesh)
+	# A little loot chest instead of a coloured box.
+	var scene := load(CHEST_PATH)
+	if scene is PackedScene:
+		_visual = (scene as PackedScene).instantiate() as Node3D
+		_visual.scale = Vector3.ONE * 0.9
+	else:
+		var mi := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.35, 0.35, 0.35)
+		mi.mesh = box
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = c
+		mat.emission_enabled = true
+		mat.emission = c
+		mat.emission_energy_multiplier = 2.5
+		mi.material_override = mat
+		_visual = mi
+	_visual.position = Vector3(0, 0.28, 0)
+	add_child(_visual)
+
+	# Rarity beacon so drops read at range: a coloured point light and a glowing
+	# disc on the ground under the chest.
+	var light := OmniLight3D.new()
+	light.light_color = c
+	light.light_energy = 2.2
+	light.omni_range = 3.0
+	light.position = Vector3(0, 0.6, 0)
+	add_child(light)
+	var disc := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.5
+	cyl.bottom_radius = 0.5
+	cyl.height = 0.02
+	disc.mesh = cyl
+	var dm := StandardMaterial3D.new()
+	dm.albedo_color = Color(c.r, c.g, c.b, 0.5)
+	dm.emission_enabled = true
+	dm.emission = c
+	dm.emission_energy_multiplier = 2.0
+	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	disc.material_override = dm
+	disc.position = Vector3(0, 0.02, 0)
+	add_child(disc)
 
 	# Collision is provided by the scene (loot_drop.tscn -> PickupShape). If this
 	# is instantiated as a bare Area3D, create the pickup shape as a fallback so
@@ -104,9 +137,9 @@ func _build_visual() -> void:
 
 
 func _process(delta: float) -> void:
-	if _mesh:
+	if _visual:
 		_spin += delta
-		_mesh.rotation.y = _spin * 1.5
+		_visual.rotation.y = _spin * 1.5
 
 
 func _on_body_entered(body: Node) -> void:
