@@ -114,13 +114,16 @@ func _build_rooms() -> void:
 ## x/z offsets of +-4/+-5) and the central doorway line, so they give cover
 ## without blocking navigation.
 func _room_cover(cz: float) -> void:
+	# Everything here stays off the central doorway axis (x within +-2 at the
+	# room's z-edges) so it can never block the 3 m entrance/exit portals - an
+	# earlier version put a crate dead-centre on the entrance.
 	var c := Vector3(0, Y_ROOM, cz)
 	_box(c + Vector3(-7, ROOM_H * 0.5, 0), Vector3(1.5, ROOM_H, 1.5), _rock)     # tall pillars near the walls
 	_box(c + Vector3(7, ROOM_H * 0.5, 0), Vector3(1.5, ROOM_H, 1.5), _rock)
-	_box(c + Vector3(0, 0.9, -6), Vector3(3, 1.8, 2), _rock2)                    # low crates to duck behind
-	_box(c + Vector3(0, 0.9, 6), Vector3(3, 1.8, 2), _rock2)
-	_box(c + Vector3(-6, 0.7, 0), Vector3(2, 1.4, 2), _rock2)
-	_box(c + Vector3(6, 0.7, 0), Vector3(2, 1.4, 2), _rock2)
+	_box(c + Vector3(-5, 0.9, -4), Vector3(3, 1.8, 2), _rock2)                   # low crates to duck behind
+	_box(c + Vector3(5, 0.9, 4), Vector3(3, 1.8, 2), _rock2)
+	_box(c + Vector3(6, 0.7, -3), Vector3(2, 1.4, 2), _rock2)
+	_box(c + Vector3(-6, 0.7, 3), Vector3(2, 1.4, 2), _rock2)
 
 
 func _door_wall(z: float, has_door: bool) -> void:
