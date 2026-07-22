@@ -93,24 +93,32 @@ func _build_vendor_stall() -> void:
 	if box is Node3D:
 		(box as Node3D).visible = false           # hide the orange placeholder
 
-	_prop("Prop_Desk_L", Vector3(0, 0, 10.5), 0.0, 1.15)          # shop counter
-	_prop("Prop_Shelves_WideTall", Vector3(-2.3, 0, 12.6), PI, 1.0)   # goods behind
-	_prop("Prop_Shelves_WideTall", Vector3(2.3, 0, 12.6), PI, 1.0)
-	_prop("Prop_Crate_Large", Vector3(3.2, 0, 11.6), 0.0, 1.0)
-	_prop("Prop_Barrel1", Vector3(-3.3, 0, 11.5), 0.0, 1.0)
+	var counter_mat := _mat(Color(0.15, 0.16, 0.20), 0.6, 0.45)
+	var top_mat := _mat(Color(0.85, 0.62, 0.30), 0.7, 0.3, true, Color(0.6, 0.4, 0.15), 0.4)
+	# Wall-to-wall counter (X[-4,4]) - solid, so you trade over it and can't get
+	# to the shop's back. A slim glowing top ledge reads as the trade surface.
+	_box(Vector3(0, 0.55, 11.4), Vector3(8, 1.1, 0.7), counter_mat)
+	_box(Vector3(0, 1.15, 11.35), Vector3(8, 0.1, 0.95), top_mat)
+	# A back partition wall sealing the shop area (with a service gap the drone
+	# sits in), so there's a proper enclosed store behind the counter.
+	_box(Vector3(-3.0, 2.0, 12.9), Vector3(2, 4, 0.2), counter_mat)
+	_box(Vector3(3.0, 2.0, 12.9), Vector3(2, 4, 0.2), counter_mat)
 
-	# Robot clerk behind the counter (voxel storage-bot). .obj imports as a Mesh,
-	# so wrap it in a MeshInstance3D.
-	var bot_mesh := load("res://assets/thirdparty/voxel-mechas/MobileStorageBot/Package/MobileStorageBot.obj")
-	if bot_mesh is Mesh:
-		var mi := MeshInstance3D.new()
-		mi.mesh = bot_mesh
-		add_child(mi)
-		mi.position = Vector3(0, 0, 12.0)
-		mi.rotation.y = PI                         # face the counter / player
-		mi.scale = Vector3.ONE * 0.6
-	# A warm forge glow on the stall (in addition to the existing vendor spot).
-	_omni(Vector3(0, 2.2, 11.5), 7.0, 2.0, Color(1.0, 0.72, 0.4))
+	# Goods on shelves against the back wall, flush to it, no gaps at the ends.
+	_prop("Prop_Shelves_WideTall", Vector3(-3.4, 0, 12.5), PI, 1.0)
+	_prop("Prop_Shelves_WideTall", Vector3(3.4, 0, 12.5), PI, 1.0)
+	_prop("Prop_Crate", Vector3(-1.6, 0, 12.4), PI, 1.0)
+	_prop("Prop_Crate", Vector3(1.6, 0, 12.4), PI, 1.0)
+
+	# Robot clerk: a hovering Sci-Fi drone (matches the art) tending the counter.
+	var drone_scene := load("res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Enemy_EyeDrone.gltf")
+	if drone_scene is PackedScene:
+		var drone := (drone_scene as PackedScene).instantiate() as Node3D
+		add_child(drone)
+		drone.position = Vector3(0, 1.5, 12.1)
+		drone.scale = Vector3.ONE * 1.1
+	# Warm forge glow over the counter.
+	_omni(Vector3(0, 2.4, 11.6), 7.0, 2.2, Color(1.0, 0.72, 0.4))
 
 
 func _prop(name_: String, pos: Vector3, rot_y: float, scale: float) -> void:
