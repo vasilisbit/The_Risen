@@ -120,6 +120,28 @@ func slam() -> void:
 			_player.apply_knockback(kb)
 
 
+# --- nameplate (boss tier; the gate shield feeds the shield bar) -------------
+
+func nameplate_tier() -> String:
+	return "boss"
+
+
+func nameplate_shield() -> float:
+	return shield + elemental_shield
+
+
+func nameplate_shield_max() -> float:
+	return MAX_SHIELD + max_elemental_shield
+
+
+func nameplate_head_y() -> float:
+	return 3.5
+
+
+func nameplate_shell_radius() -> float:
+	return 1.2
+
+
 ## Shield gates all HP damage until it is depleted (invulnerable phase 1).
 func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
