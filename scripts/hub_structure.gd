@@ -54,9 +54,48 @@ func _ready() -> void:
 	_cover(Vector3(-3.3, 0, 6.8))
 	_cover(Vector3(3.3, 0, 6.8))
 
+	_build_props()
+
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
 		region.bake_navigation_mesh(false)
+
+
+## Dress the starship with Quaternius Sci-Fi Essentials props (CC0) - decoration
+## only, kept against the walls/corners clear of the player spawn (0,1,3), the
+## central hologram table, the window and the doorway. Visual-only (no collision,
+## so they don't affect nav or block the player).
+const PROP_DIR := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/"
+
+func _build_props() -> void:
+	# Cockpit: a pilot station by the window, storage along the walls.
+	_prop("Prop_Desk_Medium", Vector3(-3.4, 0, -4.0), PI, 1.0)
+	_prop("Prop_Chair", Vector3(-3.4, 0, -3.1), 0.0, 1.0)
+	_prop("Prop_Desk_Medium", Vector3(3.4, 0, -4.0), PI, 1.0)
+	_prop("Prop_Locker", Vector3(-4.5, 0, 1.6), -PI * 0.5, 1.0)
+	_prop("Prop_Locker", Vector3(-4.5, 0, 0.3), -PI * 0.5, 1.0)
+	_prop("Prop_Shelves_WideTall", Vector3(4.5, 0, 1.2), PI * 0.5, 1.0)
+	_prop("Prop_Crate", Vector3(4.2, 0, 4.2), 0.4, 1.0)
+	_prop("Prop_Barrel1", Vector3(3.5, 0, 4.3), 0.0, 1.0)
+	_prop("Prop_Crate", Vector3(-4.3, 0, 4.2), -0.5, 1.0)
+	# Weapon bay: cargo stacked around the vendor.
+	_prop("Prop_Crate_Large", Vector3(2.9, 0, 12.2), 0.0, 1.0)
+	_prop("Prop_Crate", Vector3(2.4, 0, 11.1), 0.3, 1.0)
+	_prop("Prop_Barrel1", Vector3(-2.7, 0, 11.6), 0.0, 1.0)
+	_prop("Prop_Barrel1", Vector3(-3.1, 0, 12.2), 0.0, 1.0)
+	_prop("Prop_Shelves_WideTall", Vector3(3.5, 0, 8.0), PI * 0.5, 1.0)
+	_prop("Prop_Chest", Vector3(-3.2, 0, 7.8), PI * 0.5, 1.0)
+
+
+func _prop(name_: String, pos: Vector3, rot_y: float, scale: float) -> void:
+	var scene := load(PROP_DIR + name_ + ".gltf")
+	if scene == null:
+		return
+	var m := scene.instantiate() as Node3D
+	add_child(m)
+	m.position = pos
+	m.rotation.y = rot_y
+	m.scale = Vector3.ONE * scale
 
 
 func _cover(pos: Vector3) -> void:
