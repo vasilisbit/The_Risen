@@ -15,7 +15,19 @@ const COMPLETION_FLUX := {"Earth": 60, "Mars": 100, "Venus": 150}
 
 ## The one weapon a new Guardian starts with. Everything else is earned from
 ## loot or bought - you no longer begin holding all four (see equipped_weapons).
-const STARTER_WEAPON := {"id": "starter_ar", "name": "Auto Rifle", "rarity": "Common"}
+## Mid-band rolls (0.5) so the starter is a stable baseline.
+const STARTER_WEAPON := {
+	"id": "starter_ar", "name": "Auto Rifle", "rarity": "Common", "mods": [],
+	"rolls": {"damage": 0.5, "reload": 0.5, "recoil": 0.5, "mag": 0.5},
+}
+
+## Flux a sale returns, by rarity, before the item-type multiplier. Below the
+## vendor buy prices (Common 10 / Rare 25 / Epic 50 / Exotic 100) so selling is a
+## sink, not a arbitrage.
+const SELL_BASE := {"Common": 5, "Rare": 15, "Epic": 40, "Exotic": 90}
+## Weapon-type multiplier on the sell base - the heavier, rarer-to-use guns are
+## worth more.
+const WEAPON_SELL_MULT := {"Auto Rifle": 1.0, "Hand Cannon": 1.15, "Shotgun": 1.25, "Sniper": 1.4}
 ## How many weapons can be carried into a mission at once (weapon_1..weapon_3).
 const MAX_EQUIPPED_WEAPONS := 3
 ## The three armour slots, keyed by the item name the loot roller produces.
@@ -51,7 +63,7 @@ func _default_data() -> Dictionary:
 		# rather than a real choice. Backfilled into older saves on load.
 		"class_chosen": false,
 		# You start with one weapon; the rest are earned from loot or the vendor.
-		"owned_weapons": [STARTER_WEAPON.duplicate()],
+		"owned_weapons": [STARTER_WEAPON.duplicate(true)],
 		"owned_armor": [],
 		# Ids from owned_weapons that are carried into a mission (weapon slots 1-3).
 		"equipped_weapons": [STARTER_WEAPON["id"]],
@@ -117,9 +129,11 @@ func _normalize_loadout() -> void:
 	for w in owned:
 		if typeof(w) == TYPE_DICTIONARY:
 			owned_ids[w.get("id", "")] = true
-			# Backfill the mods array so pre-mod saves are managed uniformly.
+			# Backfill mods/rolls so pre-mod, pre-roll saves are managed uniformly.
 			if not w.has("mods"):
 				w["mods"] = []
+			if not w.has("rolls"):
+				w["rolls"] = {"damage": 0.5, "reload": 0.5, "recoil": 0.5, "mag": 0.5}
 	var equipped: Array = data.get("equipped_weapons", [])
 	var clean: Array = []
 	for id in equipped:
@@ -358,6 +372,65 @@ func _has_element_mod(mods: Array) -> bool:
 		if Weapon.MODS.get(id, {}).has("element"):
 			return true
 	return false
+
+
+# --- selling -----------------------------------------------------------------
+
+## Flux an item sells for: a rarity base, times the weapon-type multiplier (or a
+## flat 0.8 for armour). Public so the inventory can label the sell button.
+func sell_value(item: Dictionary) -> int:
+	var base: int = int(SELL_BASE.get(String(item.get("rarity", "Common")), 5))
+	var name_ := String(item.get("name", ""))
+	if ARMOR_SLOTS.has(name_):
+		return int(round(base * 0.8))
+	return int(round(base * float(WEAPON_SELL_MULT.get(name_, 1.0))))
+
+
+## Sell an owned weapon for Flux. Won't sell your last weapon (the loadout needs
+## one); if the sold weapon was equipped it is swapped out first. Returns the
+## Flux gained, or -1 if the sale was refused.
+func sell_weapon(id: String) -> int:
+	var item := weapon_by_id(id)
+	if item.is_empty():
+		return -1
+	var owned: Array = data.get("owned_weapons", [])
+	if owned.size() <= 1:
+		return -1
+	var value := sell_value(item)
+	var equipped: Array = data.get("equipped_weapons", [])
+	if equipped.has(id):
+		equipped.erase(id)
+		if equipped.is_empty():
+			for w in owned:
+				if w.get("id", "") != id:
+					equipped.append(w.get("id", ""))
+					break
+		data["equipped_weapons"] = equipped
+	data["owned_weapons"] = owned.filter(func(w: Dictionary) -> bool: return w.get("id", "") != id)
+	add_flux(value)
+	save_game()
+	loadout_changed.emit()
+	return value
+
+
+## Sell an owned armour piece for Flux (unequipping it if worn). Returns the Flux
+## gained, or -1 if not found.
+func sell_armor(id: String) -> int:
+	var item := armor_by_id(id)
+	if item.is_empty():
+		return -1
+	var value := sell_value(item)
+	var eq: Dictionary = data.get("equipped_armor", {})
+	for slot in eq.keys():
+		if eq[slot] == id:
+			eq.erase(slot)
+	data["equipped_armor"] = eq
+	data["owned_armor"] = (data.get("owned_armor", []) as Array).filter(
+		func(a: Dictionary) -> bool: return a.get("id", "") != id)
+	add_flux(value)
+	save_game()
+	loadout_changed.emit()
+	return value
 
 
 ## Total passive damage reduction from the currently equipped armour, summed

@@ -126,6 +126,17 @@ func detonate() -> void:
 		if target is Node3D and global_position.distance_to((target as Node3D).global_position) <= EXPLOSION_RADIUS:
 			if target.has_method("take_damage"):
 				target.take_damage(EXPLOSION_DAMAGE, "Exploder")
+	# Friendly fire: the blast catches other enemies too (and can chain-detonate
+	# a cluster of Exploders). Guarded by each enemy's own _dead flag, so this
+	# terminates. Self is already flagged _dead above, so it is skipped.
+	for other in get_tree().get_nodes_in_group("enemy"):
+		if other == self or other is not Node3D:
+			continue
+		if global_position.distance_to((other as Node3D).global_position) <= EXPLOSION_RADIUS:
+			if other.has_method("mark_damage_source"):
+				other.mark_damage_source("Exploder", false)
+			if other.has_method("take_damage"):
+				other.take_damage(EXPLOSION_DAMAGE)
 	_spawn_explosion_vfx(global_position)
 	play_sfx("explosion")
 	_log_kill()

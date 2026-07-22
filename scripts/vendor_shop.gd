@@ -78,7 +78,11 @@ func buy_weapon(id: String) -> String:
 		return "Insufficient Flux"
 	_sm.data["flux_currency"] = flux - price
 	var owned: Array = _sm.data.get("owned_weapons", [])
-	owned.append({"id": id, "name": weapon["name"], "rarity": weapon["rarity"]})
+	owned.append({
+		"id": "%s_%d" % [id, Time.get_ticks_usec()],
+		"name": weapon["name"], "rarity": weapon["rarity"],
+		"mods": [], "rolls": Weapon.roll_stats(),
+	})
 	_sm.data["owned_weapons"] = owned
 	_sm.save_game()
 	var tel := get_node_or_null("/root/Telemetry")

@@ -29,6 +29,18 @@ const RARITY_MODS := {
 	"Exotic": {"dmg": 1.50, "reload": 0.75, "recoil": 0.65, "mag": 1.30},
 }
 
+## Per-stat rarity bands [worst_roll, best_roll] as multipliers on the base
+## stat. Two drops of the same weapon and rarity differ within the band (a random
+## roll 0..1 picks a point on it), but the bands step up with rarity so a better
+## rarity is always at least as good - a bad Exotic still beats a good Rare. For
+## reload and recoil the "better" end is the lower number.
+const STAT_BANDS := {
+	"damage": {"Common": [0.95, 1.05], "Rare": [1.08, 1.22], "Epic": [1.22, 1.40], "Exotic": [1.42, 1.62]},
+	"reload": {"Common": [1.05, 0.97], "Rare": [0.97, 0.88], "Epic": [0.88, 0.80], "Exotic": [0.80, 0.70]},
+	"recoil": {"Common": [1.05, 0.95], "Rare": [0.94, 0.85], "Epic": [0.84, 0.74], "Exotic": [0.72, 0.58]},
+	"mag":    {"Common": [1.00, 1.02], "Rare": [1.02, 1.08], "Epic": [1.10, 1.20], "Exotic": [1.22, 1.36]},
+}
+
 ## The rarity this instance was rolled/built at, kept for the HUD and inventory.
 var rarity: String = "Common"
 ## Scales the camera recoil the WeaponManager applies (rarer = steadier). Set by
@@ -86,18 +98,35 @@ func _ready() -> void:
 	ammo = mag_size
 
 
-## Scale this weapon's base stats for its loot rarity. Call it BEFORE the node
-## enters the tree (before _ready fills the magazine), so the bigger Epic/Exotic
-## magazine is reflected in the starting ammo. Idempotent per instance is not
-## needed - each drop is built fresh.
-func apply_rarity(rarity_: String) -> void:
-	rarity = rarity_ if RARITY_MODS.has(rarity_) else "Common"
-	var mods: Dictionary = RARITY_MODS[rarity]
-	damage *= float(mods["dmg"])
-	reload_time *= float(mods["reload"])
-	recoil_mult = float(mods["recoil"])
-	mag_size = int(round(mag_size * float(mods["mag"])))
+## One point on a stat's rarity band, chosen by a 0..1 roll (0.5 = middle).
+static func stat_band(stat: String, rarity_: String, roll: float) -> float:
+	var by_rarity: Dictionary = STAT_BANDS.get(stat, {})
+	var band: Array = by_rarity.get(rarity_, by_rarity.get("Common", [1.0, 1.0]))
+	return lerpf(float(band[0]), float(band[1]), clampf(roll, 0.0, 1.0))
+
+
+## A fresh random roll per stat, stored on the owned item so the weapon rebuilds
+## identically every time. Generated once at drop / purchase.
+static func roll_stats() -> Dictionary:
+	return {"damage": randf(), "reload": randf(), "recoil": randf(), "mag": randf()}
+
+
+## Scale this weapon's base stats for its rarity and its stored rolls. Call it
+## BEFORE the node enters the tree (before _ready fills the magazine), so the
+## rolled magazine size is reflected in the starting ammo. Missing rolls default
+## to the middle of the band, so old saves stay stable.
+func apply_stats(rarity_: String, rolls: Dictionary) -> void:
+	rarity = rarity_ if STAT_BANDS["damage"].has(rarity_) else "Common"
+	damage *= stat_band("damage", rarity, float(rolls.get("damage", 0.5)))
+	reload_time *= stat_band("reload", rarity, float(rolls.get("reload", 0.5)))
+	recoil_mult = stat_band("recoil", rarity, float(rolls.get("recoil", 0.5)))
+	mag_size = int(round(mag_size * stat_band("mag", rarity, float(rolls.get("mag", 0.5)))))
 	ammo = mag_size
+
+
+## Back-compat: rarity only, middle-of-band rolls.
+func apply_rarity(rarity_: String) -> void:
+	apply_stats(rarity_, {})
 
 
 ## Apply one installed mod's effect. Called by the WeaponManager after
