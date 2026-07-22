@@ -66,10 +66,24 @@ func _ready() -> void:
 	_build_arena()
 	_build_lights()
 	_build_spawns()
+	_build_kill_plane()
 
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
 		region.bake_navigation_mesh(false)
+
+
+## Void floor beneath the whole level: falling clean off the map (below even the
+## lava) is an outright death + checkpoint respawn. The designed lava hazards sit
+## far above this and still catch normal mistakes non-lethally (GDD -50% HP).
+func _build_kill_plane() -> void:
+	var a := _area(Vector3(0, -20, -200), Vector3(120, 4, 500))
+	a.body_entered.connect(_on_void)
+
+
+func _on_void(body: Node) -> void:
+	if body.is_in_group("player") and body.has_method("fall_to_death"):
+		body.fall_to_death()
 
 
 # --- Section 1: Exterior Ascent -------------------------------------------

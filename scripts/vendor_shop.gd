@@ -27,6 +27,7 @@ const RARITY_COLORS := {
 var _flux_label: Label
 var _status_label: Label
 var _buy_buttons: Dictionary = {}      # weapon id -> Button
+var _sell_list: VBoxContainer          # rows in the Sell tab, rebuilt on change
 
 var _buy_sound: AudioStreamPlayer
 var _error_sound: AudioStreamPlayer
@@ -130,6 +131,88 @@ func _refresh() -> void:
 		else:
 			btn.text = "Buy (%d)" % int(weapon["price"])
 			btn.disabled = flux < int(weapon["price"])
+	_refresh_sell()
+
+
+# --- selling -----------------------------------------------------------------
+
+func _build_sell_tab() -> Control:
+	var root := VBoxContainer.new()
+	root.name = "Sell"
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 330)
+	root.add_child(scroll)
+	_sell_list = VBoxContainer.new()
+	_sell_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sell_list.add_theme_constant_override("separation", 6)
+	scroll.add_child(_sell_list)
+	return root
+
+
+## Rebuild the sell list from the current inventory.
+func _refresh_sell() -> void:
+	if _sell_list == null:
+		return
+	for c in _sell_list.get_children():
+		c.queue_free()
+	var weapons: Array = _sm.data.get("owned_weapons", [])
+	var armor: Array = _sm.data.get("owned_armor", [])
+	if weapons.is_empty() and armor.is_empty():
+		var l := Label.new()
+		l.text = "Nothing to sell."
+		l.modulate = Color(0.7, 0.72, 0.78)
+		_sell_list.add_child(l)
+		return
+	for w in weapons:
+		if typeof(w) == TYPE_DICTIONARY:
+			_sell_list.add_child(_make_sell_row(w, "weapon"))
+	for a in armor:
+		if typeof(a) == TYPE_DICTIONARY:
+			_sell_list.add_child(_make_sell_row(a, "armor"))
+
+
+func _make_sell_row(item: Dictionary, category: String) -> PanelContainer:
+	var rarity := String(item.get("rarity", "Common"))
+	var row_panel := PanelContainer.new()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row_panel.add_child(row)
+
+	var swatch := ColorRect.new()
+	swatch.color = RARITY_COLORS.get(rarity, Color.WHITE)
+	swatch.custom_minimum_size = Vector2(10, 40)
+	row.add_child(swatch)
+
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(info)
+	var name_label := Label.new()
+	name_label.text = "%s  [%s]" % [String(item.get("name", "?")), rarity]
+	name_label.add_theme_font_size_override("font_size", 16)
+	info.add_child(name_label)
+
+	var value := int(_sm.sell_value(item))
+	var sell_btn := Button.new()
+	sell_btn.text = "Sell (%d)" % value
+	sell_btn.custom_minimum_size = Vector2(140, 0)
+	sell_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var id: String = String(item.get("id", ""))
+	sell_btn.pressed.connect(func() -> void: _sell(id, category))
+	row.add_child(sell_btn)
+	return row_panel
+
+
+func _sell(id: String, category: String) -> void:
+	var got: int = _sm.sell_weapon(id) if category == "weapon" else _sm.sell_armor(id)
+	if got < 0:
+		_error_sound.play()
+		_set_status("Can't sell your last weapon.", true)
+	else:
+		_buy_sound.play()
+		_set_status("Sold for %d Flux." % got, false)
+	_refresh()
 
 
 func _build_audio() -> void:
@@ -208,7 +291,7 @@ func _build_ui() -> void:
 		weapons_tab.add_child(_make_weapon_row(weapon))
 
 	tabs.add_child(_make_placeholder_tab("Armor", "Armor stock coming soon."))
-	tabs.add_child(_make_placeholder_tab("Consumables", "Consumables coming soon."))
+	tabs.add_child(_build_sell_tab())
 
 	_status_label = Label.new()
 	_status_label.text = "Aim at an item and buy with Flux."

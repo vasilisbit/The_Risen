@@ -412,6 +412,20 @@ func _apply_look(delta: float) -> void:
 		cam.rotation.z = jitter.z
 
 
+## Fell off the map: an outright kill (bypasses shield/armour - the void doesn't
+## care), routed through the normal death flow so you get the death screen and a
+## respawn at the last checkpoint. Used by every mission's fall kill-plane.
+func fall_to_death() -> void:
+	if is_dead:
+		return
+	_last_damage_source = "the void"
+	shield = 0.0
+	health = 0.0
+	health_changed.emit(health, max_hp())
+	shield_changed.emit(shield, MAX_SHIELD)
+	_on_death()
+
+
 func set_checkpoint(pos: Vector3) -> void:
 	checkpoint = pos
 

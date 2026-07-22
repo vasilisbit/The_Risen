@@ -26,9 +26,12 @@ func _execute() -> void:
 	_burst(origin, ability_color, 4.0, 0.4)
 	var targets := _enemies_near(player.global_position, TARGET_RANGE)
 	for i in ROCKET_COUNT:
-		# Round-robin: rocket i goes to target i % count, so every enemy in
-		# range is engaged before any of them gets a second rocket.
-		var target: Node3D = targets[i % targets.size()] if not targets.is_empty() else null
+		# Re-filter to living targets each rocket: earlier rockets in the salvo
+		# kill enemies during the awaits, and indexing a freed instance into a
+		# typed Node3D throws "assign previously freed instance".
+		var live := targets.filter(func(t: Node) -> bool: return is_instance_valid(t))
+		# Round-robin so every enemy in range is engaged before any gets a second.
+		var target: Node3D = live[i % live.size()] if not live.is_empty() else null
 		_launch(origin, i, target)
 		await get_tree().create_timer(LAUNCH_INTERVAL).timeout
 		if player == null or not is_instance_valid(player):

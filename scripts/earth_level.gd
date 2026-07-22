@@ -27,6 +27,7 @@ func _ready() -> void:
 	_build_arena()
 	_build_lights()
 	_build_spawns()
+	_build_kill_plane()
 	_marker(Vector3(0, 1.0, 5.0), "player_spawn")
 	_marker(Vector3(0, 3.1, -85.0), "boss_spawn")
 
@@ -35,31 +36,63 @@ func _ready() -> void:
 		region.bake_navigation_mesh(false)
 
 
-# --- Zone 1: Street (open top), x[-8,8], z[+8,-18] ---
+## Falling off the map kills you and respawns you at the last checkpoint. Sits
+## well below the lowest floor and spans the whole level footprint.
+func _build_kill_plane() -> void:
+	var a := Area3D.new()
+	a.position = Vector3(0, -12, -40)
+	a.collision_mask = 1
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(80, 3, 130)
+	col.shape = shape
+	a.add_child(col)
+	a.body_entered.connect(_on_kill_plane)
+	add_child(a)
+
+
+func _on_kill_plane(body: Node) -> void:
+	if body.is_in_group("player") and body.has_method("fall_to_death"):
+		body.fall_to_death()
+
+
+# --- Zone 1: Street (open top), x[-12,12], z[+8,-18], taller walls ---
 func _build_street() -> void:
-	_box(Vector3(0, -0.2, -5), Vector3(16, T, 26), _floor)
-	_box(Vector3(-8, 3, -5), Vector3(T, 6, 26), _wall)
-	_box(Vector3(8, 3, -5), Vector3(T, 6, 26), _wall)
-	_box(Vector3(0, 3, 8), Vector3(16, 6, T), _wall)                 # back wall
+	_box(Vector3(0, -0.2, -5), Vector3(24, T, 26), _floor)
+	_box(Vector3(-12, 4.5, -5), Vector3(T, 9, 26), _wall)
+	_box(Vector3(12, 4.5, -5), Vector3(T, 9, 26), _wall)
+	_box(Vector3(0, 4.5, 8), Vector3(24, 9, T), _wall)              # back wall
 	# front wall to subway with a 4 m doorway (x[-2,2])
-	_box(Vector3(-5, 3, -18), Vector3(6, 6, T), _wall)
-	_box(Vector3(5, 3, -18), Vector3(6, 6, T), _wall)
-	_box(Vector3(0, 5, -18), Vector3(4, 2, T), _wall)               # lintel over door
-	# abandoned-car cover
+	_box(Vector3(-7, 4.5, -18), Vector3(10, 9, T), _wall)
+	_box(Vector3(7, 4.5, -18), Vector3(10, 9, T), _wall)
+	_box(Vector3(0, 6.5, -18), Vector3(4, 5, T), _wall)             # lintel over door
+	# abandoned-car + barricade cover, spread across the wider street
 	_box(Vector3(-4, 0.5, 0), Vector3(2, 1, 4), _prop)
 	_box(Vector3(3, 0.5, -8), Vector3(2, 1, 4), _prop)
 	_box(Vector3(-3, 0.5, -14), Vector3(2, 1, 4), _prop)
+	_box(Vector3(8, 0.7, -3), Vector3(2.4, 1.4, 2.4), _crate)
+	_box(Vector3(-8, 0.7, -11), Vector3(2.4, 1.4, 2.4), _crate)
+	_box(Vector3(6, 0.6, -15), Vector3(3, 1.2, 1), _prop)           # low barricade
+	_box(Vector3(-9, 1.5, -6), Vector3(1, 3, 1), _wall)             # pillar
+	_box(Vector3(9, 1.5, -13), Vector3(1, 3, 1), _wall)
 
 
-# --- Zone 2: Subway (enclosed), x[-4,4], z[-18,-44] ---
+# --- Zone 2: Subway (enclosed), x[-6,6], z[-18,-44], higher ceiling + pillars ---
 func _build_subway() -> void:
-	_box(Vector3(0, -0.2, -31), Vector3(8, T, 26), _floor)
-	_box(Vector3(-4, 2, -31), Vector3(T, 4, 26), _wall)
-	_box(Vector3(4, 2, -31), Vector3(T, 4, 26), _wall)
-	_box(Vector3(0, 4.2, -31), Vector3(8, T, 26), _wall)            # ceiling
+	_box(Vector3(0, -0.2, -31), Vector3(12, T, 26), _floor)
+	_box(Vector3(-6, 2.75, -31), Vector3(T, 5.5, 26), _wall)
+	_box(Vector3(6, 2.75, -31), Vector3(T, 5.5, 26), _wall)
+	_box(Vector3(0, 5.5, -31), Vector3(12, T, 26), _wall)           # ceiling
 	# front wall to ramp with a 4 m doorway
-	_box(Vector3(-3, 2, -44), Vector3(2, 4, T), _wall)
-	_box(Vector3(3, 2, -44), Vector3(2, 4, T), _wall)
+	_box(Vector3(-4, 2.75, -44), Vector3(4, 5.5, T), _wall)
+	_box(Vector3(4, 2.75, -44), Vector3(4, 5.5, T), _wall)
+	_box(Vector3(0, 4.5, -44), Vector3(4, 2, T), _wall)             # lintel
+	# support pillars + platform cover to break up the corridor
+	_box(Vector3(-4, 1.5, -24), Vector3(1.2, 3, 1.2), _prop)
+	_box(Vector3(4, 1.5, -30), Vector3(1.2, 3, 1.2), _prop)
+	_box(Vector3(-4, 1.5, -38), Vector3(1.2, 3, 1.2), _prop)
+	_box(Vector3(3.5, 0.6, -34), Vector3(2.5, 1.2, 2), _crate)
+	_box(Vector3(-3.5, 0.6, -27), Vector3(2.5, 1.2, 2), _crate)
 
 
 # --- Ramp: subway floor (y0, z-44) up to rooftop (y3, z-50) ---
@@ -67,20 +100,27 @@ func _build_ramp() -> void:
 	_box(Vector3(0, 1.5, -47), Vector3(4, T, 6.8), _floor, Vector3(atan2(3.0, 6.0), 0, 0))
 
 
-# --- Zone 3: Rooftop (raised y3), x[-8,8], z[-50,-70] ---
+# --- Zone 3: Rooftop (raised y3), x[-12,12], z[-50,-70], with rooftop clutter ---
 func _build_rooftop() -> void:
-	_box(Vector3(0, 2.8, -60), Vector3(16, T, 20), _floor)
-	_box(Vector3(-8, 3.6, -60), Vector3(T, 1.2, 20), _wall)        # parapets
-	_box(Vector3(8, 3.6, -60), Vector3(T, 1.2, 20), _wall)
+	_box(Vector3(0, 2.8, -60), Vector3(24, T, 20), _floor)
+	_box(Vector3(-12, 4.0, -60), Vector3(T, 2.0, 20), _wall)       # taller parapets
+	_box(Vector3(12, 4.0, -60), Vector3(T, 2.0, 20), _wall)
+	# AC units / vents as cover
+	_box(Vector3(-6, 3.7, -55), Vector3(3, 1.8, 3), _prop)
+	_box(Vector3(6, 3.7, -62), Vector3(3, 1.8, 3), _prop)
+	_box(Vector3(0, 3.5, -58), Vector3(2, 1.4, 5), _crate)
+	_box(Vector3(-7, 3.4, -66), Vector3(2, 1.2, 2), _crate)
+	_box(Vector3(7, 3.4, -52), Vector3(2, 1.2, 2), _crate)
 
 
-# --- Boss Arena 20x20 (y3), x[-10,10], z[-70,-90] + 4 crates ---
+# --- Boss Arena 26x22 (y3), x[-13,13], z[-69,-91] + 6 crates ---
 func _build_arena() -> void:
-	_box(Vector3(0, 2.8, -80), Vector3(20, T, 20), _floor)
-	_box(Vector3(-10, 4.5, -80), Vector3(T, 3, 20), _wall)
-	_box(Vector3(10, 4.5, -80), Vector3(T, 3, 20), _wall)
-	_box(Vector3(0, 4.5, -90), Vector3(20, 3, T), _wall)          # back wall
-	for pos in [Vector3(-5, 4.25, -76), Vector3(5, 4.25, -76), Vector3(-5, 4.25, -84), Vector3(5, 4.25, -84)]:
+	_box(Vector3(0, 2.8, -80), Vector3(26, T, 22), _floor)
+	_box(Vector3(-13, 5.0, -80), Vector3(T, 4, 22), _wall)
+	_box(Vector3(13, 5.0, -80), Vector3(T, 4, 22), _wall)
+	_box(Vector3(0, 5.0, -91), Vector3(26, 4, T), _wall)          # back wall (open to rooftop at the front)
+	for pos in [Vector3(-6, 4.25, -75), Vector3(6, 4.25, -75), Vector3(-6, 4.25, -85), Vector3(6, 4.25, -85),
+			Vector3(-10, 4.25, -80), Vector3(10, 4.25, -80)]:
 		var c := _box(pos, Vector3(2.5, 2.5, 2.5), _crate)
 		c.add_to_group("cover_crate", true)
 
