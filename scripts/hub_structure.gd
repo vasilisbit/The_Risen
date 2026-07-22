@@ -78,13 +78,39 @@ func _build_props() -> void:
 	_prop("Prop_Crate", Vector3(4.2, 0, 4.2), 0.4, 1.0)
 	_prop("Prop_Barrel1", Vector3(3.5, 0, 4.3), 0.0, 1.0)
 	_prop("Prop_Crate", Vector3(-4.3, 0, 4.2), -0.5, 1.0)
-	# Weapon bay: cargo stacked around the vendor.
-	_prop("Prop_Crate_Large", Vector3(2.9, 0, 12.2), 0.0, 1.0)
-	_prop("Prop_Crate", Vector3(2.4, 0, 11.1), 0.3, 1.0)
-	_prop("Prop_Barrel1", Vector3(-2.7, 0, 11.6), 0.0, 1.0)
-	_prop("Prop_Barrel1", Vector3(-3.1, 0, 12.2), 0.0, 1.0)
+	# Weapon bay: a bit of cargo by the side walls (the vendor stall fills the back).
 	_prop("Prop_Shelves_WideTall", Vector3(3.5, 0, 8.0), PI * 0.5, 1.0)
 	_prop("Prop_Chest", Vector3(-3.2, 0, 7.8), PI * 0.5, 1.0)
+	_build_vendor_stall()
+
+
+## Turn the placeholder orange vendor box into an actual shopfront on the bay's
+## back wall: a counter you trade over, shelves of goods behind it, and a robot
+## clerk. The invisible interaction body (ForgeMaster) stays where it was, so
+## aiming at the counter and pressing E still opens the shop.
+func _build_vendor_stall() -> void:
+	var box := get_node_or_null("../../ForgeMaster/Mesh")
+	if box is Node3D:
+		(box as Node3D).visible = false           # hide the orange placeholder
+
+	_prop("Prop_Desk_L", Vector3(0, 0, 10.5), 0.0, 1.15)          # shop counter
+	_prop("Prop_Shelves_WideTall", Vector3(-2.3, 0, 12.6), PI, 1.0)   # goods behind
+	_prop("Prop_Shelves_WideTall", Vector3(2.3, 0, 12.6), PI, 1.0)
+	_prop("Prop_Crate_Large", Vector3(3.2, 0, 11.6), 0.0, 1.0)
+	_prop("Prop_Barrel1", Vector3(-3.3, 0, 11.5), 0.0, 1.0)
+
+	# Robot clerk behind the counter (voxel storage-bot). .obj imports as a Mesh,
+	# so wrap it in a MeshInstance3D.
+	var bot_mesh := load("res://assets/thirdparty/voxel-mechas/MobileStorageBot/Package/MobileStorageBot.obj")
+	if bot_mesh is Mesh:
+		var mi := MeshInstance3D.new()
+		mi.mesh = bot_mesh
+		add_child(mi)
+		mi.position = Vector3(0, 0, 12.0)
+		mi.rotation.y = PI                         # face the counter / player
+		mi.scale = Vector3.ONE * 0.6
+	# A warm forge glow on the stall (in addition to the existing vendor spot).
+	_omni(Vector3(0, 2.2, 11.5), 7.0, 2.0, Color(1.0, 0.72, 0.4))
 
 
 func _prop(name_: String, pos: Vector3, rot_y: float, scale: float) -> void:

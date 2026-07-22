@@ -21,6 +21,10 @@ const RARITY_COLORS := {
 	"Exotic": Color(1.0, 0.75, 0.1),
 }
 
+## Shared palette with the inventory screen, so the two menus match.
+const GOLD := Color(0.95, 0.78, 0.32)
+const DIM := Color(0.62, 0.65, 0.72)
+
 # Resolved at runtime (avoids depending on editor autoload-global registration).
 @onready var _sm: Node = get_node("/root/SaveManager")
 
@@ -176,7 +180,7 @@ func _make_mod_weapon_panel(item: Dictionary) -> PanelContainer:
 	var mods: Array = item.get("mods", [])
 	var slots := int(Weapon.MOD_SLOTS.get(rarity, 0))
 
-	var panel := PanelContainer.new()
+	var panel := _styled_panel()
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	panel.add_child(col)
@@ -294,7 +298,7 @@ func _refresh_sell() -> void:
 
 func _make_sell_row(item: Dictionary, category: String) -> PanelContainer:
 	var rarity := String(item.get("rarity", "Common"))
-	var row_panel := PanelContainer.new()
+	var row_panel := _styled_panel()
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	row_panel.add_child(row)
@@ -364,7 +368,7 @@ func _make_beep(freq: float, dur: float) -> AudioStreamWAV:
 
 func _build_ui() -> void:
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.55)
+	dim.color = Color(0, 0, 0, 0.8)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
@@ -374,28 +378,39 @@ func _build_ui() -> void:
 	add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720, 520)
+	panel.custom_minimum_size = Vector2(760, 560)
+	# Same gold-bordered dark panel as the inventory screen.
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.09, 0.12, 0.97)
+	style.border_color = GOLD
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(22)
+	panel.add_theme_stylebox_override("panel", style)
 	center.add_child(panel)
-
-	var margin := MarginContainer.new()
-	for side in ["left", "top", "right", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 16)
-	panel.add_child(margin)
 
 	var inner := VBoxContainer.new()
 	inner.add_theme_constant_override("separation", 10)
-	margin.add_child(inner)
+	panel.add_child(inner)
 
 	var header := HBoxContainer.new()
 	inner.add_child(header)
 	var title := Label.new()
 	title.text = "FORGE MASTER"
 	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 	_flux_label = Label.new()
-	_flux_label.add_theme_font_size_override("font_size", 20)
+	_flux_label.add_theme_font_size_override("font_size", 22)
+	_flux_label.add_theme_color_override("font_color", GOLD)
 	header.add_child(_flux_label)
+
+	var subtitle := Label.new()
+	subtitle.text = "Buy, mod and sell gear.  Aim at a shop item and trade with Flux."
+	subtitle.add_theme_font_size_override("font_size", 12)
+	subtitle.add_theme_color_override("font_color", DIM)
+	inner.add_child(subtitle)
 
 	var tabs := TabContainer.new()
 	tabs.custom_minimum_size = Vector2(0, 380)
@@ -412,18 +427,34 @@ func _build_ui() -> void:
 	tabs.add_child(_build_mods_tab())
 	tabs.add_child(_build_sell_tab())
 
+	var footer := HBoxContainer.new()
+	inner.add_child(footer)
 	_status_label = Label.new()
-	_status_label.text = "Aim at an item and buy with Flux."
-	inner.add_child(_status_label)
+	_status_label.text = ""
+	_status_label.add_theme_font_size_override("font_size", 13)
+	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(_status_label)
 
 	var close_btn := Button.new()
-	close_btn.text = "Close (Esc)"
+	close_btn.text = "CLOSE  (Esc)"
+	close_btn.custom_minimum_size = Vector2(160, 40)
 	close_btn.pressed.connect(close)
-	inner.add_child(close_btn)
+	footer.add_child(close_btn)
+
+
+## Dark rounded row panel, matching the inventory rows.
+func _styled_panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.07, 0.08, 0.10, 0.7)
+	s.set_corner_radius_all(4)
+	s.set_content_margin_all(8)
+	p.add_theme_stylebox_override("panel", s)
+	return p
 
 
 func _make_weapon_row(weapon: Dictionary) -> PanelContainer:
-	var row_panel := PanelContainer.new()
+	var row_panel := _styled_panel()
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	row_panel.add_child(row)
