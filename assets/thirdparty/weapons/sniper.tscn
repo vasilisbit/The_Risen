@@ -1,10 +1,10 @@
 [gd_scene load_steps=2 format=3 uid="uid://crisensniper01"]
 
-; Sniper viewmodel = Kenney Blaster Kit "blaster-e" (CC0).
+; Sniper viewmodel = Quaternius Sci-Fi Essentials "Gun_Sniper" (CC0).
 
-[ext_resource type="PackedScene" uid="uid://57oxutjnhb4a" path="res://assets/thirdparty/kenney_blaster-kit_2.1/Models/GLB format/blaster-e.glb" id="1_model"]
+[ext_resource type="PackedScene" uid="uid://b3vtwb5yydfbh" path="res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Gun_Sniper.gltf" id="1_model"]
 
 [node name="SniperModel" type="Node3D"]
 
 [node name="Model" parent="." instance=ExtResource("1_model")]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
