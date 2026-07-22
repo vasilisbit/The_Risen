@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenrusher01"]
+
+; Melee Rusher = Quaternius Sci-Fi Essentials "Enemy_QuadShell" (CC0). Wrapper
+; for EnemyBase._apply_external_model (loads characters/<type>.tscn). Scaled to
+; the ~1.8 m capsule; faces -Z (forward).
+
+[ext_resource type="PackedScene" uid="uid://ca1q6lqu5kabe" path="res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Enemy_QuadShell.gltf" id="1_model"]
+
+[node name="RusherModel" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 0)

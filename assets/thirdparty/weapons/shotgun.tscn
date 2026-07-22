@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenshotgun01"]
+
+; Shotgun viewmodel = Kenney Blaster Kit "blaster-g" (CC0). Wrapper for
+; weapon_viewmodel.gd's convention loader.
+
+[ext_resource type="PackedScene" uid="uid://ba56o6jec1gsm" path="res://assets/thirdparty/kenney_blaster-kit_2.1/Models/GLB format/blaster-g.glb" id="1_model"]
+
+[node name="ShotgunModel" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
