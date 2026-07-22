@@ -148,8 +148,7 @@ func _build_weapon_row(item: Dictionary, sm: Node) -> Control:
 		btn.pressed.connect(func() -> void: _on_unequip_weapon(id))
 	else:
 		btn.pressed.connect(func() -> void: _on_equip_weapon(id))
-	hbox.add_child(_action_column(btn, sm.sell_value(item) if sm else 0,
-		func() -> void: _on_sell_weapon(id)))
+	hbox.add_child(btn)
 	return row
 
 
@@ -177,42 +176,8 @@ func _build_armor_row(item: Dictionary, sm: Node) -> Control:
 		btn.pressed.connect(func() -> void: _on_unequip_armor(slot))
 	else:
 		btn.pressed.connect(func() -> void: _on_equip_armor(id))
-	hbox.add_child(_action_column(btn, sm.sell_value(item) if sm else 0,
-		func() -> void: _on_sell_armor(id)))
+	hbox.add_child(btn)
 	return row
-
-
-## The equip button with a SELL button beneath it, stacked so a row stays narrow.
-func _action_column(equip_btn: Button, sell_value: int, on_sell: Callable) -> Control:
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 3)
-	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	col.add_child(equip_btn)
-	var sell := Button.new()
-	sell.text = "SELL  %d" % sell_value
-	sell.tooltip_text = "Sell for %d Flux" % sell_value
-	sell.custom_minimum_size = Vector2(112, 0)
-	sell.add_theme_font_size_override("font_size", 12)
-	sell.pressed.connect(on_sell)
-	col.add_child(sell)
-	return col
-
-
-func _on_sell_weapon(id: String) -> void:
-	var sm := get_node_or_null("/root/SaveManager")
-	if sm:
-		var got: int = sm.sell_weapon(id)
-		_note("Sold for %d Flux." % got if got >= 0 else "Can't sell your last weapon.")
-	refresh()
-
-
-func _on_sell_armor(id: String) -> void:
-	var sm := get_node_or_null("/root/SaveManager")
-	if sm:
-		var got: int = sm.sell_armor(id)
-		if got >= 0:
-			_note("Sold for %d Flux." % got)
-	refresh()
 
 
 # --- equip actions ----------------------------------------------------------
@@ -456,7 +421,7 @@ func _build() -> void:
 	header.add_child(_flux)
 
 	var hint := Label.new()
-	hint.text = "Equip up to 3 weapons (slots 1-3) and one piece per armour slot. Buy more from the Forge Master."
+	hint.text = "Equip up to 3 weapons (slots 1-3) and one piece per armour slot. Buy and sell at the Forge Master."
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", DIM)
 	col.add_child(hint)

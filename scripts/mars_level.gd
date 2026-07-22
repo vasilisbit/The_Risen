@@ -81,35 +81,58 @@ func _build_kill_plane() -> void:
 
 
 func _on_kill_plane(body: Node) -> void:
-	if body.is_in_group("player") and body.has_method("fall_respawn"):
+	# Falling off the low-gravity platforms is now an outright death + respawn at
+	# the last checkpoint (checkpoints are frequent), consistent across missions.
+	if body.is_in_group("player") and body.has_method("fall_to_death"):
+		body.fall_to_death()
+	elif body.is_in_group("player") and body.has_method("fall_respawn"):
 		body.fall_respawn()
 
 
-# --- 3 wave rooms (15x15) in a row, joined by 3 m portal doorways ---
+# --- 3 wave rooms (22x22, taller) in a row, joined by 3 m portal doorways ---
+const ROOM_W := 22.0
+const ROOM_H := 7.0
+
 func _build_rooms() -> void:
 	# One long floor + ceiling + side walls spanning all three rooms.
-	_box(Vector3(0, Y_ROOM - T * 0.5, -136.5), Vector3(15, T, 45), _rock2)
-	_box(Vector3(0, Y_ROOM + 5 + T * 0.5, -136.5), Vector3(15, T, 45), _rock2)
-	_box(Vector3(-7.5, Y_ROOM + 2.5, -136.5), Vector3(T, 5, 45), _rock)
-	_box(Vector3(7.5, Y_ROOM + 2.5, -136.5), Vector3(T, 5, 45), _rock)
+	_box(Vector3(0, Y_ROOM - T * 0.5, -136.5), Vector3(ROOM_W, T, 45), _rock2)
+	_box(Vector3(0, Y_ROOM + ROOM_H + T * 0.5, -136.5), Vector3(ROOM_W, T, 45), _rock2)
+	_box(Vector3(-ROOM_W * 0.5, Y_ROOM + ROOM_H * 0.5, -136.5), Vector3(T, ROOM_H, 45), _rock)
+	_box(Vector3(ROOM_W * 0.5, Y_ROOM + ROOM_H * 0.5, -136.5), Vector3(T, ROOM_H, 45), _rock)
 	# Cross-walls with 3 m doorways at the entrance and between rooms.
 	_door_wall(-114.0, true)      # platforming -> Room 1
 	_door_wall(-129.0, true)      # Room 1 -> Room 2 (portal)
 	_door_wall(-144.0, true)      # Room 2 -> Room 3 (portal)
 	_door_wall(-159.0, false)     # Room 3 far wall (solid end)
-	# 8 spawn markers per room.
-	_room_markers(-121.5)
-	_room_markers(-136.5)
-	_room_markers(-151.5)
+	# 8 spawn markers per room + cover obstacles.
+	for cz in [-121.5, -136.5, -151.5]:
+		_room_markers(cz)
+		_room_cover(cz)
+
+
+## Pillars and crates per room, placed clear of the spawn markers (which sit at
+## x/z offsets of +-4/+-5) and the central doorway line, so they give cover
+## without blocking navigation.
+func _room_cover(cz: float) -> void:
+	var c := Vector3(0, Y_ROOM, cz)
+	_box(c + Vector3(-7, ROOM_H * 0.5, 0), Vector3(1.5, ROOM_H, 1.5), _rock)     # tall pillars near the walls
+	_box(c + Vector3(7, ROOM_H * 0.5, 0), Vector3(1.5, ROOM_H, 1.5), _rock)
+	_box(c + Vector3(0, 0.9, -6), Vector3(3, 1.8, 2), _rock2)                    # low crates to duck behind
+	_box(c + Vector3(0, 0.9, 6), Vector3(3, 1.8, 2), _rock2)
+	_box(c + Vector3(-6, 0.7, 0), Vector3(2, 1.4, 2), _rock2)
+	_box(c + Vector3(6, 0.7, 0), Vector3(2, 1.4, 2), _rock2)
 
 
 func _door_wall(z: float, has_door: bool) -> void:
+	var half := ROOM_W * 0.5
 	if not has_door:
-		_box(Vector3(0, Y_ROOM + 2.5, z), Vector3(15, 5, T), _rock)
+		_box(Vector3(0, Y_ROOM + ROOM_H * 0.5, z), Vector3(ROOM_W, ROOM_H, T), _rock)
 		return
-	_box(Vector3(-5.25, Y_ROOM + 2.5, z), Vector3(4.5, 5, T), _rock)      # left of door
-	_box(Vector3(5.25, Y_ROOM + 2.5, z), Vector3(4.5, 5, T), _rock)       # right of door
-	_box(Vector3(0, Y_ROOM + 4, z), Vector3(3, 2, T), _rock)             # lintel
+	# 3 m doorway (x[-1.5,1.5]); walls fill either side to the room edge.
+	var side_w := half - 1.5
+	_box(Vector3(-(1.5 + side_w * 0.5), Y_ROOM + ROOM_H * 0.5, z), Vector3(side_w, ROOM_H, T), _rock)
+	_box(Vector3(1.5 + side_w * 0.5, Y_ROOM + ROOM_H * 0.5, z), Vector3(side_w, ROOM_H, T), _rock)
+	_box(Vector3(0, Y_ROOM + 4.5, z), Vector3(3, ROOM_H - 3.0, T), _rock)        # lintel over the 3 m opening
 	# Blue portal panel filling the doorway (visual only - no collision).
 	_panel(Vector3(0, Y_ROOM + 1.5, z), Vector3(3, 3, 0.08), _portal)
 

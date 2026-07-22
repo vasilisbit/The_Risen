@@ -204,16 +204,11 @@ func _check_cleared() -> void:
 	if wave_index >= WAVES.size() - 1:
 		_on_all_complete()
 	else:
-		_intermission()
-
-
-func _intermission() -> void:
-	var left := INTERMISSION
-	while left > 0.0:
-		_update_label("Wave %d cleared - next in %d" % [wave_index + 1, int(ceil(left))])
-		await get_tree().create_timer(1.0).timeout
-		left -= 1.0
-	_show_buff_ui()
+		# Show the upgrade picker the instant the wave clears - its countdown IS
+		# the inter-wave timer (see buff_select.gd), and it doesn't pause, so the
+		# player can read, move and loot while it runs.
+		_update_label("Wave %d cleared" % (wave_index + 1))
+		_show_buff_ui()
 
 
 func _on_all_complete() -> void:
