@@ -21,6 +21,9 @@ func begin(seconds: float, return_scene: String) -> void:
 	_left = seconds
 	_return_scene = return_scene
 	layer = 30
+	# Keep counting even when the tree is paused - opening the inventory pauses
+	# it, and the extraction clock must not stop while you sort your loot.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
 	set_process(true)
 
@@ -51,6 +54,8 @@ func _return_to_ship() -> void:
 		return
 	_going = true
 	set_process(false)
+	# Clear any pause left on by an open menu, so the hub isn't frozen on arrival.
+	get_tree().paused = false
 	var gs := get_node_or_null("/root/GameState")
 	if gs and gs.has_method("transition_to"):
 		gs.transition_to(_return_scene)

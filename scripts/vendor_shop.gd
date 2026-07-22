@@ -28,6 +28,7 @@ var _flux_label: Label
 var _status_label: Label
 var _buy_buttons: Dictionary = {}      # weapon id -> Button
 var _sell_list: VBoxContainer          # rows in the Sell tab, rebuilt on change
+var _mods_list: VBoxContainer          # rows in the Mods tab, rebuilt on change
 
 var _buy_sound: AudioStreamPlayer
 var _error_sound: AudioStreamPlayer
@@ -132,6 +133,124 @@ func _refresh() -> void:
 			btn.text = "Buy (%d)" % int(weapon["price"])
 			btn.disabled = flux < int(weapon["price"])
 	_refresh_sell()
+	_refresh_mods()
+
+
+# --- mods (install / remove on owned weapons) --------------------------------
+
+func _build_mods_tab() -> Control:
+	var root := VBoxContainer.new()
+	root.name = "Mods"
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 330)
+	root.add_child(scroll)
+	_mods_list = VBoxContainer.new()
+	_mods_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mods_list.add_theme_constant_override("separation", 8)
+	scroll.add_child(_mods_list)
+	return root
+
+
+func _refresh_mods() -> void:
+	if _mods_list == null:
+		return
+	for c in _mods_list.get_children():
+		c.queue_free()
+	var weapons: Array = _sm.data.get("owned_weapons", [])
+	if weapons.is_empty():
+		var l := Label.new()
+		l.text = "No weapons to mod."
+		l.modulate = Color(0.7, 0.72, 0.78)
+		_mods_list.add_child(l)
+		return
+	for w in weapons:
+		if typeof(w) == TYPE_DICTIONARY:
+			_mods_list.add_child(_make_mod_weapon_panel(w))
+
+
+func _make_mod_weapon_panel(item: Dictionary) -> PanelContainer:
+	var id := String(item.get("id", ""))
+	var rarity := String(item.get("rarity", "Common"))
+	var mods: Array = item.get("mods", [])
+	var slots := int(Weapon.MOD_SLOTS.get(rarity, 0))
+
+	var panel := PanelContainer.new()
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	panel.add_child(col)
+
+	var head := Label.new()
+	head.text = "%s  [%s]   -   %d/%d slots" % [String(item.get("name", "?")), rarity, mods.size(), slots]
+	head.add_theme_font_size_override("font_size", 15)
+	head.add_theme_color_override("font_color", RARITY_COLORS.get(rarity, Color.WHITE))
+	col.add_child(head)
+
+	if slots == 0:
+		col.add_child(_dim_label("No mod slots - Rare or better weapons only."))
+		return panel
+
+	# Installed mods, each removable.
+	if not mods.is_empty():
+		var installed := HBoxContainer.new()
+		installed.add_theme_constant_override("separation", 6)
+		col.add_child(installed)
+		for mod_id in mods:
+			var m: Dictionary = Weapon.MODS.get(String(mod_id), {})
+			var rm := Button.new()
+			rm.text = "%s  x" % String(m.get("name", mod_id))
+			rm.tooltip_text = "Remove this mod"
+			rm.add_theme_font_size_override("font_size", 12)
+			var mid: String = String(mod_id)
+			rm.pressed.connect(func() -> void: _remove_mod(id, mid))
+			installed.add_child(rm)
+
+	# Install options when there's a free slot.
+	if mods.size() < slots:
+		col.add_child(_dim_label("Install (100 Flux each):"))
+		var opts := HBoxContainer.new()
+		opts.add_theme_constant_override("separation", 6)
+		col.add_child(opts)
+		for mod_id in Weapon.MODS:
+			var m: Dictionary = Weapon.MODS[mod_id]
+			var b := Button.new()
+			b.text = String(m["name"])
+			b.tooltip_text = String(m["desc"])
+			b.add_theme_font_size_override("font_size", 12)
+			if m.has("element"):
+				b.add_theme_color_override("font_color",
+					Weapon.ELEMENT_COLORS.get(String(m["element"]), Color.WHITE))
+			var wid := id
+			var mid := String(mod_id)
+			b.pressed.connect(func() -> void: _install_mod(wid, mid))
+			opts.add_child(b)
+	return panel
+
+
+func _install_mod(weapon_id: String, mod_id: String) -> void:
+	var status := String(_sm.install_mod(weapon_id, mod_id))
+	var ok := status.begins_with("Installed")
+	if ok:
+		_buy_sound.play()
+	else:
+		_error_sound.play()
+	_set_status(status, not ok)
+	_refresh()
+
+
+func _remove_mod(weapon_id: String, mod_id: String) -> void:
+	if _sm.remove_mod(weapon_id, mod_id):
+		_set_status("Mod removed.", false)
+	_refresh()
+
+
+func _dim_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 12)
+	l.modulate = Color(0.72, 0.74, 0.80)
+	return l
 
 
 # --- selling -----------------------------------------------------------------
@@ -290,7 +409,7 @@ func _build_ui() -> void:
 	for weapon in WEAPONS:
 		weapons_tab.add_child(_make_weapon_row(weapon))
 
-	tabs.add_child(_make_placeholder_tab("Armor", "Armor stock coming soon."))
+	tabs.add_child(_build_mods_tab())
 	tabs.add_child(_build_sell_tab())
 
 	_status_label = Label.new()
