@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenshooter01"]
+
+; Ranged Shooter = Quaternius Sci-Fi Essentials "Enemy_EyeDrone" (CC0). Raised
+; so the drone hovers around chest height.
+
+[ext_resource type="PackedScene" uid="uid://bbi2t7orimc7n" path="res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Enemy_EyeDrone.gltf" id="1_model"]
+
+[node name="ShooterModel" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 0, 1.0, 0)

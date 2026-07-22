@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenexploder01"]
+
+; Exploder = Quaternius Sci-Fi Essentials "Enemy_Trilobite" (CC0), a scuttling
+; crawler that rushes the player and detonates.
+
+[ext_resource type="PackedScene" uid="uid://eulvd7w2prwm" path="res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Enemy_Trilobite.gltf" id="1_model"]
+
+[node name="ExploderModel" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, 0, 0, 0)

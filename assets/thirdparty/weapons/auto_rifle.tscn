@@ -1,109 +1,12 @@
-[gd_scene format=3 uid="uid://cr1s3nautorifle01"]
+[gd_scene load_steps=2 format=3 uid="uid://crisenautorifle01"]
 
-; Worked-example Auto Rifle model, built from primitive boxes so the external
-; weapon-model pipeline (weapon_viewmodel.gd -> _load_external) has something
-; real to load. Replace with a CC0/imported glTF (e.g. Kenney Blaster Kit)
-; named auto_rifle.glb and this .tscn is superseded automatically.
-; Barrel faces -Z (forward), grip toward -Y, ~0.4 m long.
+; Auto Rifle viewmodel = Kenney Blaster Kit "blaster-m" (CC0). Wrapper scene so
+; weapon_viewmodel.gd loads it via the convention path. The transform fits the
+; Kenney model into viewmodel space (barrel down -Z, ~0.4 m, grip toward -Y).
 
-[sub_resource type="StandardMaterial3D" id="Metal"]
-albedo_color = Color(0.11, 0.11, 0.13, 1)
-metallic = 0.7
-roughness = 0.4
-
-[sub_resource type="StandardMaterial3D" id="Accent"]
-albedo_color = Color(0.15, 0.35, 0.7, 1)
-metallic = 0.2
-roughness = 0.5
-emission_enabled = true
-emission = Color(0.12, 0.32, 0.85, 1)
-emission_energy_multiplier = 1.0
-
-[sub_resource type="BoxMesh" id="Receiver"]
-material = SubResource("Metal")
-size = Vector3(0.12, 0.14, 0.4)
-
-[sub_resource type="BoxMesh" id="Barrel"]
-material = SubResource("Metal")
-size = Vector3(0.05, 0.05, 0.34)
-
-[sub_resource type="BoxMesh" id="Muzzle"]
-material = SubResource("Accent")
-size = Vector3(0.06, 0.06, 0.05)
-
-[sub_resource type="BoxMesh" id="Handguard"]
-material = SubResource("Metal")
-size = Vector3(0.09, 0.06, 0.2)
-
-[sub_resource type="BoxMesh" id="TopRail"]
-material = SubResource("Metal")
-size = Vector3(0.04, 0.025, 0.24)
-
-[sub_resource type="BoxMesh" id="Scope"]
-material = SubResource("Metal")
-size = Vector3(0.045, 0.06, 0.13)
-
-[sub_resource type="BoxMesh" id="ScopeLens"]
-material = SubResource("Accent")
-size = Vector3(0.035, 0.035, 0.02)
-
-[sub_resource type="BoxMesh" id="Magazine"]
-material = SubResource("Accent")
-size = Vector3(0.06, 0.17, 0.09)
-
-[sub_resource type="BoxMesh" id="Grip"]
-material = SubResource("Metal")
-size = Vector3(0.05, 0.13, 0.055)
-
-[sub_resource type="BoxMesh" id="Stock"]
-material = SubResource("Metal")
-size = Vector3(0.09, 0.1, 0.16)
-
-[sub_resource type="BoxMesh" id="StockPad"]
-material = SubResource("Accent")
-size = Vector3(0.09, 0.12, 0.03)
+[ext_resource type="PackedScene" uid="uid://d08vpmu4l1uum" path="res://assets/thirdparty/kenney_blaster-kit_2.1/Models/GLB format/blaster-m.glb" id="1_model"]
 
 [node name="AutoRifleModel" type="Node3D"]
 
-[node name="Receiver" type="MeshInstance3D" parent="."]
-mesh = SubResource("Receiver")
-
-[node name="Barrel" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.34)
-mesh = SubResource("Barrel")
-
-[node name="Muzzle" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.53)
-mesh = SubResource("Muzzle")
-
-[node name="Handguard" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, -0.22)
-mesh = SubResource("Handguard")
-
-[node name="TopRail" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, -0.04)
-mesh = SubResource("TopRail")
-
-[node name="Scope" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.145, -0.02)
-mesh = SubResource("Scope")
-
-[node name="ScopeLens" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.145, -0.085)
-mesh = SubResource("ScopeLens")
-
-[node name="Magazine" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.14, 0.01)
-mesh = SubResource("Magazine")
-
-[node name="Grip" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.97, 0.24, 0, -0.24, 0.97, 0, -0.11, 0.12)
-mesh = SubResource("Grip")
-
-[node name="Stock" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, 0.27)
-mesh = SubResource("Stock")
-
-[node name="StockPad" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, 0.36)
-mesh = SubResource("StockPad")
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
