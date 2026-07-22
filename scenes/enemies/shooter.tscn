@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://dq61dioocqxkw" path="res://scripts/shooter.gd" id="1_tuqsv"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_4yo8t"]
-radius = 0.4
-height = 1.8
+radius = 0.5
+height = 1.6
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1uapl"]
 albedo_color = Color(0.45, 0.2, 0.7, 1)
@@ -21,7 +21,7 @@ height = 1.8
 script = ExtResource("1_tuqsv")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=706145263]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 shape = SubResource("CapsuleShape3D_4yo8t")
 
 [node name="Mesh" type="MeshInstance3D" parent="." unique_id=312638995]
@@ -32,4 +32,4 @@ mesh = SubResource("CapsuleMesh_onxcn")
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="." unique_id=377381002]
 path_desired_distance = 0.5
 target_desired_distance = 0.6
-radius = 0.4
+radius = 0.5

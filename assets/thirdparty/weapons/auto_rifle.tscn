@@ -1,12 +1,11 @@
 [gd_scene load_steps=2 format=3 uid="uid://crisenautorifle01"]
 
-; Auto Rifle viewmodel = Kenney Blaster Kit "blaster-m" (CC0). Wrapper scene so
-; weapon_viewmodel.gd loads it via the convention path. The transform fits the
-; Kenney model into viewmodel space (barrel down -Z, ~0.4 m, grip toward -Y).
+; Auto Rifle viewmodel = Quaternius Sci-Fi Essentials "Gun_Rifle" (CC0). Nicer,
+; more detailed than the Kenney blasters and cohesive with the robot enemies.
 
-[ext_resource type="PackedScene" uid="uid://d08vpmu4l1uum" path="res://assets/thirdparty/kenney_blaster-kit_2.1/Models/GLB format/blaster-m.glb" id="1_model"]
+[ext_resource type="PackedScene" uid="uid://bhlrxki02iiw5" path="res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Gun_Rifle.gltf" id="1_model"]
 
 [node name="AutoRifleModel" type="Node3D"]
 
 [node name="Model" parent="." instance=ExtResource("1_model")]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
