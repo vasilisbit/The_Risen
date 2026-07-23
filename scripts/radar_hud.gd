@@ -4,7 +4,7 @@ extends Control
 ## centre marker is the player. Purely a HUD reader - it finds the player and the
 ## "enemy" group each frame and draws, holding no game state.
 
-const SIZE := 190.0
+const SIZE := 128.0
 const RANGE := 45.0          # metres from player to the scope's edge
 const PAD := 20.0            # inset from the screen corner
 
