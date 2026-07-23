@@ -418,7 +418,7 @@ func _character_panel() -> Control:
 	disp.set_script(load("res://scripts/model_display.gd"))
 	panel.add_child(disp)
 	disp.call("setup", "res://assets/thirdparty/Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf",
-		0.95, 3.9, 1.0, 0.0, null, 0.4)
+		1.0, 2.9, 1.0, 0.0, null, 0.4)
 
 	var band := Label.new()
 	band.text = "GUARDIAN"
