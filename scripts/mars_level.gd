@@ -120,10 +120,35 @@ func _room_cover(cz: float) -> void:
 	var c := Vector3(0, Y_ROOM, cz)
 	_box(c + Vector3(-7, ROOM_H * 0.5, 0), Vector3(1.5, ROOM_H, 1.5), _rock)     # tall pillars near the walls
 	_box(c + Vector3(7, ROOM_H * 0.5, 0), Vector3(1.5, ROOM_H, 1.5), _rock)
-	_box(c + Vector3(-5, 0.9, -4), Vector3(3, 1.8, 2), _rock2)                   # low crates to duck behind
-	_box(c + Vector3(5, 0.9, 4), Vector3(3, 1.8, 2), _rock2)
-	_box(c + Vector3(6, 0.7, -3), Vector3(2, 1.4, 2), _rock2)
-	_box(c + Vector3(-6, 0.7, 3), Vector3(2, 1.4, 2), _rock2)
+	# Low cover to duck behind - real Sci-Fi crate + barrel models.
+	_prop_cover(c + Vector3(-5, 0, -4), "Prop_Crate_Large", 1.15, Vector3(2.2, 1.9, 2.2))
+	_prop_cover(c + Vector3(5, 0, 4), "Prop_Crate", 1.35, Vector3(2.1, 2.1, 2.1))
+	_prop_cover(c + Vector3(6, 0, -3), "Prop_Barrel2_Closed", 1.3, Vector3(1.2, 1.6, 1.2))
+	_prop_cover(c + Vector3(-6, 0, 3), "Prop_Barrel1", 1.3, Vector3(1.2, 1.6, 1.2))
+
+
+## A real Sci-Fi Essentials prop as cover, with a matching collision box, in the
+## "cover_crate" group the Shooter AI reads (matching earth_level). `base` is the
+## floor point the prop sits on.
+const PROP_DIR := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/"
+
+func _prop_cover(base: Vector3, prop: String, model_scale: float, coll: Vector3) -> void:
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = coll
+	col.shape = shape
+	col.position = base + Vector3(0, coll.y * 0.5, 0)
+	add_child(col)
+	var scene := load(PROP_DIR + prop + ".gltf")
+	if scene is PackedScene:
+		var m := (scene as PackedScene).instantiate() as Node3D
+		m.scale = Vector3.ONE * model_scale
+		m.position = base
+		m.add_to_group("cover_crate", true)
+		add_child(m)
+	else:
+		# Fallback to a primitive so cover is never invisible.
+		_box(base + Vector3(0, coll.y * 0.5, 0), coll, _rock2).add_to_group("cover_crate", true)
 
 
 func _door_wall(z: float, has_door: bool) -> void:
