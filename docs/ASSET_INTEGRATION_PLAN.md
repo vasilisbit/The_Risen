@@ -90,17 +90,22 @@ Note the voxel mechs are **OBJ (static, voxel style)** - they read differently
 from the smooth Quaternius kit, so use them as a deliberate "heavy machine" tier
 or not at all.
 
-## Phase 5 - Sky, planets, holograms (window planet DONE)
+## Phase 5 - Sky, planets, holograms (DONE)
 
 - **Hub window planet:** **DONE** - `godot-3d-planet-generator` (MIT) installed
   at `addons/naejimer_3d_planet_generator`; `hub_planet.gd` shows a real
-  generated planet for the last-visited mission, lit by a layer-culled sun.
-- **Hologram-table planets:** still outstanding - `hologram_table.gd` keeps its
-  translucent shader spheres for now (they read as holograms + carry the
-  locked-state labels). Swapping in small generated planets is optional.
-- **Hologram table shimmer:** still outstanding - `assets/thirdparty/hologram.shader`
-  (knucklenoise) needs a Godot-4 port (`hint_color` -> `source_color`) before it
-  can go on the table projections.
+  generated planet for the last-visited mission, front-lit by a layer-culled sun
+  so the disc reads bright with detail.
+- **Hologram-table planets:** **DONE (as holographic projections)** -
+  `hologram_table.gd` keeps its shimmering shader spheres (they read as
+  holograms and carry the locked-state labels) and now adds a **holographic
+  projector beam** rising from the table base to each planet (dimmed for locked
+  worlds). A solid generated planet was deliberately not used here - it wouldn't
+  read as a hologram on a hologram table.
+- **Hologram shader:** the itch `hologram.shader` is Godot-3 (`hint_color`) and
+  was left unported; the custom `hologram_planet.gdshader` already provides the
+  scanline/fresnel/flicker shimmer, so it wasn't needed.
+- **Skybox:** none downloaded yet - keep the `space_sky` shader.
 - **Skybox:** none downloaded yet - keep the `space_sky` shader, or generate a
   Poly Haven / Blockade (paid tier) space HDRI later.
 
