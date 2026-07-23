@@ -127,9 +127,9 @@ func _build_ascent_props() -> void:
 		var z := -22.0 - 22.0 * float(i)
 		var x: float = lanes[i]
 		var y := slope_y(z)
-		# 1.6 m tall: blocks a standing sightline but stays under the 2 m jump
+		# ~1.8 m rock: blocks a standing sightline but stays under the 2 m jump
 		# apex, so the climb can never be walled off by its own cover.
-		_box(Vector3(x, y + 0.8, z), Vector3(3, 1.6, 2), _rock_dark)
+		_rock_prop(Vector3(x, y, z), i, Vector3(3, 1.8, 2))
 		# Shooters take cover on the downhill side of each formation.
 		_marker(Vector3(x, y + 0.1, z + 2.0), "cover_point")
 
@@ -140,6 +140,37 @@ func _build_ascent_props() -> void:
 		var y := slope_y(z)
 		_panel(Vector3(x, y + 0.05, z), Vector3(3, 0.1, 3), _lava)
 		_lava_area(Vector3(x, y + 0.6, z), Vector3(3, 1.2, 3))
+
+
+## A real rock model (Fab rock_collection_04) as cover, with a matching collision
+## box. Its material is overridden to the volcanic rock so we don't depend on the
+## pack's textures; falls back to a primitive if the mesh can't load. `base` is
+## the floor point the rock sits on.
+const ROCK_DIR := "res://assets/thirdparty/fab/rock_collection_04/"
+const ROCK_MESHES := [
+	"Rock_01/Meshes/SM_Rock_01.fbx", "Rock_03/Meshes/SM_Rock_03.fbx",
+	"Rock_05/Meshes/SM_Rock_05.fbx", "Rock_06/Meshes/SM_Rock_06.fbx",
+]
+const ROCK_SCALE := 1.0
+
+func _rock_prop(base: Vector3, idx: int, coll: Vector3) -> void:
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = coll
+	col.shape = shape
+	col.position = base + Vector3(0, coll.y * 0.5, 0)
+	add_child(col)
+	var scene := load(ROCK_DIR + ROCK_MESHES[idx % ROCK_MESHES.size()])
+	if scene is PackedScene:
+		var m := (scene as PackedScene).instantiate() as Node3D
+		m.scale = Vector3.ONE * ROCK_SCALE
+		m.position = base
+		m.rotation.y = float(idx) * 1.37
+		for vi in m.find_children("*", "MeshInstance3D", true, false):
+			(vi as MeshInstance3D).material_override = _rock_dark
+		add_child(m)
+	else:
+		_box(base + Vector3(0, coll.y * 0.5, 0), coll, _rock_dark)
 
 
 func _build_ascent_checkpoints() -> void:
