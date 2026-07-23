@@ -90,13 +90,17 @@ Note the voxel mechs are **OBJ (static, voxel style)** - they read differently
 from the smooth Quaternius kit, so use them as a deliberate "heavy machine" tier
 or not at all.
 
-## Phase 5 - Sky, planets, holograms
+## Phase 5 - Sky, planets, holograms (window planet DONE)
 
-- **Hub window planet + hologram-table planets:** `godot-3d-planet-generator`
-  (Godot addon, `addons/naejimer_3d_planet_generator`) - real generated planets
-  instead of the shader spheres. Wire into `hub_planet.gd` / `hologram_table.gd`.
-- **Hologram table shimmer:** `hologram.shader` (knucklenoise) on the table
-  projections for a crisper holographic look.
+- **Hub window planet:** **DONE** - `godot-3d-planet-generator` (MIT) installed
+  at `addons/naejimer_3d_planet_generator`; `hub_planet.gd` shows a real
+  generated planet for the last-visited mission, lit by a layer-culled sun.
+- **Hologram-table planets:** still outstanding - `hologram_table.gd` keeps its
+  translucent shader spheres for now (they read as holograms + carry the
+  locked-state labels). Swapping in small generated planets is optional.
+- **Hologram table shimmer:** still outstanding - `assets/thirdparty/hologram.shader`
+  (knucklenoise) needs a Godot-4 port (`hint_color` -> `source_color`) before it
+  can go on the table projections.
 - **Skybox:** none downloaded yet - keep the `space_sky` shader, or generate a
   Poly Haven / Blockade (paid tier) space HDRI later.
 
