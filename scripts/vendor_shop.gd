@@ -41,7 +41,7 @@ var _error_sound: AudioStreamPlayer
 func _ready() -> void:
 	add_to_group("vendor_shop")
 	process_mode = Node.PROCESS_MODE_ALWAYS   # keep working while the tree is paused
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
 	_build_audio()
@@ -366,67 +366,72 @@ func _make_beep(freq: float, dur: float) -> AudioStreamWAV:
 	return wav
 
 
-## Full-screen vendor screen: the Forge Master rendered on the left (Destiny
-## faction-screen style), the shop tabs on the right.
+## A dedicated vendor "screen": a 3D staged backdrop of the Forge Master standing
+## at his stall on the left, the shop panel on the right. The Guardian is frozen
+## (the tree is paused) - only the cursor moves to pick items.
 func _build_ui() -> void:
-	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.03, 0.05, 0.92)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(dim)
+	# Full-screen 3D backdrop (the stall + the robot), drawn behind everything.
+	add_child(_build_backdrop())
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 60)
-	margin.add_theme_constant_override("margin_right", 60)
-	margin.add_theme_constant_override("margin_top", 40)
-	margin.add_theme_constant_override("margin_bottom", 40)
-	add_child(margin)
-
-	var split := HBoxContainer.new()
-	split.add_theme_constant_override("separation", 26)
-	margin.add_child(split)
-
-	# --- Left: the Forge Master portrait ---
-	var left := VBoxContainer.new()
-	left.custom_minimum_size = Vector2(430, 0)
-	left.add_theme_constant_override("separation", 6)
-	split.add_child(left)
-
-	var title := Label.new()
-	title.text = "FORGE MASTER"
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", GOLD)
-	left.add_child(title)
+	# Name plate over the robot, lower-left.
+	var plate := VBoxContainer.new()
+	plate.anchor_top = 1.0
+	plate.anchor_bottom = 1.0
+	plate.offset_left = 50.0
+	plate.offset_top = -132.0
+	plate.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(plate)
 	var role := Label.new()
 	role.text = "VANGUARD ARMOURY"
-	role.add_theme_font_size_override("font_size", 13)
-	role.add_theme_color_override("font_color", DIM)
-	left.add_child(role)
+	role.add_theme_font_size_override("font_size", 15)
+	role.add_theme_color_override("font_color", GOLD)
+	plate.add_child(role)
+	var big := Label.new()
+	big.text = "FORGE MASTER"
+	big.add_theme_font_size_override("font_size", 42)
+	big.add_theme_color_override("font_color", Color.WHITE)
+	big.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	big.add_theme_constant_override("outline_size", 8)
+	plate.add_child(big)
+	var sub := Label.new()
+	sub.text = "Builds, mods and buys Guardian gear."
+	sub.add_theme_font_size_override("font_size", 13)
+	sub.add_theme_color_override("font_color", Color(0.8, 0.82, 0.88))
+	plate.add_child(sub)
 
-	var portrait := _portrait_panel()
-	portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left.add_child(portrait)
+	# Right-hand shop panel.
+	var right := PanelContainer.new()
+	right.anchor_left = 0.52
+	right.anchor_right = 1.0
+	right.anchor_top = 0.0
+	right.anchor_bottom = 1.0
+	right.offset_left = 0.0
+	right.offset_right = 0.0
+	right.offset_top = 0.0
+	right.offset_bottom = 0.0
+	right.mouse_filter = Control.MOUSE_FILTER_STOP
+	var rs := StyleBoxFlat.new()
+	rs.bg_color = Color(0.05, 0.06, 0.09, 0.88)
+	rs.border_color = Color(0.30, 0.33, 0.40, 0.7)
+	rs.border_width_left = 1
+	rs.content_margin_left = 34
+	rs.content_margin_right = 34
+	rs.content_margin_top = 30
+	rs.content_margin_bottom = 26
+	right.add_theme_stylebox_override("panel", rs)
+	add_child(right)
 
-	var flavour := Label.new()
-	flavour.text = "The Forge Master builds, mods and buys Guardian gear. Trade with Flux."
-	flavour.add_theme_font_size_override("font_size", 12)
-	flavour.add_theme_color_override("font_color", DIM)
-	flavour.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	left.add_child(flavour)
-
-	# --- Right: the shop ---
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 10)
-	split.add_child(right)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 12)
+	right.add_child(inner)
 
 	var header := HBoxContainer.new()
-	right.add_child(header)
+	inner.add_child(header)
 	var shop_title := Label.new()
 	shop_title.text = "ARMOURY"
-	shop_title.add_theme_font_size_override("font_size", 24)
-	shop_title.add_theme_color_override("font_color", Color(0.88, 0.9, 0.96))
+	shop_title.add_theme_font_size_override("font_size", 26)
+	shop_title.add_theme_color_override("font_color", Color(0.90, 0.92, 0.97))
 	shop_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(shop_title)
 	_flux_label = Label.new()
@@ -434,22 +439,39 @@ func _build_ui() -> void:
 	_flux_label.add_theme_color_override("font_color", GOLD)
 	header.add_child(_flux_label)
 
+	var desc := Label.new()
+	desc.text = "Trade with Flux. Aim your cursor and select an item."
+	desc.add_theme_font_size_override("font_size", 13)
+	desc.add_theme_color_override("font_color", DIM)
+	inner.add_child(desc)
+
 	var tabs := TabContainer.new()
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right.add_child(tabs)
+	inner.add_child(tabs)
 
+	# Weapons tab: an icon-tile grid.
 	var weapons_tab := VBoxContainer.new()
 	weapons_tab.name = "Weapons"
-	weapons_tab.add_theme_constant_override("separation", 8)
+	weapons_tab.add_theme_constant_override("separation", 10)
 	tabs.add_child(weapons_tab)
+	var wlabel := Label.new()
+	wlabel.text = "WEAPONS"
+	wlabel.add_theme_font_size_override("font_size", 14)
+	wlabel.add_theme_color_override("font_color", GOLD)
+	weapons_tab.add_child(wlabel)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	weapons_tab.add_child(grid)
 	for weapon in WEAPONS:
-		weapons_tab.add_child(_make_weapon_row(weapon))
+		grid.add_child(_make_weapon_tile(weapon))
 
 	tabs.add_child(_build_mods_tab())
 	tabs.add_child(_build_sell_tab())
 
 	var footer := HBoxContainer.new()
-	right.add_child(footer)
+	inner.add_child(footer)
 	_status_label = Label.new()
 	_status_label.text = ""
 	_status_label.add_theme_font_size_override("font_size", 13)
@@ -463,26 +485,135 @@ func _build_ui() -> void:
 	footer.add_child(close_btn)
 
 
-## A dark bordered panel holding the turntable render of the Forge Master robot.
-func _portrait_panel() -> Control:
-	var panel := PanelContainer.new()
-	var s := StyleBoxFlat.new()
-	s.bg_color = Color(0.06, 0.07, 0.10, 0.95)
-	s.border_color = GOLD
-	s.set_border_width_all(1)
-	s.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", s)
+## The 3D staged backdrop: a slice of the weapon-bay stall with the Forge Master
+## robot standing behind the counter on the left, warmly lit. Rendered in a
+## full-screen SubViewport with its own world, so it reads like a vendor scene.
+func _build_backdrop() -> Control:
+	var vc := SubViewportContainer.new()
+	vc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vc.stretch = true
+	vc.custom_minimum_size = get_viewport().get_visible_rect().size
+	vc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.transparent_bg = false
+	vp.msaa_3d = Viewport.MSAA_4X
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vc.add_child(vp)
 
-	var disp := SubViewportContainer.new()
-	disp.set_script(load("res://scripts/model_display.gd"))
-	panel.add_child(disp)
-	var mech_mat := StandardMaterial3D.new()
-	mech_mat.albedo_color = Color(0.34, 0.36, 0.40)
-	mech_mat.metallic = 0.9
-	mech_mat.roughness = 0.32
-	disp.call("setup", "res://assets/thirdparty/fab/skm_robot/skm_robot3_full.fbx",
-		1.05, 2.9, 1.3, 0.0, mech_mat, 0.45)
-	return panel
+	var we := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.04, 0.045, 0.06)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.26, 0.27, 0.34)
+	env.ambient_light_energy = 0.5
+	we.environment = env
+	vp.add_child(we)
+
+	# Stall geometry (a recreation of the bay corner the vendor stands in).
+	_stage_box(vp, Vector3(0, -0.05, -1.5), Vector3(16, 0.1, 9), Color(0.13, 0.14, 0.17), 0.6)
+	_stage_box(vp, Vector3(0, 2.4, -4.2), Vector3(16, 7, 0.3), Color(0.19, 0.21, 0.27), 0.9)
+	_stage_box(vp, Vector3(1.6, 0.55, -0.2), Vector3(11, 1.1, 0.7), Color(0.15, 0.16, 0.20), 0.5)
+	_stage_box(vp, Vector3(1.6, 1.15, -0.15), Vector3(11, 0.1, 0.95), Color(0.85, 0.62, 0.30), 0.3)
+	_stage_box(vp, Vector3(4.6, 2.7, -3.9), Vector3(3.2, 0.1, 0.8), Color(0.10, 0.11, 0.14), 0.7)
+	_stage_box(vp, Vector3(4.6, 1.9, -3.9), Vector3(3.2, 0.1, 0.8), Color(0.10, 0.11, 0.14), 0.7)
+
+	var key := OmniLight3D.new()
+	key.position = Vector3(-1.2, 3.2, 2.2)
+	key.light_energy = 3.4
+	key.omni_range = 13.0
+	key.light_color = Color(1.0, 0.78, 0.52)
+	vp.add_child(key)
+	var fill := OmniLight3D.new()
+	fill.position = Vector3(3.5, 3.0, 1.5)
+	fill.light_energy = 1.8
+	fill.omni_range = 14.0
+	fill.light_color = Color(0.72, 0.82, 1.0)
+	vp.add_child(fill)
+
+	var robot_scene: Resource = load("res://assets/thirdparty/fab/skm_robot/skm_robot3_full.fbx")
+	if robot_scene is PackedScene:
+		var robot := (robot_scene as PackedScene).instantiate() as Node3D
+		robot.scale = Vector3.ONE * 1.15
+		robot.position = Vector3(-1.6, 0.0, -0.9)
+		robot.rotation.y = PI - 0.55                 # face 3/4 toward the camera
+		var mech_mat := StandardMaterial3D.new()
+		mech_mat.albedo_color = Color(0.34, 0.36, 0.40)
+		mech_mat.metallic = 0.9
+		mech_mat.roughness = 0.32
+		for m in robot.find_children("*", "MeshInstance3D", true, false):
+			(m as MeshInstance3D).material_override = mech_mat
+		vp.add_child(robot)
+
+	var cam := Camera3D.new()
+	cam.fov = 60.0
+	vp.add_child(cam)
+	# Frame the robot large on the left, the stall filling the rest.
+	cam.look_at_from_position(Vector3(0.7, 1.35, 2.3), Vector3(-1.25, 1.15, -0.9), Vector3.UP)
+	return vc
+
+
+func _stage_box(vp: SubViewport, center: Vector3, size: Vector3, color: Color, rough: float) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = rough
+	mat.metallic = 0.1
+	mi.material_override = mat
+	mi.position = center
+	vp.add_child(mi)
+
+
+## A weapon tile for the buy grid: rarity-bordered card with icon, name, stats
+## and a Buy button (registered in _buy_buttons so _refresh() updates it).
+func _make_weapon_tile(weapon: Dictionary) -> Control:
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(0, 118)
+	var cs := StyleBoxFlat.new()
+	cs.bg_color = Color(0.08, 0.09, 0.12, 0.92)
+	cs.border_color = RARITY_COLORS.get(weapon["rarity"], Color.WHITE)
+	cs.set_border_width_all(1)
+	cs.set_corner_radius_all(5)
+	cs.set_content_margin_all(10)
+	card.add_theme_stylebox_override("panel", cs)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 5)
+	card.add_child(v)
+
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	v.add_child(top)
+	var icon := ColorRect.new()
+	icon.color = RARITY_COLORS.get(weapon["rarity"], Color.WHITE)
+	icon.custom_minimum_size = Vector2(42, 42)
+	top.add_child(icon)
+	var nm := VBoxContainer.new()
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(nm)
+	var nlabel := Label.new()
+	nlabel.text = String(weapon["name"])
+	nlabel.add_theme_font_size_override("font_size", 16)
+	nlabel.add_theme_color_override("font_color",
+		RARITY_COLORS.get(weapon["rarity"], Color.WHITE).lightened(0.2))
+	nm.add_child(nlabel)
+	var rlabel := Label.new()
+	rlabel.text = "%s   DMG %d  RPM %d" % [String(weapon["rarity"]), int(weapon["dmg"]), int(weapon["rpm"])]
+	rlabel.add_theme_font_size_override("font_size", 11)
+	rlabel.add_theme_color_override("font_color", DIM)
+	nm.add_child(rlabel)
+
+	var buy := Button.new()
+	buy.custom_minimum_size = Vector2(0, 32)
+	var wid: String = weapon["id"]
+	buy.pressed.connect(func() -> void: buy_weapon(wid))
+	_buy_buttons[wid] = buy
+	v.add_child(buy)
+	return card
 
 
 ## Dark rounded row panel, matching the inventory rows.
