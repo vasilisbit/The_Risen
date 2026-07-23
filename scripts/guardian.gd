@@ -537,11 +537,16 @@ func _build_ability_hud() -> void:
 	layer.add_child(_weapon_hud)
 
 	# Inventory overlay lives on the player so it is reachable from the hub and
-	# every mission, rather than being duplicated into each scene.
+	# every mission. It gets its own high CanvasLayer so it always draws above
+	# other screens (e.g. the vendor shop), rather than popping up behind them.
+	var inv_layer := CanvasLayer.new()
+	inv_layer.name = "InventoryLayer"
+	inv_layer.layer = 50
+	add_child(inv_layer)
 	var inventory := Control.new()
 	inventory.name = "InventoryScreen"
 	inventory.set_script(load("res://scripts/inventory_screen.gd"))
-	layer.add_child(inventory)
+	inv_layer.add_child(inventory)
 
 
 ## Holster everything in a non-combat scene: no firing, no viewmodel, and no

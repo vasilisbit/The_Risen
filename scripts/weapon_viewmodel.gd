@@ -24,7 +24,7 @@ const EXTERNAL_EXTS := ["glb", "gltf", "tscn", "scn"]
 ## suit a ~0.4 m gun already modelled facing forward.
 const MODEL_FIT := {
 	"Auto Rifle": {"scale": 1.55, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
-	"Shotgun": {"scale": 1.55, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
+	"Shotgun": {"scale": 1.55, "rot": Vector3(0, 90, 0), "offset": Vector3.ZERO},
 	"Sniper": {"scale": 1.55, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
 	"Hand Cannon": {"scale": 1.3, "rot": Vector3(0, -90, 0), "offset": Vector3.ZERO},
 }

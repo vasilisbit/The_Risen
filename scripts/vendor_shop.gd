@@ -366,56 +366,77 @@ func _make_beep(freq: float, dur: float) -> AudioStreamWAV:
 	return wav
 
 
+## Full-screen vendor screen: the Forge Master rendered on the left (Destiny
+## faction-screen style), the shop tabs on the right.
 func _build_ui() -> void:
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.8)
+	dim.color = Color(0.02, 0.03, 0.05, 0.92)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
 
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 60)
+	margin.add_theme_constant_override("margin_right", 60)
+	margin.add_theme_constant_override("margin_top", 40)
+	margin.add_theme_constant_override("margin_bottom", 40)
+	add_child(margin)
 
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(760, 560)
-	# Same gold-bordered dark panel as the inventory screen.
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.09, 0.12, 0.97)
-	style.border_color = GOLD
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	style.set_content_margin_all(22)
-	panel.add_theme_stylebox_override("panel", style)
-	center.add_child(panel)
+	var split := HBoxContainer.new()
+	split.add_theme_constant_override("separation", 26)
+	margin.add_child(split)
 
-	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 10)
-	panel.add_child(inner)
+	# --- Left: the Forge Master portrait ---
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(430, 0)
+	left.add_theme_constant_override("separation", 6)
+	split.add_child(left)
 
-	var header := HBoxContainer.new()
-	inner.add_child(header)
 	var title := Label.new()
 	title.text = "FORGE MASTER"
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", GOLD)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
+	left.add_child(title)
+	var role := Label.new()
+	role.text = "VANGUARD ARMOURY"
+	role.add_theme_font_size_override("font_size", 13)
+	role.add_theme_color_override("font_color", DIM)
+	left.add_child(role)
+
+	var portrait := _portrait_panel()
+	portrait.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(portrait)
+
+	var flavour := Label.new()
+	flavour.text = "The Forge Master builds, mods and buys Guardian gear. Trade with Flux."
+	flavour.add_theme_font_size_override("font_size", 12)
+	flavour.add_theme_color_override("font_color", DIM)
+	flavour.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(flavour)
+
+	# --- Right: the shop ---
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 10)
+	split.add_child(right)
+
+	var header := HBoxContainer.new()
+	right.add_child(header)
+	var shop_title := Label.new()
+	shop_title.text = "ARMOURY"
+	shop_title.add_theme_font_size_override("font_size", 24)
+	shop_title.add_theme_color_override("font_color", Color(0.88, 0.9, 0.96))
+	shop_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(shop_title)
 	_flux_label = Label.new()
 	_flux_label.add_theme_font_size_override("font_size", 22)
 	_flux_label.add_theme_color_override("font_color", GOLD)
 	header.add_child(_flux_label)
 
-	var subtitle := Label.new()
-	subtitle.text = "Buy, mod and sell gear.  Aim at a shop item and trade with Flux."
-	subtitle.add_theme_font_size_override("font_size", 12)
-	subtitle.add_theme_color_override("font_color", DIM)
-	inner.add_child(subtitle)
-
 	var tabs := TabContainer.new()
-	tabs.custom_minimum_size = Vector2(0, 380)
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	inner.add_child(tabs)
+	right.add_child(tabs)
 
 	var weapons_tab := VBoxContainer.new()
 	weapons_tab.name = "Weapons"
@@ -428,7 +449,7 @@ func _build_ui() -> void:
 	tabs.add_child(_build_sell_tab())
 
 	var footer := HBoxContainer.new()
-	inner.add_child(footer)
+	right.add_child(footer)
 	_status_label = Label.new()
 	_status_label.text = ""
 	_status_label.add_theme_font_size_override("font_size", 13)
@@ -440,6 +461,28 @@ func _build_ui() -> void:
 	close_btn.custom_minimum_size = Vector2(160, 40)
 	close_btn.pressed.connect(close)
 	footer.add_child(close_btn)
+
+
+## A dark bordered panel holding the turntable render of the Forge Master robot.
+func _portrait_panel() -> Control:
+	var panel := PanelContainer.new()
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.06, 0.07, 0.10, 0.95)
+	s.border_color = GOLD
+	s.set_border_width_all(1)
+	s.set_corner_radius_all(6)
+	panel.add_theme_stylebox_override("panel", s)
+
+	var disp := SubViewportContainer.new()
+	disp.set_script(load("res://scripts/model_display.gd"))
+	panel.add_child(disp)
+	var mech_mat := StandardMaterial3D.new()
+	mech_mat.albedo_color = Color(0.34, 0.36, 0.40)
+	mech_mat.metallic = 0.9
+	mech_mat.roughness = 0.32
+	disp.call("setup", "res://assets/thirdparty/fab/skm_robot/skm_robot3_full.fbx",
+		1.05, 2.9, 1.3, 0.0, mech_mat, 0.45)
+	return panel
 
 
 ## Dark rounded row panel, matching the inventory rows.

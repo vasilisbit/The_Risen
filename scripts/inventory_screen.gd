@@ -313,42 +313,37 @@ func _equip_button(equipped: bool) -> Button:
 	return btn
 
 
+## Full-screen character screen: weapons down the left, the Guardian rendered in
+## the centre, armour down the right (Destiny character-screen style).
 func _build() -> void:
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.8)
+	dim.color = Color(0.02, 0.03, 0.05, 0.94)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
 
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = PANEL_SIZE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.09, 0.12, 0.97)
-	style.border_color = GOLD
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	style.set_content_margin_all(22)
-	panel.add_theme_stylebox_override("panel", style)
-	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 50)
+	margin.add_theme_constant_override("margin_right", 50)
+	margin.add_theme_constant_override("margin_top", 34)
+	margin.add_theme_constant_override("margin_bottom", 34)
+	add_child(margin)
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
-	panel.add_child(col)
+	margin.add_child(col)
 
 	var header := HBoxContainer.new()
 	col.add_child(header)
 	var title := Label.new()
 	title.text = "INVENTORY"
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 	_flux = Label.new()
-	_flux.add_theme_font_size_override("font_size", 22)
+	_flux.add_theme_font_size_override("font_size", 24)
 	_flux.add_theme_color_override("font_color", GOLD)
 	header.add_child(_flux)
 
@@ -359,19 +354,30 @@ func _build() -> void:
 	col.add_child(hint)
 
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 26)
+	columns.add_theme_constant_override("separation", 22)
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(columns)
 
+	# Left: weapons
 	_weapon_head = _section_header()
 	_weapon_list = VBoxContainer.new()
 	_weapon_list.add_theme_constant_override("separation", 6)
-	columns.add_child(_column(_weapon_head, _weapon_list))
+	var weapon_col := _column(_weapon_head, _weapon_list)
+	weapon_col.custom_minimum_size = Vector2(380, 0)
+	weapon_col.size_flags_horizontal = 0
+	columns.add_child(weapon_col)
 
+	# Centre: the Guardian render
+	columns.add_child(_character_panel())
+
+	# Right: armour
 	_armor_head = _section_header()
 	_armor_list = VBoxContainer.new()
 	_armor_list.add_theme_constant_override("separation", 6)
-	columns.add_child(_column(_armor_head, _armor_list))
+	var armor_col := _column(_armor_head, _armor_list)
+	armor_col.custom_minimum_size = Vector2(380, 0)
+	armor_col.size_flags_horizontal = 0
+	columns.add_child(armor_col)
 
 	_empty_note = Label.new()
 	_empty_note.text = "Defeated enemies sometimes drop loot - walk over it and press E to collect."
@@ -392,6 +398,39 @@ func _build() -> void:
 	close_btn.custom_minimum_size = Vector2(160, 40)
 	close_btn.pressed.connect(close)
 	footer.add_child(close_btn)
+
+
+## Centre column: the Guardian turntable render with a name band under it.
+func _character_panel() -> Control:
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 0)
+
+	var panel := PanelContainer.new()
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.05, 0.06, 0.09, 0.6)
+	s.set_corner_radius_all(6)
+	panel.add_theme_stylebox_override("panel", s)
+	box.add_child(panel)
+
+	var disp := SubViewportContainer.new()
+	disp.set_script(load("res://scripts/model_display.gd"))
+	panel.add_child(disp)
+	disp.call("setup", "res://assets/thirdparty/Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf",
+		0.95, 3.9, 1.0, 0.0, null, 0.4)
+
+	var band := Label.new()
+	band.text = "GUARDIAN"
+	band.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	band.add_theme_font_size_override("font_size", 18)
+	band.add_theme_color_override("font_color", Color(0.9, 0.92, 0.98))
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = Color(0.35, 0.28, 0.5, 0.7)
+	bs.set_content_margin_all(6)
+	band.add_theme_stylebox_override("normal", bs)
+	box.add_child(band)
+	return box
 
 
 ## A titled, scrolling column so a long weapon list stays inside the panel.
