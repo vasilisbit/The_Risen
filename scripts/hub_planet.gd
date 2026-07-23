@@ -33,8 +33,10 @@ var _sun: DirectionalLight3D
 
 func _ready() -> void:
 	_sun = DirectionalLight3D.new()
-	_sun.rotation_degrees = Vector3(-24.0, 212.0, 0.0)
-	_sun.light_energy = 1.5
+	# Light the face turned toward the window (camera looks down -Z), so the
+	# player sees the lit disc and its detail, not the dark side.
+	_sun.rotation_degrees = Vector3(-28.0, 18.0, 0.0)
+	_sun.light_energy = 2.4
 	_sun.light_cull_mask = PLANET_LAYER      # only lights the planet, not the ship
 	add_child(_sun)
 	refresh()

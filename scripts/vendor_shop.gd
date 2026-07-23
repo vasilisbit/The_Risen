@@ -56,6 +56,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func open() -> void:
+	# Transition into the vendor "scene" with a quick fade to black and back.
+	var gs := get_node_or_null("/root/GameState")
+	if gs and gs.has_method("fade_black_then"):
+		gs.fade_black_then(_do_open)
+	else:
+		_do_open()
+
+
+func _do_open() -> void:
 	_refresh()
 	visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -547,10 +556,11 @@ func _build_backdrop() -> Control:
 		vp.add_child(robot)
 
 	var cam := Camera3D.new()
-	cam.fov = 60.0
+	cam.fov = 40.0
 	vp.add_child(cam)
-	# Frame the robot large on the left, the stall filling the rest.
-	cam.look_at_from_position(Vector3(0.7, 1.35, 2.3), Vector3(-1.25, 1.15, -0.9), Vector3.UP)
+	# Zoomed in on the robot at the left, so the counter's side edges fall
+	# outside the frame and it reads as an endless stall wall.
+	cam.look_at_from_position(Vector3(-0.35, 1.3, 1.5), Vector3(-1.55, 1.12, -0.9), Vector3.UP)
 	return vc
 
 
