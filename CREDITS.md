@@ -10,7 +10,9 @@ CC0 assets need no attribution but are listed here for provenance.
 
 | Asset | Author / source | License | Where used |
 |---|---|---|---|
-| Sci-Fi Essentials Kit | Quaternius (quaternius.com) | CC0 | Weapon viewmodels (Gun_Rifle/SMG/Sniper/Revolver), enemy models (Rusher=QuadShell, Shooter=EyeDrone, Exploder=Trilobite), hub props (desks/lockers/crates/barrels) |
+| Sci-Fi Essentials Kit | Quaternius (quaternius.com) | CC0 | Weapon viewmodels (Auto Rifle/Sniper/Hand Cannon), enemy models (Rusher=QuadShell, Shooter=EyeDrone, Exploder=Trilobite), hub props (desks/lockers/crates/barrels) |
+| Weapons FREE - Low Poly Pack (`shotgun_001`) | Fab | Fab (free, commercial-safe) | Shotgun weapon viewmodel |
+| skm_robot3 | Fab | Fab (free, commercial-safe) | Forge Master vendor clerk (hub). Ships without its base-colour texture, so it is painted gunmetal in code |
 | Blaster Kit | Kenney (kenney.nl) | CC0 | (available, no longer wired - replaced by Sci-Fi Essentials guns) |
 | _(planned)_ KayKit Space Base Bits | Kay Lousberg (kaylousberg.itch.io) | CC0 | Larger station structures (Phase 2 cont.) |
 | _(planned)_ Universal Base Characters + Animation Library | Quaternius | CC0 | Player character (Phase 3) |
