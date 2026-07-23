@@ -46,6 +46,12 @@ func _ready() -> void:
 	queue_redraw()
 
 
+func _process(_delta: float) -> void:
+	# Hidden in non-combat scenes (the hub), like the radar and crosshair-less HUD.
+	var p := get_tree().get_first_node_in_group("player")
+	visible = p != null and (not ("combat_enabled" in p) or p.combat_enabled)
+
+
 func _on_health(current: float, maximum: float) -> void:
 	_hp = current
 	_hp_max = maxf(1.0, maximum)

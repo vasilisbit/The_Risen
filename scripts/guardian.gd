@@ -563,9 +563,11 @@ func _apply_combat_mode() -> void:
 		_weapon_hud.visible = combat_enabled
 	if _ability_hud:
 		_ability_hud.visible = combat_enabled
+	# The crosshair stays on even in the hub - it's how you aim at the Forge
+	# Master and the hologram table to interact.
 	var crosshair := get_node_or_null("DebugHUD/Crosshair") as Control
 	if crosshair:
-		crosshair.visible = combat_enabled
+		crosshair.visible = true
 
 
 func _build_death_screen() -> void:

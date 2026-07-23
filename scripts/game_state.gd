@@ -27,3 +27,19 @@ func transition_to(path: String) -> void:
 	tw.tween_interval(0.15)
 	tw.tween_property(_rect, "color:a", 0.0, 0.5)
 	tw.tween_callback(func() -> void: _busy = false)
+
+
+## Fade to black, run `at_black` (e.g. reveal a screen), fade back in - without
+## a scene change. Used for the transition into the vendor screen. Runs while the
+## tree is paused because this autoload is PROCESS_MODE_ALWAYS.
+func fade_black_then(at_black: Callable, dur: float = 0.28) -> void:
+	if _busy:
+		at_black.call()
+		return
+	_busy = true
+	var tw := create_tween()
+	tw.tween_property(_rect, "color:a", 1.0, dur)
+	tw.tween_callback(at_black)
+	tw.tween_interval(0.05)
+	tw.tween_property(_rect, "color:a", 0.0, dur)
+	tw.tween_callback(func() -> void: _busy = false)

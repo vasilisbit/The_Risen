@@ -16,6 +16,28 @@ const MISSION_SCENES := {
 }
 
 
+var _prompt: Label
+
+
+func _physics_process(_delta: float) -> void:
+	# Show a "what to do" prompt whenever the crosshair is on an interactable.
+	if _prompt == null or not is_instance_valid(_prompt):
+		_prompt = get_tree().get_first_node_in_group("interact_prompt") as Label
+	if _prompt == null:
+		return
+	force_raycast_update()
+	var text := ""
+	if is_colliding():
+		var target := get_collider()
+		if target and target.is_in_group("vendor"):
+			text = "[E]  Forge Master  -  buy, mod and sell gear"
+		elif target and target.is_in_group("mission_sphere"):
+			var mission := String(target.name).trim_suffix("Sphere")
+			text = "[E]  Deploy to %s" % mission
+	_prompt.text = text
+	_prompt.visible = text != ""
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	# is_action_pressed() on the event is true only on the press edge (not
 	# on hold/echo), so rapid clicking fires once per click.

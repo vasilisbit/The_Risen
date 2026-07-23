@@ -35,7 +35,11 @@ const LABEL_SIZE := 0.10
 
 var _materials: Dictionary = {}          # mission -> ShaderMaterial
 var _labels: Dictionary = {}             # mission -> Label3D
+var _projectors: Dictionary = {}         # mission -> StandardMaterial3D (beam)
 var _flicker: float = 0.0
+
+## Cyan projector-beam tint, so each planet reads as a table hologram.
+const BEAM_TINT := Color(0.35, 0.75, 1.0)
 
 
 func _ready() -> void:
@@ -71,6 +75,10 @@ func refresh() -> void:
 			# its own line - inline, the three labels ran into each other.
 			label.text = mission.to_upper() if unlocked else "%s\nLOCKED" % mission.to_upper()
 			label.set_meta("base_alpha", 0.95 if unlocked else 0.45)
+		if _projectors.has(mission):
+			var beam: StandardMaterial3D = _projectors[mission]
+			beam.emission_energy_multiplier = 1.3 if unlocked else 0.4
+			beam.albedo_color.a = 0.10 if unlocked else 0.04
 
 
 func _build() -> void:
@@ -93,7 +101,35 @@ func _build() -> void:
 		mat.set_shader_parameter("rot_speed", 0.045 + 0.015 * float(_materials.size()))
 		mesh.material_override = mat
 		_materials[mission] = mat
-		_labels[mission] = _build_label(mesh.get_parent() as Node3D, info["base"])
+		var anchor := mesh.get_parent() as Node3D
+		_labels[mission] = _build_label(anchor, info["base"])
+		_projectors[mission] = _build_projector(anchor)
+
+
+## A translucent additive cone rising from the table base up to a projection, so
+## each planet reads as a hologram beamed from the table. Returns its material so
+## refresh() can dim it for locked worlds.
+func _build_projector(anchor: Node3D) -> StandardMaterial3D:
+	var cone := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.30            # wide at the planet
+	cm.bottom_radius = 0.04         # narrow at the emitter
+	cm.height = 0.5
+	cm.radial_segments = 24
+	cone.mesh = cm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(BEAM_TINT.r, BEAM_TINT.g, BEAM_TINT.b, 0.10)
+	mat.emission_enabled = true
+	mat.emission = BEAM_TINT
+	mat.emission_energy_multiplier = 1.3
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cone.material_override = mat
+	cone.position = Vector3(0.0, -0.27, 0.0)     # base at the table, top at the planet
+	anchor.add_child(cone)
+	return mat
 
 
 ## Floating name above a projection. Billboarded and depth-test-free so it is
