@@ -55,18 +55,18 @@ The constantly-on-screen actors - biggest visual lift.
 currently show a static pose. Wiring an `AnimationPlayer` to the enemy state
 machine (walk while chasing, attack on hit) is a Phase-1.5 polish.
 
-## Phase 2 - Environment dressing
+## Phase 2 - Environment dressing (cover DONE; deeper dressing outstanding)
 
 Turn the box levels into places. Instance props as visual children beside the
 existing collision boxes (keep the code-generated collision).
 
-| Area | Assets |
-|---|---|
-| **Hub** (space station) | KayKit Space Base Bits: `basemodule_*`, `containers_*`, `cargo_*`, `drill_structure`; Sci-Fi Essentials `Prop_Console`/`Prop_SatelliteDish`; `fab/sci_fi_console`, `fab/military radio` |
-| **Earth** cover/detail | Sci-Fi Essentials `Prop_Crate*`, `Prop_Barrel*`, `Prop_Locker`, `Prop_Shelves*`; `fab/postwar-city-exterior-scene`; `fab/rock_collection_04` |
-| **Mars** rooms | Sci-Fi Essentials crates/barrels; `fab/rock_collection_04`; `fab/UCreate Fractal Meshes` (alien-tech) |
-| **Venus** volcano | `fab/Inferno World` (lava rocks/terrain), `fab/rock_collection_04`, `fab/packoftreeents` + `fab/Mobile Trees` (if a greener ascent), `fab/lush_green_mountains` (the folder even hints "venus perhaps") |
-| **Loot pickups** | Sci-Fi Essentials `Prop_Ammo`, `Prop_HealthPack`, `Prop_KeyCard`, `Prop_Grenade` for the loot drops instead of coloured boxes |
+| Area | Assets | Status |
+|---|---|---|
+| **Hub** (space station) | KayKit Space Base Bits: `basemodule_*`, `containers_*`, `cargo_*`, `drill_structure`; Sci-Fi Essentials `Prop_Console`/`Prop_SatelliteDish`; `fab/sci_fi_console`, `fab/military radio` | props placed (desks/lockers/shelves/crates); KayKit modules still available for a bigger station pass |
+| **Earth** cover/detail | Sci-Fi Essentials `Prop_Crate*`, `Prop_Barrel*` | **cover DONE** (arena crates) |
+| **Mars** rooms | Sci-Fi Essentials `Prop_Crate_Large/Crate`, `Prop_Barrel1/2` | **cover DONE**; `fab/UCreate Fractal Meshes` alien-tech dressing still optional |
+| **Venus** volcano | `fab/rock_collection_04` (material-overridden volcanic) | **ascent cover DONE**; `fab/Inferno World` terrain + trees still optional |
+| **Loot pickups** | small `Prop_Chest` with a rarity beacon | **DONE** (chests replaced the coloured boxes) |
 
 ## Phase 3 - Player character (third-person)
 
