@@ -29,6 +29,10 @@ files are copied and the source assets stay untouched.
 - `fab/Demon Sword` and `fab/Platformer 8 Underworld` have **case-mismatched**
   texture paths (`textures` vs `Textures`) - they load on Windows but **will
   break on Linux/Mac export**. Fix the folder casing before relying on them.
+- `fab/skm_robot` (the Forge Master clerk) **ships without its base-colour
+  texture** (`phong1_Base_color.png` is referenced but missing), so it renders
+  flat white. `hub_structure.gd` paints it gunmetal in code as a workaround; if
+  you want the real look, re-export the FBX with its textures.
 
 ---
 
@@ -38,10 +42,11 @@ The constantly-on-screen actors - biggest visual lift.
 
 | Game slot | Asset | Notes |
 |---|---|---|
-| Auto Rifle viewmodel | Kenney `blaster-m` | `weapons/auto_rifle.tscn` |
-| Shotgun viewmodel | Kenney `blaster-g` | `weapons/shotgun.tscn` |
-| Sniper viewmodel | Kenney `blaster-e` | `weapons/sniper.tscn` |
-| Hand Cannon viewmodel | Kenney `blaster-a` | `weapons/hand_cannon.tscn` |
+| Auto Rifle viewmodel | Quaternius `Gun_Rifle` | `weapons/auto_rifle.tscn` |
+| Shotgun viewmodel | Fab Weapons FREE `shotgun_001` | `weapons/shotgun.tscn` (real pump shotgun) |
+| Sniper viewmodel | Quaternius `Gun_Sniper` | `weapons/sniper.tscn` |
+| Hand Cannon viewmodel | Quaternius `Gun_Revolver` | `weapons/hand_cannon.tscn` |
+| Forge Master clerk | Fab `skm_robot3` | hub vendor stall; painted gunmetal (ships without its texture) |
 | Rusher (melee) | Quaternius `Enemy_QuadShell` | `characters/rusher.tscn` |
 | Shooter (ranged) | Quaternius `Enemy_EyeDrone` | hovering drone, raised 1 m |
 | Exploder (suicide) | Quaternius `Enemy_Trilobite` | scaled down |

@@ -121,7 +121,13 @@ func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var panel := VBoxContainer.new()
-	panel.position = Vector2(16, 156)         # top-left, clear of the HP/shield bars
+	# Left edge, vertically centred - clear of the top-left radar and the
+	# top-centre vitals bar.
+	panel.anchor_top = 0.5
+	panel.anchor_bottom = 0.5
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.offset_left = 20.0
+	panel.offset_top = -70.0
 	panel.add_theme_constant_override("separation", 4)
 	layer.add_child(panel)
 	var title := Label.new()

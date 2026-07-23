@@ -110,23 +110,20 @@ func _build_vendor_stall() -> void:
 	_prop("Prop_Crate", Vector3(-1.6, 0, 12.4), PI, 1.0)
 	_prop("Prop_Crate", Vector3(1.6, 0, 12.4), PI, 1.0)
 
-	# The Forge Master himself: a Fab warrior character behind the counter, with
-	# his name over his head. The model ships as a diorama, so hide its backdrop
-	# planes ("portal") and skull pedestal ("cherep") and keep just the fighter.
-	var clerk_scene := load("res://assets/thirdparty/fab/warrior/gltf/scene.gltf")
+	# The Forge Master himself: the Fab "skm_robot3" mech behind the counter, with
+	# his name over his head, facing the player.
+	var clerk_scene := load("res://assets/thirdparty/fab/skm_robot/skm_robot3_full.fbx")
 	if clerk_scene is PackedScene:
 		var clerk := (clerk_scene as PackedScene).instantiate() as Node3D
 		add_child(clerk)
-		# The model ships as a diorama - hide its backdrop planes ("portal") and
-		# skull pedestal ("cherep") and keep just the fighter. (Textures now bind
-		# after the folder-case fix, so no material override needed.)
-		for m in clerk.find_children("*", "VisualInstance3D", true, false):
-			var nm := String(m.name).to_lower()
-			if nm.contains("portal") or nm.contains("cherep"):
-				(m as Node3D).visible = false
-		clerk.position = Vector3(0, 0.25, 12.2)    # feet on the floor
+		clerk.position = Vector3(0, 0.0, 12.3)     # feet on the floor
 		clerk.rotation.y = PI                      # turn to face the counter/player
-		clerk.scale = Vector3.ONE * 0.95
+		clerk.scale = Vector3.ONE * 1.15           # native model is ~1.8 m tall
+		# The FBX ships without its base-colour texture, so it renders flat white.
+		# Paint it gunmetal so it reads as a proper machine.
+		var mech_mat := _mat(Color(0.34, 0.36, 0.40), 0.9, 0.32)
+		for m in clerk.find_children("*", "MeshInstance3D", true, false):
+			(m as MeshInstance3D).material_override = mech_mat
 
 	# Invisible full-height barrier at the counter, so the player can't jump the
 	# counter and walk into the shop area behind it.
