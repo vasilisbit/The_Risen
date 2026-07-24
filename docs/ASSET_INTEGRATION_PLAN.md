@@ -92,10 +92,12 @@ or not at all.
 
 ## Phase 5 - Sky, planets, holograms (DONE)
 
-- **Hub window planet:** **DONE** - `godot-3d-planet-generator` (MIT) installed
-  at `addons/naejimer_3d_planet_generator`; `hub_planet.gd` shows a real
-  generated planet for the last-visited mission, front-lit by a layer-culled sun
-  so the disc reads bright with detail.
+- **Hub window planet:** **DONE** - shows a detailed planet for the last-visited
+  mission (Earth = oceans/continents/clouds). Uses the project's own self-lit
+  `shaders/planet.gdshader`; the `godot-3d-planet-generator` addon (MIT, still
+  installed at `addons/naejimer_3d_planet_generator`) was tried but its ported
+  clouds shader rendered as a flat wash with specular artifacts at this scale, so
+  the custom shader won. The addon is available for a future dedicated planet view.
 - **Hologram-table planets:** **DONE (as holographic projections)** -
   `hologram_table.gd` keeps its shimmering shader spheres (they read as
   holograms and carry the locked-state labels) and now adds a **holographic
