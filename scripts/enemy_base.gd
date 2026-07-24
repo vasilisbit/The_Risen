@@ -74,7 +74,7 @@ var incoming_element: String = "Kinetic"
 
 ## Shield damage multipliers vs an elemental shield (GDD §2.8).
 const SHIELD_MATCH_MULT := 2.0     # matching element: breaks the shield fast
-const SHIELD_MISMATCH_MULT := 0.35 # off-element / Kinetic: chip damage only
+const SHIELD_MISMATCH_MULT := 0.1  # off-element / Kinetic: chip only, little bleed-through
 
 ## Knockback displacement budget (Ground Slam), spent over PUSH_TIME seconds.
 const PUSH_TIME := 0.3
@@ -386,15 +386,32 @@ func absorb_shield(amount: float) -> float:
 	if elemental_shield <= 0.0 or amount <= 0.0:
 		incoming_element = "Kinetic"
 		return amount
-	var mult := 1.0
-	if shield_element != "Kinetic":
-		mult = SHIELD_MATCH_MULT if incoming_element == shield_element else SHIELD_MISMATCH_MULT
+	var matched := shield_element != "Kinetic" and incoming_element == shield_element
+	var plain := shield_element == "Kinetic"
 	incoming_element = "Kinetic"                 # consume this shot's element
-	var shield_dmg := amount * mult
-	var removed := minf(elemental_shield, shield_dmg)
-	elemental_shield -= removed
-	var raw_spent := removed / mult              # portion of `amount` used on the shield
-	return maxf(0.0, amount - raw_spent)         # remainder passes to health at 1x
+
+	if plain:
+		var rem_p := minf(elemental_shield, amount)
+		elemental_shield -= rem_p
+		return maxf(0.0, amount - rem_p)
+
+	if matched:
+		# Right element: burns the shield fast, remainder passes to health at 1x.
+		var sd := amount * SHIELD_MATCH_MULT
+		var rem := minf(elemental_shield, sd)
+		elemental_shield -= rem
+		return maxf(0.0, amount - rem / SHIELD_MATCH_MULT)
+
+	# Wrong element / Kinetic on an elemental shield: it only chips the shield,
+	# and even when the shield finally breaks most of the shot is wasted, so it
+	# can't one-shot a shielded enemy through its shield - you need the element.
+	var sd_m := amount * SHIELD_MISMATCH_MULT
+	var rem_m := minf(elemental_shield, sd_m)
+	elemental_shield -= rem_m
+	if elemental_shield > 0.0:
+		return 0.0                               # fully absorbed, shield still up
+	var overflow := maxf(0.0, amount - rem_m / SHIELD_MISMATCH_MULT)
+	return overflow * SHIELD_MISMATCH_MULT       # heavily reduced bleed-through
 
 
 ## Positional effect at this enemy (T-0034). No-ops without the autoload, so

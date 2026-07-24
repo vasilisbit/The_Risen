@@ -118,16 +118,16 @@ func _build() -> void:
 ## material so refresh() can dim it for locked worlds.
 func _build_projector(anchor: Node3D) -> StandardMaterial3D:
 	# Local heights (anchor origin is the planet centre). The cone's mouth sits a
-	# little above the planet's equator and flares a touch wider than the planet,
-	# so the sphere nestles down INSIDE the cone (cupped like a ball in a cup)
-	# rather than perching on top of it.
-	var top_y := PLANET_RADIUS * 0.35           # cone mouth just above the equator
+	# little BELOW the planet's equator and is slightly narrower than the planet,
+	# so the sphere seats down into the cone like a ball in a cup - its widest
+	# point rests on the rim rather than the whole sphere perching on top.
+	var top_y := -PLANET_RADIUS * 0.3           # cone mouth just below the equator
 	var bot_y := TABLE_TOP_Y - PLANET_Y         # beam base sits on the table top
 	var beam_h: float = top_y - bot_y
 
 	var cone := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
-	cm.top_radius = PLANET_RADIUS * 1.12        # a touch wider so the sphere sits inside
+	cm.top_radius = PLANET_RADIUS * 0.95        # a touch smaller so the ball seats in the cup
 	cm.bottom_radius = 0.05                     # narrow at the emitter
 	cm.height = beam_h
 	cm.radial_segments = 28
