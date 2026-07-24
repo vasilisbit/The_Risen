@@ -573,19 +573,16 @@ func _apply_combat_mode() -> void:
 		crosshair.visible = true
 
 
-## Phase 3: build the animated third-person body, pull the camera back to
-## over-the-shoulder, and holster the first-person viewmodel (the character body
-## is shown now). Aiming/firing still runs off the centre-screen camera ray.
+## Phase 3: build the animated Guardian body. The camera stays FIRST PERSON (it
+## reads better), so the body is rendered shadows-only: it still animates with
+## movement and casts a real self-shadow, but its geometry never draws into the
+## camera sitting inside its head. The gun in view remains the FPS viewmodel.
 func _build_character() -> void:
 	_character = Node3D.new()
 	_character.name = "PlayerCharacter"
 	_character.set_script(load("res://scripts/player_character.gd"))
 	_character.rotation.y = PI                 # face the body's forward (-Z)
 	add_child(_character)
-	_spring_arm.spring_length = 4.2            # third-person distance
-	var viewmodel := _spring_arm.get_node_or_null("Camera3D/WeaponViewmodel") as Node3D
-	if viewmodel:
-		viewmodel.visible = false
 
 
 ## Feed the character its horizontal speed so it picks idle / walk / run.
