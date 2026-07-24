@@ -70,21 +70,26 @@ existing collision boxes (keep the code-generated collision).
 | **Venus** volcano | `fab/rock_collection_04` (material-overridden volcanic) | **ascent cover DONE**; `fab/Inferno World` terrain + trees still optional |
 | **Loot pickups** | small `Prop_Chest` with a rarity beacon | **DONE** (chests replaced the coloured boxes) |
 
-## Phase 3 - Player character (third-person) - STARTED
+## Phase 3 - Player character - STARTED (FIRST PERSON)
 
-**Done:** `player_character.gd` shows the Quaternius Superhero as the Guardian,
-driven by the Universal Animation Library (UAL1 `Idle`/`Walk`/`Sprint`). The
-Superhero and UAL share the same 65-bone `Armature/Skeleton3D` rig with matching
-track paths, so the clips retarget with **no bone mapping** - just add the
-library and set the AnimationPlayer `root_node` to the hero. The Guardian is now
-over-the-shoulder third-person with the FPS viewmodel holstered.
+**The camera is first person** - the user tried the over-the-shoulder view and
+first person reads better. The rigged body still exists, rendered shadows-only.
 
-**Still to do:** gun-in-hand (attach a weapon to the `hand_r` bone) + aim/fire
-clips (`Pistol_Idle` etc.), jump animation, smooth character turning, armour over
-the bare CC0 base mesh, and a proper `AnimationTree` blend + third-person combat
-tuning (aim origin, projectile spawn from the character).
+**Done:** `player_character.gd` drives the Quaternius Superhero with the
+Universal Animation Library (UAL1 `Idle`/`Walk`/`Sprint`). The Superhero and UAL
+share the same 65-bone `Armature/Skeleton3D` rig with matching track paths, so
+the clips retarget with **no bone mapping** - just add the library and set the
+AnimationPlayer `root_node` to the hero. The body renders
+`SHADOW_CASTING_SETTING_SHADOWS_ONLY`, so it animates and casts a real
+self-shadow without drawing into the first-person camera.
+`set_body_visible(true)` switches it to a normal draw for third person/cutscenes.
 
-Replace the capsule player with a rigged, animated character.
+**Still to do (highest value first in a first-person game):**
+- **FPS arms holding the gun** - the viewmodel is still a floating hands-free
+  weapon; rig arms (or a gun-with-hands model) so it looks held.
+- Jump / land animation on the body (affects the shadow).
+- Armour over the bare CC0 base mesh.
+- `AnimationTree` blend instead of `play()` cross-fades, if the state count grows.
 
 - **Model:** Quaternius `Universal Base Characters` (`Superhero_Male/Female_FullBody.gltf`) - fits a Guardian.
 - **Animations:** Quaternius `Universal Animation Library` 1 & 2 (`UAL2_Standard.glb`) retargeted to the base character; or `fab/Pistol and Rifle Locomotion Animations 1700` and the `fab/motifect_locomotion` set for gun-holding locomotion.
