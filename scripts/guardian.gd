@@ -90,6 +90,7 @@ var _spawn_point: Vector3
 var _death_screen: CanvasLayer
 var _ability_hud: Control
 var _weapon_hud: Control
+var _character: Node3D          # Phase 3 animated third-person body
 
 ## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
 ## is a social space, and a rifle pointed at the vendor reads badly.
@@ -122,6 +123,7 @@ func _ready() -> void:
 	if sm and sm.has_signal("loadout_changed"):
 		sm.loadout_changed.connect(refresh_armor_bonus)
 	_apply_combat_mode()
+	_build_character()
 	health = max_hp()          # spawn at full, including the Support bonus
 	health_changed.emit(health, max_hp())
 	shield_changed.emit(shield, MAX_SHIELD)
@@ -196,6 +198,7 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	_tick_footsteps(delta)
+	_update_character()
 
 	# Pushes (Venus wind gusts, boss slams) are a displacement budget, applied
 	# AFTER move_and_slide as real motion rather than added to velocity. Going
@@ -568,6 +571,27 @@ func _apply_combat_mode() -> void:
 	var crosshair := get_node_or_null("DebugHUD/Crosshair") as Control
 	if crosshair:
 		crosshair.visible = true
+
+
+## Phase 3: build the animated third-person body, pull the camera back to
+## over-the-shoulder, and holster the first-person viewmodel (the character body
+## is shown now). Aiming/firing still runs off the centre-screen camera ray.
+func _build_character() -> void:
+	_character = Node3D.new()
+	_character.name = "PlayerCharacter"
+	_character.set_script(load("res://scripts/player_character.gd"))
+	_character.rotation.y = PI                 # face the body's forward (-Z)
+	add_child(_character)
+	_spring_arm.spring_length = 4.2            # third-person distance
+	var viewmodel := _spring_arm.get_node_or_null("Camera3D/WeaponViewmodel") as Node3D
+	if viewmodel:
+		viewmodel.visible = false
+
+
+## Feed the character its horizontal speed so it picks idle / walk / run.
+func _update_character() -> void:
+	if _character and _character.has_method("set_speed"):
+		_character.set_speed(Vector2(velocity.x, velocity.z).length())
 
 
 func _build_death_screen() -> void:
