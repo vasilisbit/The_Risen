@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenembertyrant01"]
+
+; Ember Tyrant (Venus final boss) = Fab "monster" (Monster UE). Auto-loaded by
+; EnemyBase._apply_external_model for the EmberTyrant class. The inner transform
+; normalises the FBX's native size/facing (model must face -Z); the tyrant is a
+; large boss so it is scaled up relative to the regular enemies.
+
+[ext_resource type="PackedScene" uid="uid://cf6xtxs7qpjt7" path="res://assets/thirdparty/fab/monster/Monster UE.fbx" id="1_model"]
+
+[node name="EmberTyrantModel" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(2.0, 0, 0, 0, 2.0, 0, 0, 0, 2.0, 0, 0, 0)

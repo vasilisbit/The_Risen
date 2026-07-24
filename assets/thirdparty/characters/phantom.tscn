@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenphantom01"]
+
+; Teleporting Phantom (Mars mini-boss) = Fab "ghoul_stylized_monster" (ghoul_ue5).
+; Auto-loaded by EnemyBase._apply_external_model for the Phantom class. The inner
+; transform normalises the FBX's native size/facing (model must face -Z).
+
+[ext_resource type="PackedScene" uid="uid://cpqfx8f6ul6hi" path="res://assets/thirdparty/fab/ghoul_stylized_monster/ghoul_ue5.fbx" id="1_model"]
+
+[node name="PhantomModel" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 0, 0, 0)
