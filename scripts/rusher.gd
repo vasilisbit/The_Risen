@@ -77,5 +77,6 @@ func _chase() -> void:
 
 func _do_melee() -> void:
 	_attack_timer = ATTACK_COOLDOWN
+	play_attack_animation()
 	if _player and _player.has_method("take_damage"):
 		_player.take_damage(MELEE_DAMAGE, "Rusher")

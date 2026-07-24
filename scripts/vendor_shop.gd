@@ -552,7 +552,7 @@ func _build_backdrop() -> Control:
 	if robot_scene is PackedScene:
 		var robot := (robot_scene as PackedScene).instantiate() as Node3D
 		robot.scale = Vector3.ONE * 1.15
-		robot.position = Vector3(-1.78, -0.1, -0.9)
+		robot.position = Vector3(-1.82, -0.1, -0.9)
 		robot.rotation.y = PI - 0.55                 # face 3/4 toward the camera
 		var mech_mat := StandardMaterial3D.new()
 		mech_mat.albedo_color = Color(0.34, 0.36, 0.40)
@@ -563,11 +563,11 @@ func _build_backdrop() -> Control:
 		vp.add_child(robot)
 
 	var cam := Camera3D.new()
-	cam.fov = 42.0
+	cam.fov = 38.0
 	vp.add_child(cam)
 	# Zoomed in on the robot at the left, so the counter's side edges fall
 	# outside the frame and it reads as an endless stall wall.
-	cam.look_at_from_position(Vector3(0.1, 1.5, 2.6), Vector3(-1.15, 1.35, -0.9), Vector3.UP)
+	cam.look_at_from_position(Vector3(0.0, 1.5, 2.15), Vector3(-1.2, 1.4, -0.9), Vector3.UP)
 	return vc
 
 

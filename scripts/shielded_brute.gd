@@ -98,6 +98,7 @@ func _chase() -> void:
 
 func _melee() -> void:
 	_melee_timer = MELEE_COOLDOWN
+	play_attack_animation()
 	if _player and _player.has_method("take_damage"):
 		_player.take_damage(MELEE_DAMAGE, "ShieldedBrute")
 
@@ -177,22 +178,11 @@ func _spawn_adds() -> void:
 		r.global_position = global_position + Vector3(cos(ang) * 3.0, 1.0, sin(ang) * 3.0)
 
 
+## The shield telegraph is now the shared blue outline built by the nameplate
+## (a silhouette of the Brute), so no separate shield bubble is created here.
+## `_shield_vfx` stays null and the guarded references below simply no-op.
 func _build_shield_vfx() -> void:
-	_shield_vfx = MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 1.6
-	sphere.height = 3.2
-	_shield_vfx.mesh = sphere
-	_shield_vfx.position = Vector3(0, 1.5, 0)
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.2, 0.5, 1.0, 0.25)
-	m.emission_enabled = true
-	m.emission = Color(0.3, 0.6, 1.0)
-	m.emission_energy_multiplier = 1.2
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_shield_vfx.material_override = m
-	add_child(_shield_vfx)
+	pass
 	_update_shield_vfx()
 
 
