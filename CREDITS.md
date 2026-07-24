@@ -15,7 +15,9 @@ CC0 assets need no attribution but are listed here for provenance.
 | skm_robot3 | Fab | Fab (free, commercial-safe) | Forge Master vendor clerk (hub) + the vendor screen portrait. Ships without its base-colour texture, so it is painted gunmetal in code |
 | Universal Base Characters (`Superhero_Male_FullBody`) | Quaternius | CC0 | Guardian model shown in the inventory screen (placeholder until the Phase-3 rig) |
 | rock_collection_04 (`SM_Rock_*`) | Fab | Fab (free, commercial-safe) | Venus ascent rock cover; material-overridden to volcanic rock |
-| 3D Planet Generator | Rémi / naejimer (github) | MIT | Generated planet shown out the hub cockpit window (installed at `addons/naejimer_3d_planet_generator`) |
+| 3D Planet Generator | Rémi / naejimer (github) | MIT | Installed at `addons/naejimer_3d_planet_generator` (tried for the window planet; currently the custom shader is used) |
+| ghoul_stylized_monster | Fab | Fab (free, commercial-safe) | Teleporting Phantom boss model (Mars) |
+| monster (Monster UE) | Fab | Fab (free, commercial-safe) | Ember Tyrant final boss model (Venus) |
 | Blaster Kit | Kenney (kenney.nl) | CC0 | (available, no longer wired - replaced by Sci-Fi Essentials guns) |
 | _(planned)_ KayKit Space Base Bits | Kay Lousberg (kaylousberg.itch.io) | CC0 | Larger station structures (Phase 2 cont.) |
 | _(planned)_ Universal Base Characters + Animation Library | Quaternius | CC0 | Player character (Phase 3) |
