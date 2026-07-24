@@ -66,8 +66,8 @@ func rebuild() -> void:
 		w.state_changed.connect(_update_hud)
 		_weapons.append(w)
 	# Give the viewmodel the starting weapon's silhouette.
-	if _viewmodel and _viewmodel.has_method("set_weapon") and not _weapons.is_empty():
-		_viewmodel.set_weapon(_weapons[_active].weapon_name)
+	if not _weapons.is_empty():
+		_show_weapon(_weapons[_active].weapon_name)
 	_update_hud()
 
 
@@ -112,9 +112,26 @@ func _switch(index: int) -> void:
 		return
 	active_weapon().cancel_reload()      # switching cancels an in-progress reload
 	_active = index
-	if _viewmodel and _viewmodel.has_method("set_weapon"):
-		_viewmodel.set_weapon(active_weapon().weapon_name)
+	_show_weapon(active_weapon().weapon_name)
 	_update_hud()
+
+
+## Re-push the equipped weapon into the viewmodel and the character's hand.
+## Called by the Guardian once its character body exists (this node's _ready runs
+## first, so the hand attachment does not exist yet at that point).
+func refresh_weapon_visual() -> void:
+	if not _weapons.is_empty():
+		_show_weapon(active_weapon().weapon_name)
+
+
+## Point both the camera viewmodel and the character's hand at this weapon, so
+## whichever one is being drawn shows the right gun.
+func _show_weapon(name_: String) -> void:
+	if _viewmodel and _viewmodel.has_method("set_weapon"):
+		_viewmodel.set_weapon(name_)
+	var character := get_parent().get_node_or_null("PlayerCharacter")
+	if character and character.has_method("set_weapon"):
+		character.set_weapon(name_)
 
 
 func _fire() -> void:
