@@ -101,6 +101,11 @@ func _ready() -> void:
 ## (forward) and stand ~1.8 m; pre-orient it in the import if not. The capsule
 ## collision is untouched - the model is visual only. Dormant until a file
 ## exists, so nothing changes today (mirrors the weapon pipeline).
+var _model_anim: AnimationPlayer
+var _walk_anim: String = ""
+var _idle_anim: String = ""
+
+
 func _apply_external_model() -> void:
 	var base := "res://assets/thirdparty/characters/" + _to_snake(_enemy_type_name())
 	for ext in ["glb", "gltf", "tscn", "scn"]:
@@ -108,11 +113,75 @@ func _apply_external_model() -> void:
 		if ResourceLoader.exists(path):
 			var res := load(path)
 			if res is PackedScene:
-				add_child((res as PackedScene).instantiate())
+				var inst := (res as PackedScene).instantiate() as Node3D
+				add_child(inst)
 				var placeholder := get_node_or_null("Mesh")
 				if placeholder is Node3D:
 					(placeholder as Node3D).visible = false
+				_apply_model_tint(inst)
+				_wire_model_animation(inst)
 				return
+
+
+## Some models (Fab FBX) ship without their textures and render flat white; a
+## subclass can return a material to paint them so they read intentionally
+## (e.g. the Ember Tyrant charred, the Phantom spectral). Default: keep the
+## model's own materials (the Quaternius kit is textured).
+func external_model_tint() -> Material:
+	return null
+
+
+func _apply_model_tint(inst: Node3D) -> void:
+	var mat := external_model_tint()
+	if mat == null:
+		return
+	for m in inst.find_children("*", "MeshInstance3D", true, false):
+		(m as MeshInstance3D).material_override = mat
+
+
+## Phase 1.5: drive the model's own walk/idle clips off the enemy's movement. The
+## animation names vary per kit, so match them case-insensitively; enemies whose
+## model has no AnimationPlayer (or no matching clip) just stay in their pose.
+func _wire_model_animation(inst: Node3D) -> void:
+	var players := inst.find_children("*", "AnimationPlayer", true, false)
+	if players.is_empty():
+		return
+	_model_anim = players[0] as AnimationPlayer
+	for anim_name in _model_anim.get_animation_list():
+		var l := anim_name.to_lower()
+		if _walk_anim == "" and (l.contains("walk") or l.contains("run") or l.contains("move")):
+			_walk_anim = anim_name
+		if _idle_anim == "" and l.contains("idle"):
+			_idle_anim = anim_name
+	for n in [_walk_anim, _idle_anim]:
+		if n != "" and _model_anim.has_animation(n):
+			_model_anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+	var start := _idle_anim if _idle_anim != "" else _walk_anim
+	if start != "":
+		_model_anim.play(start)
+
+
+func _process(_delta: float) -> void:
+	if _model_anim == null:
+		return
+	var moving := Vector2(velocity.x, velocity.z).length() > 0.6
+	var want := _walk_anim if (moving and _walk_anim != "") else _idle_anim
+	if want == "":
+		want = _walk_anim
+	if want != "" and _model_anim.current_animation != want:
+		_model_anim.play(want)
+
+
+## Play a one-shot attack clip if the model has one (returns to walk/idle after).
+## Enemies call this when they strike; a no-op if there's no attack animation.
+func play_attack_animation() -> void:
+	if _model_anim == null:
+		return
+	for anim_name in _model_anim.get_animation_list():
+		var l := anim_name.to_lower()
+		if l.contains("attack") or l.contains("hit") or l.contains("bite") or l.contains("punch"):
+			_model_anim.play(anim_name)
+			return
 
 
 ## "ShieldedBrute" -> "shielded_brute", matching the scene file names.

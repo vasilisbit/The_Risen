@@ -326,12 +326,19 @@ func _make_sell_row(item: Dictionary, category: String) -> PanelContainer:
 	info.add_child(name_label)
 
 	var value := int(_sm.sell_value(item))
+	var id: String = String(item.get("id", ""))
+	var equipped: bool = _sm.is_weapon_equipped(id) if category == "weapon" else _sm.is_armor_equipped(id)
 	var sell_btn := Button.new()
-	sell_btn.text = "Sell (%d)" % value
 	sell_btn.custom_minimum_size = Vector2(140, 0)
 	sell_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var id: String = String(item.get("id", ""))
-	sell_btn.pressed.connect(func() -> void: _sell(id, category))
+	if equipped:
+		# Equipped gear can't be sold - unequip it in the inventory first.
+		sell_btn.text = "Equipped"
+		sell_btn.disabled = true
+		sell_btn.tooltip_text = "Unequip this in the inventory before selling it."
+	else:
+		sell_btn.text = "Sell (%d)" % value
+		sell_btn.pressed.connect(func() -> void: _sell(id, category))
 	row.add_child(sell_btn)
 	return row_panel
 
@@ -545,7 +552,7 @@ func _build_backdrop() -> Control:
 	if robot_scene is PackedScene:
 		var robot := (robot_scene as PackedScene).instantiate() as Node3D
 		robot.scale = Vector3.ONE * 1.15
-		robot.position = Vector3(-1.6, -0.1, -0.9)
+		robot.position = Vector3(-1.78, -0.1, -0.9)
 		robot.rotation.y = PI - 0.55                 # face 3/4 toward the camera
 		var mech_mat := StandardMaterial3D.new()
 		mech_mat.albedo_color = Color(0.34, 0.36, 0.40)

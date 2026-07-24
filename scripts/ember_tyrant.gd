@@ -93,6 +93,19 @@ func nameplate_tier() -> String:
 	return "boss"
 
 
+## The monster FBX ships without textures (renders pale), so paint it as a
+## charred, ember-lit tyrant.
+func external_model_tint() -> Material:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.16, 0.06, 0.05)
+	mat.metallic = 0.2
+	mat.roughness = 0.55
+	mat.emission_enabled = true
+	mat.emission = Color(0.9, 0.25, 0.05)
+	mat.emission_energy_multiplier = 0.9
+	return mat
+
+
 func nameplate_head_y() -> float:
 	return 4.7
 

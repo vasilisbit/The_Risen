@@ -31,6 +31,19 @@ func _init() -> void:
 	flux_value = 75
 
 
+## The ghoul FBX ships without textures; paint it a spectral, emissive purple so
+## the Phantom reads as its GDD description.
+func external_model_tint() -> Material:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.28, 0.12, 0.45)
+	mat.metallic = 0.1
+	mat.roughness = 0.5
+	mat.emission_enabled = true
+	mat.emission = Color(0.55, 0.25, 0.95)
+	mat.emission_energy_multiplier = 0.8
+	return mat
+
+
 func _ready() -> void:
 	super._ready()
 	add_to_group("boss")
