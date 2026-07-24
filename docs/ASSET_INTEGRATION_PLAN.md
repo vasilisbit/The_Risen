@@ -84,12 +84,24 @@ AnimationPlayer `root_node` to the hero. The body renders
 self-shadow without drawing into the first-person camera.
 `set_body_visible(true)` switches it to a normal draw for third person/cutscenes.
 
-**Still to do (highest value first in a first-person game):**
-- **FPS arms holding the gun** - the viewmodel is still a floating hands-free
-  weapon; rig arms (or a gun-with-hands model) so it looks held.
-- Jump / land animation on the body (affects the shadow).
-- Armour over the bare CC0 base mesh.
-- `AnimationTree` blend instead of `play()` cross-fades, if the state count grows.
+**TRUE first-person body (done):** the body is drawn, not shadows-only - look
+down and you see your chest, hips and legs. The rifle is held in the character's
+hand (`BoneAttachment3D` on `hand_r`), fed by `WeaponManager._show_weapon`. The
+head bone is collapsed each frame (camera is inside the head) and an upper-spine
+aim offset tilts the chest with the camera pitch. Animation comes from the Fab
+rifle loops - a UEFN-mannequin pack, but 51/75 animated bones match the Superhero
+by name (misses are IK/twist helpers only), so the clips drive this rig.
+
+**Still to do:**
+- **Raise the gun into the forward view.** The rifle clips are a *low-ready carry*
+  pose: the gun sits ~0.5 m below the eye line, so it is visible looking down but
+  out of frame looking straight ahead. Needs a **shouldered aim pose** (this pack
+  ships none - only carry loops and aim-offset blend data) or arm IK. A
+  procedural upper-arm lift was tried and made the pose worse; it was removed.
+  Interim option: re-enable the camera viewmodel for the forward view.
+- Jump / land animation, strafe + backward loops (the pack has `Walk_Loop_B/L/R`).
+- Armour over the bare CC0 base mesh - it is currently an unclothed superhero.
+- `AnimationTree` blend instead of `play()` cross-fades once states grow.
 
 - **Model:** Quaternius `Universal Base Characters` (`Superhero_Male/Female_FullBody.gltf`) - fits a Guardian.
 - **Animations:** Quaternius `Universal Animation Library` 1 & 2 (`UAL2_Standard.glb`) retargeted to the base character; or `fab/Pistol and Rifle Locomotion Animations 1700` and the `fab/motifect_locomotion` set for gun-holding locomotion.
