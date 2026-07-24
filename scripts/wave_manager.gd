@@ -281,10 +281,13 @@ func _build_ui() -> void:
 	add_child(layer)
 	_label = Label.new()
 	_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_label.position = Vector2(-160, 14)
-	_label.custom_minimum_size = Vector2(320, 0)
+	# Sit below the top-centre health/shield bar so the two don't overlap.
+	_label.position = Vector2(-190, 92)
+	_label.custom_minimum_size = Vector2(380, 0)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.add_theme_font_size_override("font_size", 22)
+	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_label.add_theme_constant_override("outline_size", 6)
 	layer.add_child(_label)
 
 

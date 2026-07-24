@@ -393,19 +393,13 @@ func sell_weapon(id: String) -> int:
 	var item := weapon_by_id(id)
 	if item.is_empty():
 		return -1
+	# Equipped gear can't be sold - unequip it in the inventory first.
+	if is_weapon_equipped(id):
+		return -1
 	var owned: Array = data.get("owned_weapons", [])
 	if owned.size() <= 1:
 		return -1
 	var value := sell_value(item)
-	var equipped: Array = data.get("equipped_weapons", [])
-	if equipped.has(id):
-		equipped.erase(id)
-		if equipped.is_empty():
-			for w in owned:
-				if w.get("id", "") != id:
-					equipped.append(w.get("id", ""))
-					break
-		data["equipped_weapons"] = equipped
 	data["owned_weapons"] = owned.filter(func(w: Dictionary) -> bool: return w.get("id", "") != id)
 	add_flux(value)
 	save_game()
@@ -419,12 +413,10 @@ func sell_armor(id: String) -> int:
 	var item := armor_by_id(id)
 	if item.is_empty():
 		return -1
+	# Equipped gear can't be sold - unequip it in the inventory first.
+	if is_armor_equipped(id):
+		return -1
 	var value := sell_value(item)
-	var eq: Dictionary = data.get("equipped_armor", {})
-	for slot in eq.keys():
-		if eq[slot] == id:
-			eq.erase(slot)
-	data["equipped_armor"] = eq
 	data["owned_armor"] = (data.get("owned_armor", []) as Array).filter(
 		func(a: Dictionary) -> bool: return a.get("id", "") != id)
 	add_flux(value)

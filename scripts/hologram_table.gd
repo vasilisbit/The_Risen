@@ -34,7 +34,7 @@ const LABEL_HEIGHT := 0.6
 const LABEL_SIZE := 0.11
 ## Table top surface height (Base is 0.85 tall) and each planet's world height.
 const TABLE_TOP_Y := 0.85
-const PLANET_Y := 1.75           # lowered to about eye level
+const PLANET_Y := 1.95           # about eye level, sitting in the cone mouth
 const PLANET_RADIUS := 0.35
 
 var _materials: Dictionary = {}          # mission -> ShaderMaterial
@@ -117,11 +117,11 @@ func _build() -> void:
 ## whose origin is the planet centre at world y = PLANET_Y. Returns the beam
 ## material so refresh() can dim it for locked worlds.
 func _build_projector(anchor: Node3D) -> StandardMaterial3D:
-	# Local heights (anchor origin is the planet centre). The cone rises to the
-	# planet's equator and flares to exactly the planet's radius, so the planet
-	# sits in the cone's mouth and hugs it.
-	var top_y := 0.0                           # cone top at the planet centre
-	var bot_y := TABLE_TOP_Y - PLANET_Y        # beam base sits on the table top
+	# Local heights (anchor origin is the planet centre). The cone's mouth meets
+	# the planet's underside and flares to the planet's radius, so the sphere is
+	# cupped in the mouth and never pokes out through the cone's side.
+	var top_y := -PLANET_RADIUS                 # cone mouth at the planet's bottom
+	var bot_y := TABLE_TOP_Y - PLANET_Y         # beam base sits on the table top
 	var beam_h: float = top_y - bot_y
 
 	var cone := MeshInstance3D.new()

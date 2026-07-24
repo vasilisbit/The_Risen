@@ -33,9 +33,9 @@ const CAVERN_HALF_WIDTH := 12.0
 
 # --- Section 3: Boss Arena ---
 const ARENA_CENTER := Vector3(0, 0, -420)
-const ARENA_RADIUS := 15.0              # 30 m diameter
-const WEAK_POINT_RADIUS := 5.0          # GDD: 5 m from boss centre
-const ERUPTION_RADIUS := 9.0            # 8 possible eruption sites (T-0021 phase C)
+const ARENA_RADIUS := 24.0              # 48 m diameter (enlarged boss arena)
+const WEAK_POINT_RADIUS := 9.0          # spread across the enlarged arena
+const ERUPTION_RADIUS := 17.0           # 8 possible eruption sites (T-0021 phase C)
 
 var _y_summit: float = 0.0
 var _z_cavern_start: float = 0.0
@@ -277,10 +277,10 @@ func _build_arena() -> void:
 	# Surrounding lava moat: anything off the platform is lava.
 	_panel(ARENA_CENTER + Vector3(0, -3.0, 0), Vector3(90, 1, 90), _lava)
 	_lava_area(ARENA_CENTER + Vector3(0, -2.5, 0), Vector3(90, 3, 90))
-	_checkpoint(ARENA_CENTER + Vector3(0, 1.5, 10.0), Vector3(10, 3, 4))
+	_checkpoint(ARENA_CENTER + Vector3(0, 1.5, 19.0), Vector3(12, 3, 4))
 
 	_marker(ARENA_CENTER + Vector3(0, 1.0, 0), "boss_spawn")
-	_marker(ARENA_CENTER + Vector3(0, 1.0, 12.0), "arena_entry")
+	_marker(ARENA_CENTER + Vector3(0, 1.0, 21.0), "arena_entry")
 
 	# 4 destructible-crystal sites at the cardinal points (T-0021 phase B).
 	var cardinals := [Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(-1, 0, 0)]
