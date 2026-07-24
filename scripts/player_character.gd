@@ -1,15 +1,23 @@
 extends Node3D
-## Animated third-person Guardian body (Phase 3). The Quaternius Superhero mesh
-## driven by the Universal Animation Library - both share the same 65-bone
-## "Armature/Skeleton3D" rig, so the UAL clips retarget onto the hero with no
-## bone mapping (just add the library and point root_node at the hero). Plays
-## idle / walk / run off the horizontal speed the Guardian feeds it each frame.
+## Animated Guardian body (Phase 3). The Quaternius Superhero mesh driven by the
+## Universal Animation Library - both share the same 65-bone "Armature/Skeleton3D"
+## rig, so the UAL clips retarget onto the hero with no bone mapping (just add the
+## library and point root_node at the hero). Plays idle / walk / run off the
+## horizontal speed the Guardian feeds it each frame.
+##
+## The camera is first person, so the body renders SHADOWS ONLY (`shadows_only`):
+## it animates and casts a real self-shadow you can see on the ground beside you,
+## but its geometry never draws into a camera sitting inside its head. Flip
+## `body_visible` to true for a third-person view or a cutscene.
 
 const MODEL := "res://assets/thirdparty/Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf"
 const ANIMS := "res://assets/thirdparty/Universal Animation Library[Standard]/Unreal-Godot/UAL1_Standard.glb"
 
 const WALK_SPEED := 0.4      # above this = walk
 const RUN_SPEED := 4.8       # above this = sprint
+
+## Draw the body itself (third person). False = shadows only, for first person.
+@export var body_visible: bool = false
 
 var _anim: AnimationPlayer
 var _current: String = ""
@@ -21,6 +29,7 @@ func _ready() -> void:
 		return
 	var hero := (hero_scene as PackedScene).instantiate() as Node3D
 	add_child(hero)
+	set_body_visible(body_visible)
 
 	# Pull the UAL animation library and drive the hero's skeleton with it.
 	var ual_scene: Resource = load(ANIMS)
@@ -47,6 +56,15 @@ func _play(anim: String) -> void:
 	if _current != key and _anim.has_animation(key):
 		_anim.play(key, 0.15)                          # short cross-fade between states
 		_current = key
+
+
+## Show the body normally (third person) or as shadows only (first person).
+func set_body_visible(shown: bool) -> void:
+	body_visible = shown
+	var mode := (GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shown
+		else GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+	for m in find_children("*", "GeometryInstance3D", true, false):
+		(m as GeometryInstance3D).cast_shadow = mode
 
 
 ## Drive the locomotion state from the Guardian's horizontal speed.
