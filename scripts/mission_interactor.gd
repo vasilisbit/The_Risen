@@ -23,28 +23,62 @@ const MISSION_SCENES := {
 var _prompt: Label
 
 
+func _ready() -> void:
+	# Register a hit even when the ray starts inside a body, so standing right
+	# against the Forge Master's box (you can now walk up to the counter) still
+	# counts as looking at it.
+	hit_from_inside = true
+
+
 func _physics_process(_delta: float) -> void:
-	# Show a "what to do" prompt whenever the crosshair is on an interactable.
+	# Show a "what to do" prompt whenever an interactable is targeted.
 	if _prompt == null or not is_instance_valid(_prompt):
 		_prompt = get_tree().get_first_node_in_group("interact_prompt") as Label
 	if _prompt == null:
 		return
-	force_raycast_update()
+	var target := _current_target()
 	var text := ""
-	if is_colliding() and _within_range():
-		var target := get_collider()
-		if target and target.is_in_group("vendor"):
+	if target:
+		if target.is_in_group("vendor"):
 			text = "[E]  Forge Master  -  buy, mod and sell gear"
-		elif target and target.is_in_group("mission_sphere"):
-			var mission := String(target.name).trim_suffix("Sphere")
-			text = "[E]  Deploy to %s" % mission
+		elif target.is_in_group("mission_sphere"):
+			text = "[E]  Deploy to %s" % String(target.name).trim_suffix("Sphere")
 	_prompt.text = text
 	_prompt.visible = text != ""
+
+
+## The interactable being targeted, or null. Prefers what the crosshair ray hits
+## within range; falls back to a vendor you are standing next to and facing (the
+## ray can clear or start inside its body at point-blank range).
+func _current_target() -> Node:
+	force_raycast_update()
+	if is_colliding() and _within_range():
+		var hit := get_collider()
+		if hit and (hit.is_in_group("vendor") or hit.is_in_group("mission_sphere")):
+			return hit
+	var vendor := get_tree().get_first_node_in_group("vendor")
+	if vendor is Node3D and _near_and_facing(vendor as Node3D):
+		return vendor
+	return null
 
 
 ## True when the thing under the crosshair is close enough to interact with.
 func _within_range() -> bool:
 	return global_position.distance_to(get_collision_point()) <= INTERACT_RANGE
+
+
+## Within reach on the floor plane and roughly faced (used for the point-blank
+## vendor fallback, ignoring the height difference to the body's origin).
+func _near_and_facing(node: Node3D) -> bool:
+	var flat := Vector3(node.global_position.x - global_position.x, 0.0,
+		node.global_position.z - global_position.z)
+	if flat.length() > INTERACT_RANGE:
+		return false
+	var fwd := -global_transform.basis.z
+	var flat_fwd := Vector3(fwd.x, 0.0, fwd.z)
+	if flat_fwd.length() < 0.01 or flat.length() < 0.01:
+		return true
+	return flat_fwd.normalized().dot(flat.normalized()) > 0.35
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -54,12 +88,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		try_interact()
 
 
-## Force-update the ray and act on the target under the crosshair.
+## Act on the targeted interactable.
 func try_interact() -> void:
-	force_raycast_update()
-	if not is_colliding() or not _within_range():
-		return
-	var target := get_collider()
+	var target := _current_target()
 	if target == null:
 		return
 	if target.is_in_group("vendor"):
