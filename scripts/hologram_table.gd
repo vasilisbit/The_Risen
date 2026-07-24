@@ -29,9 +29,13 @@ const PLANETS := {
 const LOCKED_BRIGHTNESS := 0.35
 const UNLOCKED_BRIGHTNESS := 1.0
 
-## Label sits just above each sphere (spheres are radius 0.25 at y = 1.5).
-const LABEL_HEIGHT := 0.42
-const LABEL_SIZE := 0.10
+## Label sits just above each floating planet (radius 0.35 at y = 2.2).
+const LABEL_HEIGHT := 0.6
+const LABEL_SIZE := 0.11
+## Table top surface height (Base is 0.85 tall) and each planet's world height.
+const TABLE_TOP_Y := 0.85
+const PLANET_Y := 2.2
+const PLANET_RADIUS := 0.35
 
 var _materials: Dictionary = {}          # mission -> ShaderMaterial
 var _labels: Dictionary = {}             # mission -> Label3D
@@ -86,6 +90,7 @@ func _build() -> void:
 	if shader == null:
 		push_warning("HologramTable: %s missing" % SHADER)
 		return
+	_build_console()
 	for mission in PLANETS:
 		var info: Dictionary = PLANETS[mission]
 		var mesh := get_node_or_null("%s/Mesh" % info["node"]) as MeshInstance3D
@@ -106,30 +111,92 @@ func _build() -> void:
 		_projectors[mission] = _build_projector(anchor)
 
 
-## A translucent additive cone rising from the table base up to a projection, so
-## each planet reads as a hologram beamed from the table. Returns its material so
-## refresh() can dim it for locked worlds.
+## A projector beam under each planet: a glowing emitter on the table surface and
+## a translucent cone of light widening up toward the planet, which floats just
+## ABOVE the beam's tip (not inside it). Built as children of the planet anchor,
+## whose origin is the planet centre at world y = PLANET_Y. Returns the beam
+## material so refresh() can dim it for locked worlds.
 func _build_projector(anchor: Node3D) -> StandardMaterial3D:
+	# Local heights (anchor origin is the planet centre).
+	var top_y := -PLANET_RADIUS - 0.06        # beam stops just below the planet
+	var bot_y := TABLE_TOP_Y - PLANET_Y       # beam base sits on the table top
+	var beam_h: float = top_y - bot_y
+
 	var cone := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
-	cm.top_radius = 0.30            # wide at the planet
-	cm.bottom_radius = 0.04         # narrow at the emitter
-	cm.height = 0.5
-	cm.radial_segments = 24
+	cm.top_radius = PLANET_RADIUS * 0.9        # wide just under the planet
+	cm.bottom_radius = 0.05                     # narrow at the emitter
+	cm.height = beam_h
+	cm.radial_segments = 28
 	cone.mesh = cm
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(BEAM_TINT.r, BEAM_TINT.g, BEAM_TINT.b, 0.10)
+	mat.albedo_color = Color(BEAM_TINT.r, BEAM_TINT.g, BEAM_TINT.b, 0.09)
 	mat.emission_enabled = true
 	mat.emission = BEAM_TINT
-	mat.emission_energy_multiplier = 1.3
+	mat.emission_energy_multiplier = 1.4
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	cone.material_override = mat
-	cone.position = Vector3(0.0, -0.27, 0.0)     # base at the table, top at the planet
+	cone.position = Vector3(0.0, (top_y + bot_y) * 0.5, 0.0)
 	anchor.add_child(cone)
+
+	# The emitter puck on the table surface.
+	var emitter := MeshInstance3D.new()
+	var em := CylinderMesh.new()
+	em.top_radius = 0.13
+	em.bottom_radius = 0.16
+	em.height = 0.05
+	emitter.mesh = em
+	var emat := StandardMaterial3D.new()
+	emat.albedo_color = Color(0.06, 0.12, 0.18)
+	emat.emission_enabled = true
+	emat.emission = BEAM_TINT
+	emat.emission_energy_multiplier = 2.4
+	emitter.material_override = emat
+	emitter.position = Vector3(0.0, bot_y + 0.02, 0.0)
+	anchor.add_child(emitter)
 	return mat
+
+
+## The spaceship operation table: a glowing ring around the console top and a
+## faint holographic display surface, so it reads as a command table.
+func _build_console() -> void:
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 1.32
+	tm.outer_radius = 1.42
+	tm.rings = 48
+	tm.ring_segments = 12
+	ring.mesh = tm
+	var rmat := StandardMaterial3D.new()
+	rmat.albedo_color = Color(0.1, 0.3, 0.5)
+	rmat.emission_enabled = true
+	rmat.emission = BEAM_TINT
+	rmat.emission_energy_multiplier = 2.8
+	rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = rmat
+	ring.position = Vector3(0.0, TABLE_TOP_Y + 0.01, 0.0)
+	add_child(ring)
+
+	var disc := MeshInstance3D.new()
+	var dm := CylinderMesh.new()
+	dm.top_radius = 1.3
+	dm.bottom_radius = 1.3
+	dm.height = 0.02
+	disc.mesh = dm
+	var dmat := StandardMaterial3D.new()
+	dmat.albedo_color = Color(BEAM_TINT.r, BEAM_TINT.g, BEAM_TINT.b, 0.14)
+	dmat.emission_enabled = true
+	dmat.emission = BEAM_TINT
+	dmat.emission_energy_multiplier = 0.8
+	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	disc.material_override = dmat
+	disc.position = Vector3(0.0, TABLE_TOP_Y + 0.02, 0.0)
+	add_child(disc)
 
 
 ## Floating name above a projection. Billboarded and depth-test-free so it is

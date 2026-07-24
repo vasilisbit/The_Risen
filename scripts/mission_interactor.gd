@@ -7,6 +7,10 @@ extends RayCast3D
 
 signal mission_selected(mission: String)
 
+## You must be within this many metres of a target to interact with it, so you
+## can't open the shop or launch a mission by looking at it from across the room.
+const INTERACT_RANGE := 3.5
+
 ## Mission planet -> level scene. All three are built; anything not listed falls
 ## through to a debug print. Unlock gating is handled by SaveManager.
 const MISSION_SCENES := {
@@ -27,7 +31,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	force_raycast_update()
 	var text := ""
-	if is_colliding():
+	if is_colliding() and _within_range():
 		var target := get_collider()
 		if target and target.is_in_group("vendor"):
 			text = "[E]  Forge Master  -  buy, mod and sell gear"
@@ -36,6 +40,11 @@ func _physics_process(_delta: float) -> void:
 			text = "[E]  Deploy to %s" % mission
 	_prompt.text = text
 	_prompt.visible = text != ""
+
+
+## True when the thing under the crosshair is close enough to interact with.
+func _within_range() -> bool:
+	return global_position.distance_to(get_collision_point()) <= INTERACT_RANGE
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -48,7 +57,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Force-update the ray and act on the target under the crosshair.
 func try_interact() -> void:
 	force_raycast_update()
-	if not is_colliding():
+	if not is_colliding() or not _within_range():
 		return
 	var target := get_collider()
 	if target == null:
