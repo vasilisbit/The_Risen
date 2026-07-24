@@ -77,7 +77,17 @@ Replace the capsule player with a rigged, animated character.
 - **Effort:** high - needs an `AnimationTree`/state machine synced to movement
   (idle/walk/run/jump/aim/fire) and a third-person rig. Do after Phase 2.
 
-## Phase 4 - Bosses & elite enemies
+## Phase 4 - Bosses & elite enemies (boss models DONE)
+
+**Boss models wired** (2026-07-23) as `characters/<class>.tscn` wrappers the
+enemy pipeline auto-loads, each sized to its collision capsule:
+- Shielded Brute = scaled Quaternius `Enemy_QuadShell` (~3 m, robot-cohesive).
+- Teleporting Phantom = Fab `ghoul_stylized_monster` (~2.4 m).
+- Ember Tyrant = Fab `monster` (Monster UE, ~4 m).
+Elite variants (below) are still open. The Ember Tyrant FBX ships without its
+textures (renders pale) - a material tint or re-export is a follow-up polish.
+
+### Original candidates
 
 | Boss | Candidate |
 |---|---|
