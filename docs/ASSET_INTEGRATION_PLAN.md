@@ -70,7 +70,19 @@ existing collision boxes (keep the code-generated collision).
 | **Venus** volcano | `fab/rock_collection_04` (material-overridden volcanic) | **ascent cover DONE**; `fab/Inferno World` terrain + trees still optional |
 | **Loot pickups** | small `Prop_Chest` with a rarity beacon | **DONE** (chests replaced the coloured boxes) |
 
-## Phase 3 - Player character (third-person)
+## Phase 3 - Player character (third-person) - STARTED
+
+**Done:** `player_character.gd` shows the Quaternius Superhero as the Guardian,
+driven by the Universal Animation Library (UAL1 `Idle`/`Walk`/`Sprint`). The
+Superhero and UAL share the same 65-bone `Armature/Skeleton3D` rig with matching
+track paths, so the clips retarget with **no bone mapping** - just add the
+library and set the AnimationPlayer `root_node` to the hero. The Guardian is now
+over-the-shoulder third-person with the FPS viewmodel holstered.
+
+**Still to do:** gun-in-hand (attach a weapon to the `hand_r` bone) + aim/fire
+clips (`Pistol_Idle` etc.), jump animation, smooth character turning, armour over
+the bare CC0 base mesh, and a proper `AnimationTree` blend + third-person combat
+tuning (aim origin, projectile spawn from the character).
 
 Replace the capsule player with a rigged, animated character.
 
