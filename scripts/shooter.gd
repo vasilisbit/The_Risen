@@ -195,6 +195,7 @@ func _los_from(from: Vector3) -> bool:
 func _shoot() -> void:
 	_shoot_timer = _shoot_cd
 	shots_fired += 1
+	play_attack_animation()
 	var p := load("res://scripts/enemy_projectile.gd").new() as Node3D
 	p.source_name = "Shooter"
 	var host := get_tree().current_scene

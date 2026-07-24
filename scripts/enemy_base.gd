@@ -101,6 +101,9 @@ func _ready() -> void:
 ## (forward) and stand ~1.8 m; pre-orient it in the import if not. The capsule
 ## collision is untouched - the model is visual only. Dormant until a file
 ## exists, so nothing changes today (mirrors the weapon pipeline).
+## The loaded external model root (null if the capsule placeholder is used).
+## The nameplate reads this to build the shield outline around the real shape.
+var model_root: Node3D
 var _model_anim: AnimationPlayer
 var _walk_anim: String = ""
 var _idle_anim: String = ""
@@ -115,6 +118,7 @@ func _apply_external_model() -> void:
 			if res is PackedScene:
 				var inst := (res as PackedScene).instantiate() as Node3D
 				add_child(inst)
+				model_root = inst
 				var placeholder := get_node_or_null("Mesh")
 				if placeholder is Node3D:
 					(placeholder as Node3D).visible = false
@@ -163,6 +167,10 @@ func _wire_model_animation(inst: Node3D) -> void:
 
 func _process(_delta: float) -> void:
 	if _model_anim == null:
+		return
+	# Don't interrupt a one-shot clip (e.g. an attack) that is still playing.
+	var cur := _model_anim.current_animation
+	if cur != "" and cur != _walk_anim and cur != _idle_anim and _model_anim.is_playing():
 		return
 	var moving := Vector2(velocity.x, velocity.z).length() > 0.6
 	var want := _walk_anim if (moving and _walk_anim != "") else _idle_anim

@@ -24,7 +24,7 @@ var _enemy: Node
 var _hp_fill: MeshInstance3D
 var _shield_bg: MeshInstance3D
 var _shield_fill: MeshInstance3D
-var _shell: MeshInstance3D
+var _outlines: Array[MeshInstance3D] = []
 var _has_shield: bool = false
 var _elemental: bool = false
 var _pulse: float = 0.0
@@ -48,7 +48,7 @@ func _ready() -> void:
 	_build_name(is_boss)
 	_build_health_bar(is_boss)
 	_build_shield_bar()
-	_build_shell()
+	_build_shield_outline()
 
 
 func _build_name(is_boss: bool) -> void:
@@ -88,37 +88,50 @@ func _build_shield_bar() -> void:
 	add_child(_shield_fill)
 
 
-## A translucent element-coloured shell around the body - only for an elemental
-## shield, so it doubles as the "bring this element" telegraph. The Shielded
-## Brute's plain gate keeps its own VFX and gets no shell here.
-func _build_shell() -> void:
-	if not _has_shield or not _elemental or _enemy.get_parent() == null:
+## A shield telegraph shaped like the enemy itself: a blue (or element-coloured)
+## glowing outline hugging its silhouette, shown while the shield is up. Built by
+## duplicating the enemy's model meshes with an inverted-hull outline material
+## (grown along normals, front faces culled), so it follows the real shape and,
+## for a skinned model, animates with it. Any shielded enemy or boss gets one.
+func _build_shield_outline() -> void:
+	if not _has_shield or _enemy.get_parent() == null:
 		return
-	_shell = MeshInstance3D.new()
-	var sph := SphereMesh.new()
-	var r: float = _enemy.nameplate_shell_radius() if _enemy.has_method("nameplate_shell_radius") else 0.72
-	sph.radius = r
-	sph.height = r * 2.6
-	_shell.mesh = sph
+	var sources: Array = []
+	var root: Variant = _enemy.get("model_root")
+	if root is Node3D:
+		sources = (root as Node3D).find_children("*", "MeshInstance3D", true, false)
+	else:
+		var ph := _enemy.get_node_or_null("Mesh")
+		if ph is MeshInstance3D:
+			sources = [ph]
+	var mat := _outline_material()
+	for src in sources:
+		var mi := src as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var outline := mi.duplicate() as MeshInstance3D
+		for c in outline.get_children():
+			c.queue_free()
+		outline.material_override = mat
+		outline.visible = false
+		mi.get_parent().add_child(outline)
+		outline.transform = mi.transform          # exactly overlay the source mesh
+		_outlines.append(outline)
+
+
+## Inverted-hull outline material in the shield's colour (blue by default).
+func _outline_material() -> StandardMaterial3D:
 	var col := _shield_color()
-	# A rim-lit shell: near-transparent front, brighter at grazing angles (via
-	# a soft fresnel through rim), so it reads as an energy bubble rather than a
-	# solid glowing ball when the enemy is close.
 	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.cull_mode = BaseMaterial3D.CULL_BACK
-	mat.albedo_color = Color(col.r, col.g, col.b, 0.10)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_FRONT      # back faces of the grown hull = outline
+	mat.grow = true
+	mat.grow_amount = 0.04
+	mat.albedo_color = col
 	mat.emission_enabled = true
 	mat.emission = col
-	mat.emission_energy_multiplier = 0.35
-	mat.rim_enabled = true
-	mat.rim = 1.0
-	mat.rim_tint = 0.5
-	_shell.material_override = mat
-	# Body centre in enemy space (roughly half the head height).
-	var head_y: float = _enemy.nameplate_head_y() if _enemy.has_method("nameplate_head_y") else HEAD_Y
-	_shell.position = Vector3(0, head_y * 0.5, 0)
-	_enemy.add_child(_shell)                        # sibling of us, on the body
+	mat.emission_energy_multiplier = 1.6
+	return mat
 
 
 func _process(delta: float) -> void:
@@ -141,11 +154,9 @@ func _process(delta: float) -> void:
 		_shield_fill.visible = up
 		if _shield_bg:
 			_shield_bg.visible = up
-		if _shell:
-			_shell.visible = up
-			_pulse += delta
-			var s := 1.0 + sin(_pulse * 4.0) * 0.03
-			_shell.scale = Vector3(s, s, s)
+		for o in _outlines:
+			if is_instance_valid(o):
+				o.visible = up
 
 
 ## Scale a centred fill quad from its left edge to `frac` of its full width.
