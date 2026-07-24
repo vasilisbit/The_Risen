@@ -156,6 +156,30 @@ func _prop(name_: String, pos: Vector3, rot_y: float, scale: float) -> void:
 	m.position = pos
 	m.rotation.y = rot_y
 	m.scale = Vector3.ONE * scale
+	_add_prop_collision(m)
+
+
+## Give a decorative prop a solid collision box matching its bounds, so the
+## player can't walk through the furniture. This node is a StaticBody3D, so a
+## CollisionShape3D child on it is solid world geometry.
+func _add_prop_collision(m: Node3D) -> void:
+	var aabb := AABB()
+	var first := true
+	for vi in m.find_children("*", "VisualInstance3D", true, false):
+		var a: AABB = (vi as VisualInstance3D).global_transform * (vi as VisualInstance3D).get_aabb()
+		if first:
+			aabb = a
+			first = false
+		else:
+			aabb = aabb.merge(a)
+	if first or aabb.size.length() < 0.01:
+		return
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = aabb.size
+	col.shape = box
+	col.position = to_local(aabb.position + aabb.size * 0.5)
+	add_child(col)
 
 
 func _cover(pos: Vector3) -> void:
