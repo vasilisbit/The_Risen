@@ -51,9 +51,11 @@ The constantly-on-screen actors - biggest visual lift.
 | Shooter (ranged) | Quaternius `Enemy_EyeDrone` | hovering drone, raised 1 m |
 | Exploder (suicide) | Quaternius `Enemy_Trilobite` | scaled down |
 
-**Follow-up:** these enemy models are **animated** (idle/walk in the glTF) but we
-currently show a static pose. Wiring an `AnimationPlayer` to the enemy state
-machine (walk while chasing, attack on hit) is a Phase-1.5 polish.
+**Phase 1.5 (DONE):** `EnemyBase` now drives each model's own Walk/Idle clip off
+the enemy's velocity - the Quaternius kit ships Walk/Run/Idle/Attack, so the
+Rusher/Exploder/Shielded Brute walk and the hovering Shooter idles. The two Fab
+FBX bosses (ghoul, monster) have no rig, so they stay static.
+`EnemyBase.play_attack_animation()` exists for a future attack-clip hook.
 
 ## Phase 2 - Environment dressing (cover DONE; deeper dressing outstanding)
 
