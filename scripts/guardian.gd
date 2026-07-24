@@ -90,7 +90,10 @@ var _spawn_point: Vector3
 var _death_screen: CanvasLayer
 var _ability_hud: Control
 var _weapon_hud: Control
-var _character: Node3D          # Phase 3 animated third-person body
+var _character: Node3D          # Phase 3 animated body (true first-person)
+
+## Camera height: the body's eye line, so looking down shows your own torso.
+const EYE_HEIGHT := 1.62
 
 ## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
 ## is a social space, and a rifle pointed at the vendor reads badly.
@@ -573,22 +576,40 @@ func _apply_combat_mode() -> void:
 		crosshair.visible = true
 
 
-## Phase 3: build the animated Guardian body. The camera stays FIRST PERSON (it
-## reads better), so the body is rendered shadows-only: it still animates with
-## movement and casts a real self-shadow, but its geometry never draws into the
-## camera sitting inside its head. The gun in view remains the FPS viewmodel.
+## Phase 3: build the Guardian's real body for a TRUE first-person view - look
+## down and you see your own chest, hips and legs, and the gun is held in the
+## character's hands. The head bone is collapsed by the character script (the
+## camera sits inside the head), and the floating camera viewmodel is retired in
+## favour of the hand-held weapon.
 func _build_character() -> void:
 	_character = Node3D.new()
 	_character.name = "PlayerCharacter"
 	_character.set_script(load("res://scripts/player_character.gd"))
 	_character.rotation.y = PI                 # face the body's forward (-Z)
+	# The raw model stands ~2.05 m; scale it to the 1.8 m collision capsule so the
+	# body reads at the right size from inside it.
+	_character.scale = Vector3.ONE * (1.8 / 2.05)
 	add_child(_character)
+	# Sit the camera at the body's eye line rather than the capsule's centre.
+	_spring_arm.position.y = EYE_HEIGHT
+	var viewmodel := _spring_arm.get_node_or_null("Camera3D/WeaponViewmodel") as Node3D
+	if viewmodel:
+		viewmodel.visible = false              # the hand holds the gun now
+	# WeaponManager._ready ran before this node existed (children ready first),
+	# so ask it to re-push the equipped weapon into the new hand attachment.
+	var wm := get_node_or_null("WeaponManager")
+	if wm and wm.has_method("refresh_weapon_visual"):
+		wm.call_deferred("refresh_weapon_visual")
 
 
 ## Feed the character its horizontal speed so it picks idle / walk / run.
 func _update_character() -> void:
-	if _character and _character.has_method("set_speed"):
+	if _character == null:
+		return
+	if _character.has_method("set_speed"):
 		_character.set_speed(Vector2(velocity.x, velocity.z).length())
+	if _character.has_method("set_aim_pitch"):
+		_character.set_aim_pitch(_look_pitch)
 
 
 func _build_death_screen() -> void:
