@@ -42,8 +42,14 @@ var _labels: Dictionary = {}             # mission -> Label3D
 var _projectors: Dictionary = {}         # mission -> StandardMaterial3D (beam)
 var _flicker: float = 0.0
 
-## Cyan projector-beam tint, so each planet reads as a table hologram.
+## Projector-beam tint per planet: Earth blue, Mars red, Venus yellow, so each
+## cone reads as its own world at a glance.
 const BEAM_TINT := Color(0.35, 0.75, 1.0)
+const BEAM_TINTS := {
+	"Earth": Color(0.35, 0.75, 1.0),
+	"Mars": Color(1.0, 0.32, 0.22),
+	"Venus": Color(1.0, 0.82, 0.30),
+}
 
 
 func _ready() -> void:
@@ -108,7 +114,7 @@ func _build() -> void:
 		_materials[mission] = mat
 		var anchor := mesh.get_parent() as Node3D
 		_labels[mission] = _build_label(anchor, info["base"])
-		_projectors[mission] = _build_projector(anchor)
+		_projectors[mission] = _build_projector(anchor, BEAM_TINTS.get(mission, BEAM_TINT))
 
 
 ## A projector beam under each planet: a glowing emitter on the table surface and
@@ -116,7 +122,7 @@ func _build() -> void:
 ## ABOVE the beam's tip (not inside it). Built as children of the planet anchor,
 ## whose origin is the planet centre at world y = PLANET_Y. Returns the beam
 ## material so refresh() can dim it for locked worlds.
-func _build_projector(anchor: Node3D) -> StandardMaterial3D:
+func _build_projector(anchor: Node3D, tint: Color) -> StandardMaterial3D:
 	# Local heights (anchor origin is the planet centre). The cone's mouth sits a
 	# little BELOW the planet's equator and is slightly narrower than the planet,
 	# so the sphere seats down into the cone like a ball in a cup - its widest
@@ -133,9 +139,9 @@ func _build_projector(anchor: Node3D) -> StandardMaterial3D:
 	cm.radial_segments = 28
 	cone.mesh = cm
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(BEAM_TINT.r, BEAM_TINT.g, BEAM_TINT.b, 0.09)
+	mat.albedo_color = Color(tint.r, tint.g, tint.b, 0.09)
 	mat.emission_enabled = true
-	mat.emission = BEAM_TINT
+	mat.emission = tint
 	mat.emission_energy_multiplier = 1.4
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
@@ -153,9 +159,9 @@ func _build_projector(anchor: Node3D) -> StandardMaterial3D:
 	em.height = 0.05
 	emitter.mesh = em
 	var emat := StandardMaterial3D.new()
-	emat.albedo_color = Color(0.06, 0.12, 0.18)
+	emat.albedo_color = Color(tint.r * 0.2, tint.g * 0.2, tint.b * 0.2)
 	emat.emission_enabled = true
-	emat.emission = BEAM_TINT
+	emat.emission = tint
 	emat.emission_energy_multiplier = 2.4
 	emitter.material_override = emat
 	emitter.position = Vector3(0.0, bot_y + 0.02, 0.0)
