@@ -42,6 +42,10 @@ const HAND_WEAPON_POS := Vector3(0.0, 0.03, 0.02)
 const HAND_WEAPON_ROT := Vector3(0.0, 90.0, 0.0)
 const HAND_WEAPON_SCALE := 1.0
 
+## Put the gun in the character's hand instead of drawing the camera viewmodel.
+## Needs a per-weapon grip transform first - see set_weapon().
+@export var hand_weapon_enabled: bool = false
+
 var _anim: AnimationPlayer
 var _skeleton: Skeleton3D
 var _head_bone: int = -1
@@ -62,6 +66,7 @@ func _ready() -> void:
 		return
 	var hero := (hero_scene as PackedScene).instantiate() as Node3D
 	add_child(hero)
+	_apply_suit(hero)
 
 	var skels := hero.find_children("*", "Skeleton3D", true, false)
 	if skels.is_empty():
@@ -76,6 +81,19 @@ func _ready() -> void:
 	_build_animation(_skeleton.get_parent())
 	_build_hand_attachment()
 	_play("idle")
+
+
+## The CC0 base character is an UNCLOTHED body in a single skin tone, which from
+## inside the first-person camera reads as indistinguishable flesh-coloured
+## shapes. Painting it a dark suit at least gives the limbs a readable silhouette
+## until a properly clothed/armoured character model replaces it.
+func _apply_suit(hero: Node3D) -> void:
+	var suit := StandardMaterial3D.new()
+	suit.albedo_color = Color(0.13, 0.15, 0.20)
+	suit.metallic = 0.35
+	suit.roughness = 0.55
+	for m in hero.find_children("*", "MeshInstance3D", true, false):
+		(m as MeshInstance3D).material_override = suit
 
 
 ## Bone lookup that tolerates the rig's inconsistent capitalisation.
@@ -129,7 +147,11 @@ func _build_hand_attachment() -> void:
 ## Show the weapon `name_` in the character's hand (mirrors the viewmodel's
 ## naming: "Auto Rifle" -> weapons/auto_rifle.tscn).
 func set_weapon(name_: String) -> void:
-	if _hand_attach == null:
+	# Off by default: the weapon wrappers are built and sized for the camera
+	# viewmodel, so dropping one straight onto the hand bone put the gun through
+	# the Guardian's torso and pointing at his own head. Until each weapon has a
+	# proper per-weapon grip transform, the camera viewmodel draws the gun.
+	if not hand_weapon_enabled or _hand_attach == null:
 		return
 	if _weapon_model and is_instance_valid(_weapon_model):
 		_weapon_model.queue_free()
@@ -158,8 +180,10 @@ func _play(state: String) -> void:
 		_current = key
 
 
-## Tilt the upper body toward where the camera is looking (radians; negative is
-## up in the Guardian's pitch convention). Called by the Guardian each frame.
+## Kept for the Guardian's call site. The earlier version rewrote the spine bones
+## from their REST pose every frame, which threw away the animation's own torso
+## rotation and mangled the upper body - so the aim offset is off until it can be
+## done properly (additively, on top of the animated pose).
 func set_aim_pitch(pitch: float) -> void:
 	_aim_pitch = pitch
 
@@ -167,18 +191,12 @@ func set_aim_pitch(pitch: float) -> void:
 func _process(_delta: float) -> void:
 	if _skeleton == null:
 		return
-	# The camera lives inside the head, so collapse the head bone - this runs
-	# after the AnimationPlayer (process_priority above), so it isn't overwritten.
+	# The camera lives inside the head, so shrink the head bone away. This runs
+	# after the AnimationPlayer (process_priority above) so it isn't overwritten.
+	# Scaled rather than zeroed: an exact zero collapses the head vertices into a
+	# degenerate spike of triangles right in front of the camera.
 	if _head_bone >= 0:
-		_skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.001)
-	# Spread the aim pitch across the upper spine so the chest, arms and the gun
-	# they hold follow the camera instead of staying level.
-	if not _aim_bones.is_empty():
-		var per := -_aim_pitch / float(_aim_bones.size())
-		for idx in _aim_bones:
-			var rest := _skeleton.get_bone_rest(idx)
-			_skeleton.set_bone_pose_rotation(idx,
-				rest.basis.get_rotation_quaternion() * Quaternion(Vector3.RIGHT, per))
+		_skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.01)
 
 
 ## Drive the locomotion state from the Guardian's horizontal speed.
