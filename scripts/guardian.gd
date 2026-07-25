@@ -93,10 +93,11 @@ var _weapon_hud: Control
 var _character: Node3D          # Phase 3 animated body (true first-person)
 
 ## Camera height: the body's eye line, so looking down shows your own torso.
-## At 1.62 the camera sat level with the shoulders, so looking down filled the
-## view with them. Raised to sit above the head: you look down past the neck to
-## the chest and legs, which is what a first-person body should show.
-const EYE_HEIGHT := 1.78
+## Eye line: a compromise between seeing the held gun in the forward view (wants
+## a lower camera) and seeing your own chest/legs when you look down (wants a
+## higher one). At 1.66 the gun reads as held in the lower view and looking down
+## still shows the body.
+const EYE_HEIGHT := 1.66
 
 ## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
 ## is a social space, and a rifle pointed at the vendor reads badly.
@@ -593,10 +594,9 @@ func _build_character() -> void:
 	# body reads at the right size from inside it.
 	_character.scale = Vector3.ONE * (1.8 / 2.05)
 	add_child(_character)
-	# Sit the camera at the body's eye line, and a little FORWARD of the chest -
-	# flush against the torso the view was filled by your own shoulders instead
-	# of clearing them to show the belly and legs below.
-	_spring_arm.position = Vector3(0.0, EYE_HEIGHT, -0.22)
+	# Sit the camera at the body's eye line, a little forward of the chest so the
+	# view clears the shoulders down to the belly and legs.
+	_spring_arm.position = Vector3(0.0, EYE_HEIGHT, -0.15)
 	# The character's own hand holds the gun now, so the floating camera
 	# viewmodel is retired; the hand weapon is holstered in the hub, where
 	# combat_enabled is false - the Guardian should not be armed at the vendor.

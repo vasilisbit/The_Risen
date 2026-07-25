@@ -50,26 +50,26 @@ const HAND_BONE := "weapon_r"
 ## the arms and the gun) tilts toward wherever the camera is looking. Without
 ## this the body stays level and the rifle sits below the screen.
 const AIM_BONES := ["spine_02", "spine_03"]
-## How much of the look pitch the torso takes. Below 1.0 the spine leans toward
-## the aim without the chest trying to match the camera exactly.
-const AIM_STRENGTH := 1.0
-## The clips hold the rifle at a low-ready carry, pointed down. This constant
-## lifts the whole upper body so the weapon sits level with the view, and the
-## aim offset above then tracks it with the camera - including looking up, where
-## before the arms and gun stayed put while the view rose.
-const AIM_BASE_LIFT := -0.38
+## How much of the look pitch the torso takes (spread across the aim bones), so
+## the gun rises and dips with the camera.
+@export var aim_strength: float = 1.0
+## Constant upper-body lean that shoulders the low-ready rifle up into the view
+## (the clips hold it at the chest, well below the camera). Negative = lean back
+## / lift; tuned so the gun reads as held forward, not hanging down.
+@export var aim_base_lift: float = -0.85
 
-## Where the gun sits in the right hand (tuned so the grip meets the palm).
-## Per-weapon grip in the socket. The wrappers were authored for the camera
-## viewmodel and face along X, so they all need a quarter turn to look down the
-## barrel; beyond that each gun's grip sits differently in the palm, so they get
-## their own offset and size rather than sharing one guessed transform.
-const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": Vector3(0, -90, 0), "scale": 1.0}
+## Grip transform in the weapon_r socket. The socket's axes are unusual (its
+## local X points along the character's forward and its Z points up), and the
+## gun wrappers' barrels run along their own -X; a +90 deg pitch aligns the
+## barrel with the aim and stands the gun upright in the grip. Measured against
+## the socket so the two hands land on the weapon. Per-weapon scale only, since
+## the guns are different lengths.
+const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0}
 const GRIPS := {
-	"Auto Rifle": {"pos": Vector3(0.0, 0.0, -0.06), "rot": Vector3(0, -90, 0), "scale": 1.0},
-	"Shotgun": {"pos": Vector3(0.0, 0.0, -0.04), "rot": Vector3(0, -90, 0), "scale": 0.9},
-	"Sniper": {"pos": Vector3(0.0, 0.0, -0.10), "rot": Vector3(0, -90, 0), "scale": 0.85},
-	"Hand Cannon": {"pos": Vector3(0.0, 0.0, -0.02), "rot": Vector3(0, -90, 0), "scale": 1.1},
+	"Auto Rifle": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
+	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 0.95},
+	"Sniper": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 0.9},
+	"Hand Cannon": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
 }
 
 ## Put the gun in the character's hand instead of drawing the camera viewmodel.
@@ -253,7 +253,7 @@ func _process(_delta: float) -> void:
 	# gun they hold with the camera, so the weapon points where you look instead
 	# of hanging down.
 	if not _aim_bones.is_empty():
-		var per := (-_aim_pitch * AIM_STRENGTH + AIM_BASE_LIFT) / float(_aim_bones.size())
+		var per := (-_aim_pitch * aim_strength + aim_base_lift) / float(_aim_bones.size())
 		for idx in _aim_bones:
 			var posed := _skeleton.get_bone_pose_rotation(idx)
 			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(Vector3.RIGHT, per))
