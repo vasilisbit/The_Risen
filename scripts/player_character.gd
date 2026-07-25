@@ -52,7 +52,12 @@ const HAND_BONE := "weapon_r"
 const AIM_BONES := ["spine_02", "spine_03"]
 ## How much of the look pitch the torso takes. Below 1.0 the spine leans toward
 ## the aim without the chest trying to match the camera exactly.
-const AIM_STRENGTH := 0.85
+const AIM_STRENGTH := 1.0
+## The clips hold the rifle at a low-ready carry, pointed down. This constant
+## lifts the whole upper body so the weapon sits level with the view, and the
+## aim offset above then tracks it with the camera - including looking up, where
+## before the arms and gun stayed put while the view rose.
+const AIM_BASE_LIFT := -0.38
 
 ## Where the gun sits in the right hand (tuned so the grip meets the palm).
 ## Per-weapon grip in the socket. The wrappers were authored for the camera
@@ -248,7 +253,7 @@ func _process(_delta: float) -> void:
 	# gun they hold with the camera, so the weapon points where you look instead
 	# of hanging down.
 	if not _aim_bones.is_empty():
-		var per := -_aim_pitch * AIM_STRENGTH / float(_aim_bones.size())
+		var per := (-_aim_pitch * AIM_STRENGTH + AIM_BASE_LIFT) / float(_aim_bones.size())
 		for idx in _aim_bones:
 			var posed := _skeleton.get_bone_pose_rotation(idx)
 			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(Vector3.RIGHT, per))
