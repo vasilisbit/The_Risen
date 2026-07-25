@@ -3,13 +3,13 @@ extends Node3D
 ## look down and you see your chest, hips and legs, and the gun is held in the
 ## character's own hands rather than floating in front of the camera.
 ##
-## Model: Quaternius Superhero (CC0, 65-bone UE rig).
+## Model: the UEFN mannequin (88-bone UE rig) that ships inside the animation pack.
 ## Animation: the Fab "Pistol and Rifle Locomotion" rifle loops, which pose the
-## arms around a rifle. That pack rigs a UEFN mannequin (88 bones), but Godot
-## animates bones BY NAME - 51 of its 75 animated bones exist on the Superhero
-## and the misses are only IK helpers (ik_foot_*, ik_hand_gun) and twist bones,
-## so the clips drive this body correctly. Their track paths are
-## "Skeleton3D:<bone>", so the AnimationPlayer's root_node is the Armature.
+## arms around a rifle. They animate this exact rig, so every bone matches. Their
+## track paths are "Skeleton3D:<bone>", so the AnimationPlayer's root_node is the
+## Armature. The mixer runs in MANUAL mode and is advanced at the top of _process,
+## so the additive aim offset below lands on top of the animated pose instead of
+## being overwritten by it (auto mode wrote the spine AFTER _process, killing it).
 ##
 ## The head bone is scaled to nothing every frame, because the camera sits inside
 ## the head - otherwise you would be looking at the inside of the skull.
@@ -169,6 +169,10 @@ func _build_animation(armature: Node) -> void:
 	armature.add_child(_anim)
 	_anim.root_node = NodePath("..")          # the Armature; "Skeleton3D:bone" resolves
 	_anim.add_animation_library("loco", lib)
+	# Drive the mixer manually (advanced at the top of _process) instead of letting
+	# it auto-update. Otherwise it writes the spine pose AFTER our _process runs and
+	# wipes out the additive aim offset below - the offset simply never showed.
+	_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 
 
 ## Hang the equipped weapon off the right hand, so the arms actually hold it.
@@ -237,6 +241,11 @@ func set_aim_pitch(pitch: float) -> void:
 func _process(_delta: float) -> void:
 	if _skeleton == null:
 		return
+	# Advance the (manual-mode) locomotion mixer first, so everything below layers
+	# on top of the freshly written animated pose rather than being overwritten by
+	# it. process_priority alone did not guarantee this order.
+	if _anim:
+		_anim.advance(_delta)
 	# The camera lives inside the head, so shrink the head bone away. This runs
 	# after the AnimationPlayer (process_priority above) so it isn't overwritten.
 	# Scaled rather than zeroed: an exact zero collapses the head vertices into a
