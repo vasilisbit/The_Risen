@@ -50,6 +50,9 @@ const HAND_BONE := "weapon_r"
 ## the arms and the gun) tilts toward wherever the camera is looking. Without
 ## this the body stays level and the rifle sits below the screen.
 const AIM_BONES := ["spine_02", "spine_03"]
+## How much of the look pitch the torso takes. Below 1.0 the spine leans toward
+## the aim without the chest trying to match the camera exactly.
+const AIM_STRENGTH := 0.85
 
 ## Where the gun sits in the right hand (tuned so the grip meets the palm).
 ## Per-weapon grip in the socket. The wrappers were authored for the camera
@@ -235,8 +238,20 @@ func _process(_delta: float) -> void:
 	# degenerate spike of triangles right in front of the camera.
 	if _head_bone >= 0:
 		_skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.01)
-	for n in _neck_bones:
-		_skeleton.set_bone_pose_scale(n, Vector3.ONE * 0.01)
+	# The neck is deliberately left alone - hiding it took away part of the body
+	# you should see when you look down.
+
+	# Aim offset, applied ADDITIVELY: the animated pose rotation is kept and the
+	# look pitch is layered on top of it. (The first attempt built the rotation
+	# from the bone's REST pose, which threw the animation away and mangled the
+	# torso.) Spreading it over the upper spine carries the chest, arms and the
+	# gun they hold with the camera, so the weapon points where you look instead
+	# of hanging down.
+	if not _aim_bones.is_empty():
+		var per := -_aim_pitch * AIM_STRENGTH / float(_aim_bones.size())
+		for idx in _aim_bones:
+			var posed := _skeleton.get_bone_pose_rotation(idx)
+			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(Vector3.RIGHT, per))
 
 
 ## Drive the locomotion state from the Guardian's movement. `local_dir` is the
