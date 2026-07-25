@@ -92,6 +92,27 @@ aim offset tilts the chest with the camera pitch. Animation comes from the Fab
 rifle loops - a UEFN-mannequin pack, but 51/75 animated bones match the Superhero
 by name (misses are IK/twist helpers only), so the clips drive this rig.
 
+### The blocker: we have no clothed character
+
+The Universal Base Characters pack ships **only a bare, unclothed body plus
+hairstyles** - no outfits or armour. From inside the first-person camera that
+body reads as indistinguishable flesh-coloured shapes. It is currently painted
+with a dark suit material as a stopgap. **Phase 3 cannot look right until a
+clothed/armoured rigged character is added.** Recommended, in order:
+
+1. **Mixamo** (mixamo.com) - free for commercial use, no credit required, cannot
+   redistribute the raw files (fine, we ship a game). Gives an armoured sci-fi
+   humanoid **and** matching **rifle/aim animations** (Rifle Idle, Rifle Walk,
+   Firing Rifle), which also solves the gun-not-at-eye-level gap below. Note it
+   uses `mixamorig:` bone names, so use Mixamo's own clips with a Mixamo
+   character rather than mixing with the UE-named UAL/Fab clips.
+2. **Quaternius Ultimate Modular Men** (CC0, quaternius.com) - 11 characters, 24
+   animations, 4 swappable parts each; cohesive with the Sci-Fi Essentials kit
+   already used for the guns, props and enemies.
+3. **Quaternius Animated Robot Pack** (CC0) - if the Guardian should read as a
+   machine, this is the most cohesive with the robot enemies and sidesteps
+   clothing entirely.
+
 **Still to do:**
 - **Raise the gun into the forward view.** The rifle clips are a *low-ready carry*
   pose: the gun sits ~0.5 m below the eye line, so it is visible looking down but
