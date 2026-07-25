@@ -93,7 +93,10 @@ var _weapon_hud: Control
 var _character: Node3D          # Phase 3 animated body (true first-person)
 
 ## Camera height: the body's eye line, so looking down shows your own torso.
-const EYE_HEIGHT := 1.62
+## At 1.62 the camera sat level with the shoulders, so looking down filled the
+## view with them. Raised to sit above the head: you look down past the neck to
+## the chest and legs, which is what a first-person body should show.
+const EYE_HEIGHT := 1.78
 
 ## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
 ## is a social space, and a rifle pointed at the vendor reads badly.
