@@ -52,11 +52,17 @@ const HAND_BONE := "weapon_r"
 const AIM_BONES := ["spine_02", "spine_03"]
 
 ## Where the gun sits in the right hand (tuned so the grip meets the palm).
-const HAND_WEAPON_POS := Vector3.ZERO
-## The weapon wrappers face along X (they were authored for the camera
-## viewmodel), so they need a quarter turn to point down the socket's barrel.
-const HAND_WEAPON_ROT := Vector3(0.0, -90.0, 0.0)
-const HAND_WEAPON_SCALE := 1.0
+## Per-weapon grip in the socket. The wrappers were authored for the camera
+## viewmodel and face along X, so they all need a quarter turn to look down the
+## barrel; beyond that each gun's grip sits differently in the palm, so they get
+## their own offset and size rather than sharing one guessed transform.
+const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": Vector3(0, -90, 0), "scale": 1.0}
+const GRIPS := {
+	"Auto Rifle": {"pos": Vector3(0.0, 0.0, -0.06), "rot": Vector3(0, -90, 0), "scale": 1.0},
+	"Shotgun": {"pos": Vector3(0.0, 0.0, -0.04), "rot": Vector3(0, -90, 0), "scale": 0.9},
+	"Sniper": {"pos": Vector3(0.0, 0.0, -0.10), "rot": Vector3(0, -90, 0), "scale": 0.85},
+	"Hand Cannon": {"pos": Vector3(0.0, 0.0, -0.02), "rot": Vector3(0, -90, 0), "scale": 1.1},
+}
 
 ## Put the gun in the character's hand instead of drawing the camera viewmodel.
 ## Needs a per-weapon grip transform first - see set_weapon().
@@ -188,9 +194,10 @@ func set_weapon(name_: String) -> void:
 		if scene is PackedScene:
 			_weapon_model = (scene as PackedScene).instantiate() as Node3D
 			_hand_attach.add_child(_weapon_model)
-			_weapon_model.position = HAND_WEAPON_POS
-			_weapon_model.rotation_degrees = HAND_WEAPON_ROT
-			_weapon_model.scale = Vector3.ONE * HAND_WEAPON_SCALE
+			var grip: Dictionary = GRIPS.get(name_, GRIP_DEFAULT)
+			_weapon_model.position = grip["pos"]
+			_weapon_model.rotation_degrees = grip["rot"]
+			_weapon_model.scale = Vector3.ONE * float(grip["scale"])
 			_weapon_model.visible = weapon_drawn
 		return
 
