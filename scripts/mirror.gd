@@ -8,7 +8,7 @@ extends Node3D
 
 const WIDTH := 1.6
 const HEIGHT := 2.4
-const RES := Vector2i(512, 768)
+const RES := Vector2i(720, 1080)   # high enough that shadow edges don't stair-step
 
 var _viewport: SubViewport
 var _camera: Camera3D
@@ -24,12 +24,7 @@ func _ready() -> void:
 	add_child(_viewport)
 
 	_camera = Camera3D.new()
-	# A real mirror shows you at TWICE your distance to the glass. This camera
-	# sits at the glass (a truly reflected camera would be buried in the wall
-	# behind it and render black), so it is only one distance away and the
-	# reflection came out twice life size. Doubling the FOV tangent shrinks
-	# everything by half and restores the correct apparent size at any range.
-	_camera.fov = rad_to_deg(2.0 * atan(tan(deg_to_rad(60.0) * 0.5) * 2.0))
+	# FOV is set per frame from the viewer's distance - see _update_fov().
 	_camera.near = 0.25             # don't slice into anything standing at the glass
 	_viewport.add_child(_camera)
 	_aim_camera()
@@ -74,7 +69,36 @@ func _ready() -> void:
 	mat.albedo_texture = _viewport.get_texture()
 	_surface.material_override = mat
 	_surface.position = Vector3(0, HEIGHT * 0.5, 0.0)
+	# A camera looking back at you renders you like ANOTHER PERSON facing you, so
+	# stepping right moved the image left. A mirror does not do that, so the quad
+	# is flipped horizontally to put the reflection back on the correct side.
+	_surface.scale.x = -1.0
 	add_child(_surface)
+
+
+## The reflection only reads at the right size if the camera's field of view
+## tracks how far the viewer is standing from the glass.
+##
+## Viewer at distance d sees the quad (height H) filling an angle H/d, and should
+## see a reflection that looks like it is 2d away - i.e. the person must cover
+## h/(2H) of the quad. The camera sits at the glass, so the person at distance d
+## covers h / (2*d*tan(fov/2)) of the frame. Equating the two gives
+## tan(fov/2) = H/d. A fixed FOV can therefore never be right at every range,
+## which is why the reflection was first too big and then too small.
+func _update_fov() -> void:
+	if _camera == null:
+		return
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return
+	# Distance from the viewer to the mirror PLANE (its local Z axis).
+	var d: float = absf(to_local(player.global_position).z)
+	d = maxf(d, 0.4)
+	_camera.fov = clampf(rad_to_deg(2.0 * atan(HEIGHT / d)), 30.0, 130.0)
+
+
+func _process(_delta: float) -> void:
+	_update_fov()
 
 
 func _frame_bar(pos: Vector3, size: Vector3, mat: StandardMaterial3D) -> void:
@@ -98,7 +122,9 @@ func _aim_camera() -> void:
 	# The camera hangs under the SubViewport, which is not a spatial node, so it
 	# has to be placed in world space. A camera looks down its own -Z, and the
 	# glass faces the mirror's +Z, so the mirror's basis is turned 180 degrees.
+	# Sit clear of the frame bars (they span to z = 0.06); parked inside them the
+	# frame occluded the view and the mirror looked blank/empty.
 	var t := global_transform
-	t.origin = to_global(Vector3(0.0, HEIGHT * 0.5, 0.06))
+	t.origin = to_global(Vector3(0.0, HEIGHT * 0.5, 0.14))
 	t.basis = global_transform.basis.rotated(global_transform.basis.y.normalized(), PI)
 	_camera.global_transform = t
