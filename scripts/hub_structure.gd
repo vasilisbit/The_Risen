@@ -90,7 +90,9 @@ func _build_props() -> void:
 func _build_mirror() -> void:
 	var mirror := Node3D.new()
 	mirror.set_script(load("res://scripts/mirror.gd"))
-	mirror.position = Vector3(-3.85, 0.0, 9.5)
+	# Stood a little off the left wall (which is at x=-4), so the reflection
+	# camera has a gap behind the glass to clip the wall out of the reflection.
+	mirror.position = Vector3(-3.4, 0.0, 9.5)
 	mirror.rotation.y = PI * 0.5          # glass faces +X, into the bay
 	add_child(mirror)
 

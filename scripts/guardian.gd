@@ -95,9 +95,10 @@ var _character: Node3D          # Phase 3 animated body (true first-person)
 ## Camera height: the body's eye line, so looking down shows your own torso.
 ## Eye line: a compromise between seeing the held gun in the forward view (wants
 ## a lower camera) and seeing your own chest/legs when you look down (wants a
-## higher one). At 1.66 the gun reads as held in the lower view and looking down
-## still shows the body.
-const EYE_HEIGHT := 1.66
+## higher one). The rifle is held at chest "ready", so from a full 1.8 m eye line
+## it sits below the forward view entirely; 1.48 brings the barrel and hands into
+## the lower forward view while looking down still shows the whole body holding it.
+const EYE_HEIGHT := 1.48
 
 ## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
 ## is a social space, and a rifle pointed at the vendor reads badly.
