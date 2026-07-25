@@ -14,7 +14,10 @@ extends Node3D
 ## The head bone is scaled to nothing every frame, because the camera sits inside
 ## the head - otherwise you would be looking at the inside of the skull.
 
-const MODEL := "res://assets/thirdparty/Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf"
+## The UEFN mannequin ships INSIDE the rifle-animation pack, so its rig is the
+## exact one those clips animate - every bone matches, unlike the Quaternius
+## Superhero (65 bones, only a partial match) which also had no clothing.
+const MODEL := "res://assets/thirdparty/fab/Pistol and Rifle Locomotion Animations 1700/Characters/UEFN_Mannequin/Meshes/SKM_UEFN_Mannequin.FBX"
 const RIFLE_DIR := "res://assets/thirdparty/fab/Pistol and Rifle Locomotion Animations 1700/_FixedRifle/"
 ## state -> clip file. Each FBX holds a single animation called "Unreal Take".
 const CLIPS := {
@@ -31,20 +34,26 @@ const RUN_SPEED := 4.8       # above this = sprint
 ## Bones we drive directly. The Superhero rig capitalises the head ("Head") while
 ## the hands are lower-case, so the head is looked up case-insensitively.
 const HEAD_BONE := "Head"
-const HAND_BONE := "hand_r"
+## The UEFN rig carries a dedicated weapon socket bone, already placed and
+## oriented in the grip - far better than hanging the gun off hand_r by eye.
+const HAND_BONE := "weapon_r"
 ## Upper-spine bones the aim offset is spread across, so the chest (and with it
 ## the arms and the gun) tilts toward wherever the camera is looking. Without
 ## this the body stays level and the rifle sits below the screen.
 const AIM_BONES := ["spine_02", "spine_03"]
 
 ## Where the gun sits in the right hand (tuned so the grip meets the palm).
-const HAND_WEAPON_POS := Vector3(0.0, 0.03, 0.02)
-const HAND_WEAPON_ROT := Vector3(0.0, 90.0, 0.0)
+const HAND_WEAPON_POS := Vector3.ZERO
+## The weapon wrappers face along X (they were authored for the camera
+## viewmodel), so they need a quarter turn to point down the socket's barrel.
+const HAND_WEAPON_ROT := Vector3(0.0, -90.0, 0.0)
 const HAND_WEAPON_SCALE := 1.0
 
 ## Put the gun in the character's hand instead of drawing the camera viewmodel.
 ## Needs a per-weapon grip transform first - see set_weapon().
-@export var hand_weapon_enabled: bool = false
+@export var hand_weapon_enabled: bool = true
+## Whether the held weapon is drawn (false in the hub - see set_weapon_visible).
+var weapon_drawn: bool = true
 
 var _anim: AnimationPlayer
 var _skeleton: Skeleton3D
@@ -168,7 +177,15 @@ func set_weapon(name_: String) -> void:
 			_weapon_model.position = HAND_WEAPON_POS
 			_weapon_model.rotation_degrees = HAND_WEAPON_ROT
 			_weapon_model.scale = Vector3.ONE * HAND_WEAPON_SCALE
+			_weapon_model.visible = weapon_drawn
 		return
+
+
+## Holster/draw the held weapon (the Guardian is unarmed in the hub).
+func set_weapon_visible(shown: bool) -> void:
+	weapon_drawn = shown
+	if _weapon_model and is_instance_valid(_weapon_model):
+		_weapon_model.visible = shown
 
 
 func _play(state: String) -> void:

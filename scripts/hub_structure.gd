@@ -81,7 +81,18 @@ func _build_props() -> void:
 	# Weapon bay: a bit of cargo by the side walls (the vendor stall fills the back).
 	_prop("Prop_Shelves_WideTall", Vector3(3.5, 0, 8.0), PI * 0.5, 1.0)
 	_prop("Prop_Chest", Vector3(-3.2, 0, 7.8), PI * 0.5, 1.0)
+	_build_mirror()
 	_build_vendor_stall()
+
+
+## Full-length mirror on the weapon bay's left wall, facing across the room, so
+## the Guardian (and a screenshot) can see the character head to toe.
+func _build_mirror() -> void:
+	var mirror := Node3D.new()
+	mirror.set_script(load("res://scripts/mirror.gd"))
+	mirror.position = Vector3(-3.85, 0.0, 9.5)
+	mirror.rotation.y = PI * 0.5          # glass faces +X, into the bay
+	add_child(mirror)
 
 
 ## Turn the placeholder orange vendor box into an actual shopfront on the bay's
