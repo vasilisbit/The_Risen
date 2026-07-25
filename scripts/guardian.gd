@@ -592,11 +592,14 @@ func _build_character() -> void:
 	add_child(_character)
 	# Sit the camera at the body's eye line rather than the capsule's centre.
 	_spring_arm.position.y = EYE_HEIGHT
-	# The camera viewmodel draws the gun (and stays holstered in the hub, where
-	# combat_enabled is false - the Guardian should not be armed at the vendor).
+	# The character's own hand holds the gun now, so the floating camera
+	# viewmodel is retired; the hand weapon is holstered in the hub, where
+	# combat_enabled is false - the Guardian should not be armed at the vendor.
 	var viewmodel := _spring_arm.get_node_or_null("Camera3D/WeaponViewmodel") as Node3D
 	if viewmodel:
-		viewmodel.visible = combat_enabled
+		viewmodel.visible = false
+	if _character.has_method("set_weapon_visible"):
+		_character.set_weapon_visible(combat_enabled)
 	# WeaponManager._ready ran before this node existed (children ready first),
 	# so ask it to re-push the equipped weapon into the new hand attachment.
 	var wm := get_node_or_null("WeaponManager")
