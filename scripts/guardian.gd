@@ -590,8 +590,10 @@ func _build_character() -> void:
 	# body reads at the right size from inside it.
 	_character.scale = Vector3.ONE * (1.8 / 2.05)
 	add_child(_character)
-	# Sit the camera at the body's eye line rather than the capsule's centre.
-	_spring_arm.position.y = EYE_HEIGHT
+	# Sit the camera at the body's eye line, and a little FORWARD of the chest -
+	# flush against the torso the view was filled by your own shoulders instead
+	# of clearing them to show the belly and legs below.
+	_spring_arm.position = Vector3(0.0, EYE_HEIGHT, -0.22)
 	# The character's own hand holds the gun now, so the floating camera
 	# viewmodel is retired; the hand weapon is holstered in the hub, where
 	# combat_enabled is false - the Guardian should not be armed at the vendor.
@@ -612,7 +614,14 @@ func _update_character() -> void:
 	if _character == null:
 		return
 	if _character.has_method("set_speed"):
-		_character.set_speed(Vector2(velocity.x, velocity.z).length())
+		var flat := Vector3(velocity.x, 0.0, velocity.z)
+		# Travel direction in the body's own space, so strafing and backing up
+		# select their own clips rather than always playing a forward walk.
+		var local := global_transform.basis.inverse() * flat
+		var dir := Vector2(local.x, local.z)
+		if dir.length() > 0.001:
+			dir = dir.normalized()
+		_character.set_speed(flat.length(), dir, not is_on_floor())
 	if _character.has_method("set_aim_pitch"):
 		_character.set_aim_pitch(_look_pitch)
 

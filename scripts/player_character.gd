@@ -23,8 +23,13 @@ const RIFLE_DIR := "res://assets/thirdparty/fab/Pistol and Rifle Locomotion Anim
 const CLIPS := {
 	"idle": "Idle/M_Neutral_Stand_Idle_Loop_Rifle.FBX",
 	"walk": "Walk/M_Neutral_Walk_Loop_F_Rifle.FBX",
+	"walk_back": "Walk/M_Neutral_Walk_Loop_B_Rifle.FBX",
+	"walk_left": "Walk/M_Neutral_Walk_Loop_LL_Rifle.FBX",
+	"walk_right": "Walk/M_Neutral_Walk_Loop_RR_Rifle.FBX",
 	"run": "Run/M_Neutral_Run_Loop_F_Rifle.FBX",
+	"run_back": "Run/M_Neutral_Run_Loop_B_Rifle.FBX",
 	"sprint": "Sprint/M_Neutral_Sprint_Loop_F_Rifle.FBX",
+	"jump": "Jump/M_Neutral_Jump_Loop_Fall_Rifle.FBX",
 }
 const WEAPON_DIR := "res://assets/thirdparty/weapons/"
 
@@ -33,7 +38,11 @@ const RUN_SPEED := 4.8       # above this = sprint
 
 ## Bones we drive directly. The Superhero rig capitalises the head ("Head") while
 ## the hands are lower-case, so the head is looked up case-insensitively.
+## Head AND neck are collapsed: with only the head hidden, looking down put the
+## Guardian's own neck stub in the middle of the view. Hiding both leaves the
+## chest, belly and legs, which is what you should see looking down.
 const HEAD_BONE := "Head"
+const NECK_BONES := ["neck_01", "neck_02"]
 ## The UEFN rig carries a dedicated weapon socket bone, already placed and
 ## oriented in the grip - far better than hanging the gun off hand_r by eye.
 const HAND_BONE := "weapon_r"
@@ -58,6 +67,7 @@ var weapon_drawn: bool = true
 var _anim: AnimationPlayer
 var _skeleton: Skeleton3D
 var _head_bone: int = -1
+var _neck_bones: Array[int] = []
 var _hand_attach: BoneAttachment3D
 var _weapon_model: Node3D
 var _current: String = ""
@@ -82,6 +92,10 @@ func _ready() -> void:
 		return
 	_skeleton = skels[0] as Skeleton3D
 	_head_bone = _find_bone_ci(HEAD_BONE)
+	for b in NECK_BONES:
+		var n := _find_bone_ci(String(b))
+		if n >= 0:
+			_neck_bones.append(n)
 	for b in AIM_BONES:
 		var idx := _find_bone_ci(String(b))
 		if idx >= 0:
@@ -214,13 +228,25 @@ func _process(_delta: float) -> void:
 	# degenerate spike of triangles right in front of the camera.
 	if _head_bone >= 0:
 		_skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.01)
+	for n in _neck_bones:
+		_skeleton.set_bone_pose_scale(n, Vector3.ONE * 0.01)
 
 
-## Drive the locomotion state from the Guardian's horizontal speed.
-func set_speed(speed: float) -> void:
+## Drive the locomotion state from the Guardian's movement. `local_dir` is the
+## travel direction in the body's own space (x = right, z = forward is -z), so
+## strafing and backing up play their own clips instead of a forward walk.
+func set_speed(speed: float, local_dir := Vector2.ZERO, airborne := false) -> void:
+	if airborne and _anim and _anim.has_animation("loco/jump"):
+		_play("jump")
+		return
 	if speed < WALK_SPEED:
 		_play("idle")
-	elif speed < RUN_SPEED:
-		_play("walk")
+		return
+	var running: bool = speed >= RUN_SPEED
+	# Sideways only when it clearly dominates the forward component.
+	if absf(local_dir.x) > absf(local_dir.y) * 1.4:
+		_play("walk_right" if local_dir.x > 0.0 else "walk_left")
+	elif local_dir.y > 0.35:                       # travelling backwards
+		_play("run_back" if running else "walk_back")
 	else:
-		_play("sprint")
+		_play("sprint" if running else "walk")
