@@ -91,6 +91,7 @@ var _death_screen: CanvasLayer
 var _ability_hud: Control
 var _weapon_hud: Control
 var _character: Node3D          # Phase 3 animated body (true first-person)
+var _fp_viewmodel: Node         # first-person arms+gun viewmodel (combat only)
 
 ## Camera height: the body's eye line, so looking down shows your own torso.
 ## Eye line. TRUE first person: the camera sits at the eyes, slightly IN FRONT of
@@ -637,6 +638,17 @@ func _build_character() -> void:
 		viewmodel.visible = false
 	if _character.has_method("set_weapon_visible"):
 		_character.set_weapon_visible(combat_enabled)
+	# In combat the weapon is a dedicated first-person viewmodel (arms+gun rendered
+	# in an isolated viewport, composited on top) - the real body can't be a clean
+	# viewmodel because the hand sits at the eye. Hide the real body then, and let
+	# the viewmodel draw the arms; keep the real body in the hub, where the mirror
+	# shows it and the weapon is holstered anyway.
+	if combat_enabled:
+		_character.visible = false
+		_fp_viewmodel = Node.new()
+		_fp_viewmodel.name = "FPViewmodel"
+		_fp_viewmodel.set_script(load("res://scripts/fp_viewmodel.gd"))
+		add_child(_fp_viewmodel)
 	# WeaponManager._ready ran before this node existed (children ready first),
 	# so ask it to re-push the equipped weapon into the new hand attachment.
 	var wm := get_node_or_null("WeaponManager")
@@ -664,6 +676,8 @@ func _update_character() -> void:
 		_character.set_speed(flat.length(), dir, not is_on_floor(), yaw_rate)
 	if _character.has_method("set_aim_pitch"):
 		_character.set_aim_pitch(_look_pitch)
+	if _fp_viewmodel and _fp_viewmodel.has_method("set_pitch"):
+		_fp_viewmodel.set_pitch(_look_pitch)
 
 
 func _build_death_screen() -> void:
