@@ -57,25 +57,24 @@ const AIM_BONES := ["spine_02", "spine_03"]
 ## How much of the look pitch the torso takes (spread across the aim bones), so
 ## the gun rises and dips with the camera.
 @export var aim_strength: float = 1.0
-## Constant upper-body lean that shoulders the low-ready rifle up into the view
-## (the clips hold it at the chest, well below the camera). Negative = lean back
-## / lift; tuned so the gun reads as held forward, not hanging down.
-@export var aim_base_lift: float = -0.15
+## Constant upper-body lean added on top of the pitch tracking. Left at 0: with
+## the camera at the eyes (see guardian.gd) the natural rifle-idle pose already
+## sits the gun in the lower-right like a first-person viewmodel, and leaning it
+## up only pushed the gun into the camera (the hand is ~8 cm from the eye).
+@export var aim_base_lift: float = 0.0
 ## The aim lean is applied about this axis in SKELETON space (not the bone's own
 ## frame): the spine bones are twisted ~45 deg about the vertical, so no single
 ## local axis is a clean pitch. This axis is converted into each bone's local
 ## frame every frame. Skeleton +X is the character's left-right, so a rotation
 ## about it leans the torso forward/back and lifts the gun. Sign/axis tuned live.
 @export var aim_axis: Vector3 = Vector3(1, 0, 0)
-## Shoulder the weapon up into the forward view by swinging BOTH upper arms up
-## about the same skeleton left-right axis. Spine lean alone can't raise a
-## chest-held rifle into a horizontal view (it just pivots around the lower back);
-## raising the arms brings the weapon and both hands up together. Paired with the
-## camera being pulled back behind the chest (see guardian.gd) - the gun sits on
-## the chest, so the eye has to be behind it to see it held out front. Tuned
-## in-engine to the Destiny-style forward viewmodel the user referenced.
+## Optional shoulder-raise (swing both upper arms up about the skeleton's
+## left-right axis). Left at 0: because the hand sits only ~8 cm from a first-
+## person eye, raising the gun toward eye level just made it fill the screen. The
+## natural pose already reads as a lower-right viewmodel. Kept as a tuning knob;
+## a real always-eye-level ADS look needs a dedicated FP arms rig, not this.
 const ARM_BONES := ["upperarm_l", "upperarm_r"]
-@export var arm_lift: float = -0.32
+@export var arm_lift: float = 0.0
 
 ## Grip transform in the weapon_r socket. The socket's axes are unusual (its
 ## local X points along the character's forward and its Z points up), and the

@@ -93,17 +93,16 @@ var _weapon_hud: Control
 var _character: Node3D          # Phase 3 animated body (true first-person)
 
 ## Camera height: the body's eye line, so looking down shows your own torso.
-## Eye line. The rifle is held on the chest, so the eye has to sit a little back
-## from it (see EYE_BACK) to see it held out front rather than behind the view.
-## 1.55 keeps a natural standing height while the shoulder-raised gun reads in the
-## lower forward view and looking down still shows the whole body holding it.
-const EYE_HEIGHT := 1.55
-## How far the camera sits BEHIND the body origin (+Z is back, the body faces -Z).
-## The weapon rides on the chest ~0.15 m in front of the origin; pulling the eye
-## back past it is what lets the held gun and the arms read in the forward view -
-## the Destiny-style viewmodel the user asked for. Combined with the arm-lift in
-## player_character.gd.
-const EYE_BACK := 0.28
+## Eye line. TRUE first person: the camera sits at the eyes, slightly IN FRONT of
+## the neck (see EYE_BACK), so you never see your own head/neck/back - pulling it
+## behind the head turned the view third-person. 1.45 is a touch below a full eye
+## height so the chest-held gun rides up into the lower-right of the view like a
+## viewmodel, without a crouched feel.
+const EYE_HEIGHT := 1.45
+## Camera Z relative to the body origin (+Z is back, the body faces -Z). NEGATIVE
+## = in front of the neck, which keeps the head/neck/back out of view at every
+## angle. Must stay < the head bone (~+0.06) or the neck creeps into frame.
+const EYE_BACK := -0.08
 
 ## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
 ## is a social space, and a rifle pointed at the vendor reads badly.
@@ -627,8 +626,8 @@ func _build_character() -> void:
 	# body reads at the right size from inside it.
 	_character.scale = Vector3.ONE * (1.8 / 2.05)
 	add_child(_character)
-	# Sit the camera at the body's eye line, a little forward of the chest so the
-	# view clears the shoulders down to the belly and legs.
+	# Sit the camera at the eyes, slightly in front of the neck (EYE_BACK is
+	# negative) so it is true first person - the head/neck/back never show.
 	_spring_arm.position = Vector3(0.0, EYE_HEIGHT, EYE_BACK)
 	# The character's own hand holds the gun now, so the floating camera
 	# viewmodel is retired; the hand weapon is holstered in the hub, where
