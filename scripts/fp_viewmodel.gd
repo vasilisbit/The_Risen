@@ -13,14 +13,20 @@ extends Node
 const CHARACTER := "res://scripts/player_character.gd"
 
 ## Where the viewmodel camera sits and looks, in the rig's space. The rig stands
-## at origin facing -Z; the camera sits in front of and above the hands looking
-## back at them so the gun reads in the lower-right. Tuned in-engine.
-@export var cam_position: Vector3 = Vector3(-0.04, 1.66, 0.1)
-@export var cam_look_at: Vector3 = Vector3(0.2, 1.3, -0.7)
-@export var cam_fov: float = 55.0
-## Aim: the viewmodel tilts a little with the look pitch (a viewmodel dips/rises
-## as you aim), a fraction of the real pitch so it stays on screen.
-@export var pitch_follow: float = 0.15
+## at origin facing -Z. The camera sits BEHIND the body looking level along -Z, so
+## the gun's barrel (which points -Z) reads parallel to the ground; the near plane
+## then clips away the neck/torso between the camera and the gun, leaving just the
+## forearm and gun in the lower-right. Tuned in-engine.
+@export var cam_position: Vector3 = Vector3(-0.22, 1.47, 0.56)
+@export var cam_look_at: Vector3 = Vector3(-0.22, 1.47, -1.0)
+@export var cam_fov: float = 48.0
+## Near plane: sits just past the neck/torso so they are clipped out, short of the
+## gun so it stays. This is what removes the body from the viewmodel (the rig is
+## one skinned mesh, so the torso can't just be hidden).
+@export var cam_near: float = 0.66
+## Aim: the viewmodel dips/rises a touch with the look pitch. Small - too much and
+## looking down slides the clipped body edge into view.
+@export var pitch_follow: float = 0.05
 
 var _viewport: SubViewport
 var _cam: Camera3D
@@ -49,6 +55,7 @@ func _ready() -> void:
 
 	_cam = Camera3D.new()
 	_cam.fov = cam_fov
+	_cam.near = cam_near
 	_viewport.add_child(_cam)
 	_aim_camera()
 
@@ -98,6 +105,8 @@ func _process(_delta: float) -> void:
 func _aim_camera() -> void:
 	if _cam == null:
 		return
+	_cam.near = cam_near
+	_cam.fov = cam_fov
 	var lift := _pitch * pitch_follow
 	_cam.position = cam_position + Vector3(0, lift, 0)
 	_cam.look_at(cam_look_at + Vector3(0, lift, 0), Vector3.UP)

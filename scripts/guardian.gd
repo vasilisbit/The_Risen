@@ -630,6 +630,12 @@ func _build_character() -> void:
 	# Sit the camera at the eyes, slightly in front of the neck (EYE_BACK is
 	# negative) so it is true first person - the head/neck/back never show.
 	_spring_arm.position = Vector3(0.0, EYE_HEIGHT, EYE_BACK)
+	# The main camera skips the real body's render layer, so you never see your own
+	# neck/back/legs (looking straight down showed them). The body still renders in
+	# the hub mirror (its reflection camera keeps that layer). 1<<18 = BODY_LAYER.
+	var main_cam := _spring_arm.get_node_or_null("Camera3D") as Camera3D
+	if main_cam:
+		main_cam.cull_mask = main_cam.cull_mask & ~(1 << 18)
 	# The character's own hand holds the gun now, so the floating camera
 	# viewmodel is retired; the hand weapon is holstered in the hub, where
 	# combat_enabled is false - the Guardian should not be armed at the vendor.
