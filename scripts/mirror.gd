@@ -30,6 +30,7 @@ func _ready() -> void:
 
 	_camera = Camera3D.new()
 	_camera.cull_mask = 0xFFFFF & ~NO_REFLECT_LAYER   # skip the mirror's own parts
+	_camera.near = 0.05                               # never clip the reflected room
 	_viewport.add_child(_camera)
 
 	_build_frame()
@@ -110,6 +111,7 @@ func _process(_delta: float) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	if _viewport.size != Vector2i(vp):
 		_viewport.size = Vector2i(vp)
+	_match_exposure()
 
 	# Reflect the player camera across the mirror plane (origin = this node,
 	# normal = its +Z, the way the glass faces). Reflecting position AND each
@@ -124,10 +126,26 @@ func _process(_delta: float) -> void:
 	_camera.global_transform = Transform3D(Basis(bx, by, bz), refl_origin)
 	_camera.fov = main.fov
 	_camera.keep_aspect = main.keep_aspect
-	# The reflected camera sits behind the mirror, with the wall it hangs on
-	# between it and the mirror plane. Put the near plane in that gap: past the
-	# wall (so it is culled) but short of the mirror plane (so the whole reflected
-	# room, floor and legs included, is kept). The mirror stands ~0.6 m off the
-	# wall for exactly this margin; the glass itself is handled by the layer cull.
-	var d := absf((t.origin - o).dot(n))
-	_camera.near = clampf(d - 0.3, 0.05, maxf(0.05, d))
+	# Occlusion is handled entirely by render layers, not a near plane: the wall
+	# the mirror hangs on is on NO_REFLECT_LAYER (see hub_structure), as is the
+	# glass, so the reflected camera - which sits behind that wall - never renders
+	# them. That holds at any distance and angle, where a distance-based near plane
+	# blacked the whole reflection out when the mirror was viewed from across the
+	# room (near grew with the perpendicular distance and clipped everything).
+
+
+## Match the main view's exposure/tonemap so the reflection is not double-
+## tonemapped. The world Environment (shared by the SubViewport) tonemaps the
+## scene into the reflection texture; the main pass then tonemaps the mirror quad
+## again, washing it out. Giving the reflection camera its own copy of that
+## Environment with LINEAR tonemapping means the texture stays scene-linear and is
+## tonemapped exactly once, by the main pass - so the mirror matches the room.
+func _match_exposure() -> void:
+	if _camera.environment != null:
+		return
+	var env: Environment = get_viewport().world_3d.environment
+	if env == null:
+		return
+	var e: Environment = env.duplicate()
+	e.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	_camera.environment = e

@@ -37,7 +37,12 @@ func _ready() -> void:
 	# --- Weapon Bay 8x8, centered at (0,0,9) (X[-4,4], Z[5,13]) ---
 	_box(Vector3(0, -T * 0.5, 9), Vector3(8, T, 8), floor_mat)      # floor
 	_box(Vector3(0, H + T * 0.5, 9), Vector3(8, T, 8), wall)        # ceiling
-	_box(Vector3(-4, H * 0.5, 9), Vector3(T, H, 8), wall)          # left wall
+	# The mirror hangs on this wall and its reflection camera sits behind it, so
+	# it must not appear in the reflection - put it on the mirror's no-reflect
+	# layer (1<<19, kept in sync with mirror.gd NO_REFLECT_LAYER). You never see
+	# the wall a mirror is mounted on in its reflection anyway.
+	var bay_left := _box(Vector3(-4, H * 0.5, 9), Vector3(T, H, 8), wall)  # left wall
+	bay_left.layers = 1 << 19
 	_box(Vector3(4, H * 0.5, 9), Vector3(T, H, 8), wall)           # right wall
 	_box(Vector3(0, H * 0.5, 13), Vector3(8, H, T), wall)          # back wall
 	# (the bay's front side is the cockpit's back wall + doorway above)
@@ -90,9 +95,11 @@ func _build_props() -> void:
 func _build_mirror() -> void:
 	var mirror := Node3D.new()
 	mirror.set_script(load("res://scripts/mirror.gd"))
-	# Stood a little off the left wall (which is at x=-4), so the reflection
-	# camera has a gap behind the glass to clip the wall out of the reflection.
-	mirror.position = Vector3(-3.4, 0.0, 9.5)
+	# Flush against the left wall (interior face at x=-3.85) so the player can't
+	# walk behind it. The reflection camera sits behind that wall, so the wall is
+	# put on the mirror's no-reflect layer (see below) instead of being cleared by
+	# a gap - which lets the mirror sit flush and still reflect from any angle.
+	mirror.position = Vector3(-3.82, 0.0, 9.5)
 	mirror.rotation.y = PI * 0.5          # glass faces +X, into the bay
 	add_child(mirror)
 
@@ -202,7 +209,7 @@ func _cover(pos: Vector3) -> void:
 	add_child(m)
 
 
-func _box(center: Vector3, size: Vector3, mat: StandardMaterial3D) -> void:
+func _box(center: Vector3, size: Vector3, mat: StandardMaterial3D) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = size
@@ -216,6 +223,7 @@ func _box(center: Vector3, size: Vector3, mat: StandardMaterial3D) -> void:
 	col.shape = shape
 	col.position = center
 	add_child(col)
+	return mesh
 
 
 func _omni(pos: Vector3, range_m: float, energy: float, color: Color) -> void:
