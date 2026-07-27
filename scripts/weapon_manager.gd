@@ -132,6 +132,10 @@ func _show_weapon(name_: String) -> void:
 	var character := get_parent().get_node_or_null("PlayerCharacter")
 	if character and character.has_method("set_weapon"):
 		character.set_weapon(name_)
+	# The first-person viewmodel (arms+gun composited on top) in combat.
+	var fpvm := get_parent().get_node_or_null("FPViewmodel")
+	if fpvm and fpvm.has_method("set_weapon"):
+		fpvm.set_weapon(name_)
 
 
 func _fire() -> void:
