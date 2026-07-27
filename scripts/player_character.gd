@@ -30,6 +30,10 @@ const CLIPS := {
 	"run_back": "Run/M_Neutral_Run_Loop_B_Rifle.FBX",
 	"sprint": "Sprint/M_Neutral_Sprint_Loop_F_Rifle.FBX",
 	"jump": "Jump/M_Neutral_Jump_Loop_Fall_Rifle.FBX",
+	# Turn-in-place: the feet step round instead of the whole body pivoting rigidly
+	# while standing still. Played when the player yaws without translating.
+	"turn_left": "Idle/M_Neutral_Idle_turn_left_Rifle.FBX",
+	"turn_right": "Idle/M_Neutral_Idle_turn_right_Rifle.FBX",
 }
 const WEAPON_DIR := "res://assets/thirdparty/weapons/"
 
@@ -56,7 +60,22 @@ const AIM_BONES := ["spine_02", "spine_03"]
 ## Constant upper-body lean that shoulders the low-ready rifle up into the view
 ## (the clips hold it at the chest, well below the camera). Negative = lean back
 ## / lift; tuned so the gun reads as held forward, not hanging down.
-@export var aim_base_lift: float = -0.85
+@export var aim_base_lift: float = -0.15
+## The aim lean is applied about this axis in SKELETON space (not the bone's own
+## frame): the spine bones are twisted ~45 deg about the vertical, so no single
+## local axis is a clean pitch. This axis is converted into each bone's local
+## frame every frame. Skeleton +X is the character's left-right, so a rotation
+## about it leans the torso forward/back and lifts the gun. Sign/axis tuned live.
+@export var aim_axis: Vector3 = Vector3(1, 0, 0)
+## Shoulder the weapon up into the forward view by swinging BOTH upper arms up
+## about the same skeleton left-right axis. Spine lean alone can't raise a
+## chest-held rifle into a horizontal view (it just pivots around the lower back);
+## raising the arms brings the weapon and both hands up together. Paired with the
+## camera being pulled back behind the chest (see guardian.gd) - the gun sits on
+## the chest, so the eye has to be behind it to see it held out front. Tuned
+## in-engine to the Destiny-style forward viewmodel the user referenced.
+const ARM_BONES := ["upperarm_l", "upperarm_r"]
+@export var arm_lift: float = -0.32
 
 ## Grip transform in the weapon_r socket. The socket's axes are unusual (its
 ## local X points along the character's forward and its Z points up), and the
@@ -86,6 +105,7 @@ var _hand_attach: BoneAttachment3D
 var _weapon_model: Node3D
 var _current: String = ""
 var _aim_bones: Array[int] = []
+var _arm_bones: Array[int] = []
 var _aim_pitch: float = 0.0
 
 
@@ -114,6 +134,10 @@ func _ready() -> void:
 		var idx := _find_bone_ci(String(b))
 		if idx >= 0:
 			_aim_bones.append(idx)
+	for b in ARM_BONES:
+		var idx := _find_bone_ci(String(b))
+		if idx >= 0:
+			_arm_bones.append(idx)
 
 	_build_animation(_skeleton.get_parent())
 	_build_hand_attachment()
@@ -261,22 +285,51 @@ func _process(_delta: float) -> void:
 	# torso.) Spreading it over the upper spine carries the chest, arms and the
 	# gun they hold with the camera, so the weapon points where you look instead
 	# of hanging down.
+	var sk_axis := aim_axis.normalized()
 	if not _aim_bones.is_empty():
 		var per := (-_aim_pitch * aim_strength + aim_base_lift) / float(_aim_bones.size())
 		for idx in _aim_bones:
+			# Express the skeleton-space lean axis in this bone's local frame, so
+			# each twisted spine bone still leans about the same world direction.
+			var b := _skeleton.get_bone_global_pose(idx).basis.orthonormalized()
+			var local_axis := (b.transposed() * sk_axis).normalized()
 			var posed := _skeleton.get_bone_pose_rotation(idx)
-			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(Vector3.RIGHT, per))
+			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, per))
 
+	# Shoulder lift: swing both upper arms up about the same skeleton axis, which
+	# raises the forearms, hands and the gun they hold into the forward view. Only
+	# while the weapon is drawn - in the hub it is holstered, so raising the arms
+	# would leave the Guardian aiming an invisible rifle at the vendor.
+	if arm_lift != 0.0 and weapon_drawn and not _arm_bones.is_empty():
+		for idx in _arm_bones:
+			var b := _skeleton.get_bone_global_pose(idx).basis.orthonormalized()
+			var local_axis := (b.transposed() * sk_axis).normalized()
+			var posed := _skeleton.get_bone_pose_rotation(idx)
+			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, arm_lift))
+
+
+## Above this yaw rate (rad/s) while standing still, the feet step round with a
+## turn-in-place clip instead of the whole body pivoting rigidly under a static
+## idle. Roughly a slow-to-medium mouse turn.
+const TURN_RATE := 1.2
 
 ## Drive the locomotion state from the Guardian's movement. `local_dir` is the
 ## travel direction in the body's own space (x = right, z = forward is -z), so
 ## strafing and backing up play their own clips instead of a forward walk.
-func set_speed(speed: float, local_dir := Vector2.ZERO, airborne := false) -> void:
+## `yaw_rate` (rad/s) drives turn-in-place while stationary.
+func set_speed(speed: float, local_dir := Vector2.ZERO, airborne := false,
+		yaw_rate := 0.0) -> void:
 	if airborne and _anim and _anim.has_animation("loco/jump"):
 		_play("jump")
 		return
 	if speed < WALK_SPEED:
-		_play("idle")
+		# Standing still: if the player is turning, step the feet round rather than
+		# spinning the planted body. Godot yaw increases counter-clockwise (turning
+		# left), so a positive rate is a left turn.
+		if absf(yaw_rate) > TURN_RATE:
+			_play("turn_left" if yaw_rate > 0.0 else "turn_right")
+		else:
+			_play("idle")
 		return
 	var running: bool = speed >= RUN_SPEED
 	# Sideways only when it clearly dominates the forward component.

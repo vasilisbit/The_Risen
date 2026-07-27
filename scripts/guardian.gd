@@ -93,12 +93,17 @@ var _weapon_hud: Control
 var _character: Node3D          # Phase 3 animated body (true first-person)
 
 ## Camera height: the body's eye line, so looking down shows your own torso.
-## Eye line: a compromise between seeing the held gun in the forward view (wants
-## a lower camera) and seeing your own chest/legs when you look down (wants a
-## higher one). The rifle is held at chest "ready", so from a full 1.8 m eye line
-## it sits below the forward view entirely; 1.48 brings the barrel and hands into
-## the lower forward view while looking down still shows the whole body holding it.
-const EYE_HEIGHT := 1.48
+## Eye line. The rifle is held on the chest, so the eye has to sit a little back
+## from it (see EYE_BACK) to see it held out front rather than behind the view.
+## 1.55 keeps a natural standing height while the shoulder-raised gun reads in the
+## lower forward view and looking down still shows the whole body holding it.
+const EYE_HEIGHT := 1.55
+## How far the camera sits BEHIND the body origin (+Z is back, the body faces -Z).
+## The weapon rides on the chest ~0.15 m in front of the origin; pulling the eye
+## back past it is what lets the held gun and the arms read in the forward view -
+## the Destiny-style viewmodel the user asked for. Combined with the arm-lift in
+## player_character.gd.
+const EYE_BACK := 0.28
 
 ## False in the hub: no weapon drawn, nothing to shoot, no combat HUD. The hub
 ## is a social space, and a rifle pointed at the vendor reads badly.
@@ -108,6 +113,7 @@ const EYE_HEIGHT := 1.48
 ## rather than written into the SpringArm directly, otherwise the shake would
 ## fight the mouse and permanently drift the player's aim.
 var _look_pitch: float = 0.0
+var _prev_yaw: float = 0.0       # last frame's facing, for the turn-in-place rate
 var _shake: float = 0.0
 const SHAKE_DECAY := 7.0         # how fast the jitter settles
 const MAX_SHAKE := 0.05          # rad, so even a shotgun stays readable
@@ -123,6 +129,11 @@ func _ready() -> void:
 	_spring_arm.add_excluded_object(get_rid())
 	_spawn_point = global_position
 	checkpoint = global_position
+	# Spawn markers sit ~1 m above the floor, so the body used to drop to the
+	# ground on the first frames - the camera visibly settled downward after
+	# spawning. Snap to the floor once the level geometry exists (deferred, so its
+	# collision is registered) and re-record the spawn/checkpoint at that height.
+	call_deferred("_snap_to_floor")
 	_build_death_screen()
 	_build_ability_hud()       # before apply_class_stats, which wires the super in
 	apply_class_stats()
@@ -163,6 +174,27 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("melee"):
 		if not is_dead and melee_ability != null:
 			melee_ability.activate()
+
+
+## Drop the body straight onto the floor below the spawn marker, so it starts
+## grounded instead of falling ~1 m and settling the camera downward. Runs
+## deferred from _ready (level collision is registered by then). The capsule's
+## bottom is at the body origin, so resting the origin on the floor hit puts the
+## feet on the ground.
+func _snap_to_floor() -> void:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return
+	var from := global_position + Vector3.UP * 0.5
+	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 6.0)
+	q.exclude = [get_rid()]
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return
+	global_position.y = (hit["position"] as Vector3).y
+	velocity.y = 0.0
+	_spawn_point = global_position
+	checkpoint = global_position
 
 
 func _physics_process(delta: float) -> void:
@@ -597,7 +629,7 @@ func _build_character() -> void:
 	add_child(_character)
 	# Sit the camera at the body's eye line, a little forward of the chest so the
 	# view clears the shoulders down to the belly and legs.
-	_spring_arm.position = Vector3(0.0, EYE_HEIGHT, -0.15)
+	_spring_arm.position = Vector3(0.0, EYE_HEIGHT, EYE_BACK)
 	# The character's own hand holds the gun now, so the floating camera
 	# viewmodel is retired; the hand weapon is holstered in the hub, where
 	# combat_enabled is false - the Guardian should not be armed at the vendor.
@@ -625,7 +657,12 @@ func _update_character() -> void:
 		var dir := Vector2(local.x, local.z)
 		if dir.length() > 0.001:
 			dir = dir.normalized()
-		_character.set_speed(flat.length(), dir, not is_on_floor())
+		# Yaw rate (rad/s) drives turn-in-place: the mouse rotates the body every
+		# frame, so compare against last frame's facing over the physics step.
+		var dt := get_physics_process_delta_time()
+		var yaw_rate := wrapf(rotation.y - _prev_yaw, -PI, PI) / maxf(dt, 0.0001)
+		_prev_yaw = rotation.y
+		_character.set_speed(flat.length(), dir, not is_on_floor(), yaw_rate)
 	if _character.has_method("set_aim_pitch"):
 		_character.set_aim_pitch(_look_pitch)
 
