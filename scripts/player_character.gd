@@ -76,6 +76,11 @@ const AIM_BONES := ["spine_02", "spine_03"]
 const ARM_BONES := ["upperarm_l", "upperarm_r"]
 @export var arm_lift: float = 0.0
 
+## Render layer the real body sits on so the main camera can exclude it (true
+## first person - no own neck/back) while the mirror camera still shows it.
+## Kept distinct from the mirror's own no-reflect layer (1<<19).
+const BODY_LAYER := 1 << 18
+
 ## Grip transform in the weapon_r socket. The socket's axes are unusual (its
 ## local X points along the character's forward and its Z points up), and the
 ## gun wrappers' barrels run along their own -X; a +90 deg pitch aligns the
@@ -85,7 +90,11 @@ const ARM_BONES := ["upperarm_l", "upperarm_r"]
 const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0}
 const GRIPS := {
 	"Auto Rifle": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
-	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 0.95},
+	# The shotgun is the one FBX (the others are glTF); FBX import leaves it on a
+	# different axis convention, so the uniform +90 pitch pointed its barrel the
+	# wrong way. This rotation was solved by aiming its barrel (+X) down -Z in the
+	# socket and reading back the local Euler - it lands the barrel forward.
+	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(-75.2, 56.7, 117.6), "scale": 0.95},
 	"Sniper": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 0.9},
 	"Hand Cannon": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
 }
@@ -153,7 +162,12 @@ func _apply_suit(hero: Node3D) -> void:
 	suit.metallic = 0.35
 	suit.roughness = 0.55
 	for m in hero.find_children("*", "MeshInstance3D", true, false):
-		(m as MeshInstance3D).material_override = suit
+		var mesh := m as MeshInstance3D
+		mesh.material_override = suit
+		# Put the real body on its own render layer so the main first-person camera
+		# can skip it (you never see your own neck/back/legs), while the hub mirror's
+		# camera still renders it. In the viewmodel's own viewport this is harmless.
+		mesh.layers = BODY_LAYER
 
 
 ## Bone lookup that tolerates the rig's inconsistent capitalisation.

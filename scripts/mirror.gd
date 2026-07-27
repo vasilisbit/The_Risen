@@ -91,7 +91,12 @@ shader_type spatial;
 render_mode unshaded, cull_disabled;
 uniform sampler2D reflection : filter_linear;
 void fragment() {
-	ALBEDO = texture(reflection, SCREEN_UV).rgb;
+	// The reflection viewport stores a display-referred (sRGB-encoded) image, but
+	// ALBEDO is treated as linear and the main pass tonemaps it AGAIN - which made
+	// the mirror brighter than the room. Decode sRGB->linear here so the colour is
+	// tonemapped exactly once, matching the rest of the scene.
+	vec3 c = texture(reflection, SCREEN_UV).rgb;
+	ALBEDO = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
 }
 """
 	var mat := ShaderMaterial.new()
