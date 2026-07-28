@@ -119,10 +119,11 @@ const GRIPS := {
 	# different axis convention, so the uniform +90 pitch pointed its barrel the
 	# wrong way. This rotation was solved by aiming its barrel (+X) down -Z in the
 	# socket and reading back the local Euler - it lands the barrel forward.
-	# Scaled UP so the longer barrel/pump reaches forward to where the support hand
-	# sits (the shared rifle grip holds the off hand well forward); at 1.4 the left
-	# hand lands on the pump instead of grabbing air past a too-short gun.
-	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(-75.2, 56.7, 117.6), "scale": 1.4},
+	# Aimed so the barrel runs from the trigger hand THROUGH the support hand (the
+	# way the rifle grip does), so BOTH hands land on it - pointing it straight
+	# forward instead left the off hand grabbing air. The viewmodel is cosmetic
+	# (shots fire from the camera), so the slight upward cant doesn't affect aim.
+	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(30.5, -101.5, -80.8), "scale": 1.05},
 	"Sniper": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 0.9},
 	"Hand Cannon": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
 }

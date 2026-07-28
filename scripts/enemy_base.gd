@@ -93,28 +93,45 @@ func _ready() -> void:
 	_apply_external_model()
 	if show_nameplate:
 		_build_nameplate()
-	# Some spawn markers sit on/over a crate, so the enemy lands ON TOP of it -
-	# off the navmesh, with no path down, stuck forever. Snap it onto the nearest
-	# navigable point once the navmesh is baked and synced.
-	_snap_to_navmesh.call_deferred()
 
 
-## Drop the enemy onto the navmesh if it spawned off it (e.g. on a crate top).
-## Waits for the runtime navmesh bake + a map sync before querying.
-func _snap_to_navmesh() -> void:
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	if _dead or not is_inside_tree():
+## Enemy traversal jump (T-fix): crates break the navmesh, so an enemy that
+## spawns on one - or wants to reach the player over/onto one - would just press
+## against it. When a chasing enemy is grounded and blocked by a low ledge in its
+## move direction (or the player is above and close), hop up; walking off the far
+## edge afterwards drops it back to the floor under gravity. Enemies call this
+## from their movement each frame with the direction they want to travel.
+const JUMP_SPEED := 6.5           # clears a ~2 m crate
+const JUMP_COOLDOWN := 0.7
+const LEDGE_REACH := 0.9          # how far ahead to look for a ledge
+const LEDGE_MAX_HEIGHT := 2.2     # tallest ledge the enemy will try to mount
+var _jump_cd: float = 0.0
+
+
+func _tick_jump(desired_dir: Vector3, delta: float) -> void:
+	if _jump_cd > 0.0:
+		_jump_cd -= delta
+	if not is_on_floor() or _jump_cd > 0.0:
 		return
-	var map := get_world_3d().navigation_map
-	if not map.is_valid():
+	var flat := Vector3(desired_dir.x, 0.0, desired_dir.z)
+	if flat.length() < 0.1:
 		return
-	var closest := NavigationServer3D.map_get_closest_point(map, global_position)
-	# Only move if we're clearly off-mesh (small offsets are just the navmesh
-	# sitting a little above the floor - leave those alone).
-	if closest != Vector3.ZERO and global_position.distance_to(closest) > 0.75:
-		global_position = closest + Vector3.UP * 0.1
-		velocity = Vector3.ZERO
+	flat = flat.normalized()
+	var space := get_world_3d().direct_space_state
+	# 1) Is something blocking us right ahead at foot/shin height?
+	var low_from := global_position + Vector3.UP * 0.35
+	var low_q := PhysicsRayQueryParameters3D.create(low_from, low_from + flat * LEDGE_REACH)
+	low_q.exclude = [get_rid()]
+	if space.intersect_ray(low_q).is_empty():
+		return                                        # clear path, no need to jump
+	# 2) Is it low enough to mount? Above LEDGE_MAX_HEIGHT there must be open air.
+	var high_from := global_position + Vector3.UP * LEDGE_MAX_HEIGHT
+	var high_q := PhysicsRayQueryParameters3D.create(high_from, high_from + flat * LEDGE_REACH)
+	high_q.exclude = [get_rid()]
+	if not space.intersect_ray(high_q).is_empty():
+		return                                        # too tall (a wall), don't bother
+	velocity.y = JUMP_SPEED
+	_jump_cd = JUMP_COOLDOWN
 
 
 ## Swap the primitive capsule for a real model if one has been dropped in at
@@ -361,14 +378,45 @@ func _tick_status(delta: float) -> bool:
 ## navmesh sits slightly above the floor, so once the agent is horizontally on
 ## top of a waypoint the flattened delta collapses to ~0 and the enemy would
 ## stall every time it reached one. Fall back to heading straight at the final
-## target in that case.
+## target in that case - and also whenever we are OFF the navmesh (spawned on a
+## crate, mid-jump onto one), where the path is meaningless: heading straight at
+## the target walks us off toward the player so gravity drops us back down.
 func _nav_dir(next: Vector3, fallback_target: Vector3) -> Vector3:
+	var edge := _off_mesh_edge()
+	if edge != Vector3.ZERO:
+		# On a crate: prefer walking toward the player, but if they are ~directly
+		# below (no horizontal heading) drift toward the nearest ground so we reach
+		# an edge and drop off instead of standing there forever.
+		var to_player := fallback_target - global_position
+		to_player.y = 0.0
+		if to_player.length() > 0.6:
+			return to_player
+		return edge
 	var dir := next - global_position
 	dir.y = 0.0
 	if dir.length() < 0.15:
 		dir = fallback_target - global_position
 		dir.y = 0.0
 	return dir
+
+
+## If the enemy is off the navmesh (on a crate the navmesh doesn't cover), returns
+## a horizontal heading toward the nearest navigable ground (so it walks to an edge
+## and falls back down); Vector3.ZERO when the enemy is on the navmesh. A last-
+## resort forward nudge covers being dead-centre on a crate with ground straight
+## below.
+func _off_mesh_edge() -> Vector3:
+	var map := get_world_3d().navigation_map
+	if not map.is_valid():
+		return Vector3.ZERO
+	var closest := NavigationServer3D.map_get_closest_point(map, global_position)
+	if closest == Vector3.ZERO or global_position.distance_to(closest) <= 1.0:
+		return Vector3.ZERO
+	var edge := closest - global_position
+	edge.y = 0.0
+	if edge.length() < 0.2:
+		edge = -global_transform.basis.z    # ground is straight down: walk forward off
+	return edge
 
 
 func _face(target: Vector3) -> void:

@@ -68,7 +68,7 @@ func _physics_process(delta: float) -> void:
 			if dist <= SLAM_RANGE:
 				_state = State.ATTACK
 			else:
-				_chase()
+				_chase(delta)
 		State.ATTACK:
 			_halt_horizontal()
 			_face(_player.global_position)
@@ -82,7 +82,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 
-func _chase() -> void:
+func _chase(delta: float) -> void:
 	_agent.target_position = _player.global_position
 	var next := _agent.get_next_path_position()
 	var dir := _nav_dir(next, _player.global_position)
@@ -92,6 +92,7 @@ func _chase() -> void:
 		velocity.x = dir.x * spd
 		velocity.z = dir.z * spd
 		_face(global_position + dir)
+		_tick_jump(dir, delta)          # hop onto a crate/ledge in the way
 	else:
 		_halt_horizontal()
 
