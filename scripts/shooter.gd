@@ -78,7 +78,7 @@ func _physics_process(delta: float) -> void:
 				_peek_timer = 0.0
 				_state = State.COVER
 			else:
-				_navigate_to(_cover_pos)
+				_navigate_to(_cover_pos, delta)
 		State.COVER:
 			_halt_horizontal()
 			_face(_player.global_position)
@@ -147,10 +147,8 @@ func _begin_peek() -> void:
 	_state = State.PEEK
 
 
-func _navigate_to(pos: Vector3) -> void:
-	_agent.target_position = pos
-	var next := _agent.get_next_path_position()
-	_steer(global_position + _nav_dir(next, pos))
+func _navigate_to(pos: Vector3, delta: float) -> void:
+	_steer(global_position + _nav_dir(_agent, pos, delta))
 
 
 func _move_straight_to(pos: Vector3) -> void:

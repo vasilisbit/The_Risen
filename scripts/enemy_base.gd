@@ -90,6 +90,7 @@ func _ready() -> void:
 	_apply_difficulty()
 	health = max_health
 	_player = _find_player()
+	_last_pos = global_position
 	_apply_external_model()
 	if show_nameplate:
 		_build_nameplate()
@@ -106,6 +107,10 @@ const JUMP_COOLDOWN := 0.7
 const LEDGE_REACH := 0.9          # how far ahead to look for a ledge
 const LEDGE_MAX_HEIGHT := 2.2     # tallest ledge the enemy will try to mount
 var _jump_cd: float = 0.0
+## No-progress detector for the unstick logic (see _nav_dir): how long we have
+## wanted to move but barely have, and where we were last frame.
+var _stuck_time: float = 0.0
+var _last_pos: Vector3 = Vector3.ZERO
 
 
 func _tick_jump(desired_dir: Vector3, delta: float) -> void:
@@ -374,29 +379,51 @@ func _tick_status(delta: float) -> bool:
 	return true
 
 
-## Horizontal steering direction toward a NavigationAgent3D waypoint. The
-## navmesh sits slightly above the floor, so once the agent is horizontally on
-## top of a waypoint the flattened delta collapses to ~0 and the enemy would
-## stall every time it reached one. Fall back to heading straight at the final
-## target in that case - and also whenever we are OFF the navmesh (spawned on a
-## crate, mid-jump onto one), where the path is meaningless: heading straight at
-## the target walks us off toward the player so gravity drops us back down.
-func _nav_dir(next: Vector3, fallback_target: Vector3) -> Vector3:
+## Horizontal steering toward `target`. Normally follows the NavigationAgent
+## path, but crates break navigation two ways: an enemy standing on a crate whose
+## top the navmesh doesn't cover is fully OFF the mesh, while a crate top baked as
+## its own disconnected navmesh island leaves the enemy technically ON the mesh
+## with NO path to a player on the floor. Both used to strand the enemy. We now
+## detect no-progress generally - off-mesh, a finished-but-far path, or simply
+## wanting to move while barely moving - and in that case steer STRAIGHT at the
+## player. That walks the enemy to the crate edge so gravity drops it onto the
+## floor, and _tick_jump mounts a low crate on the way in. Returns a horizontal
+## (y=0) vector; the caller normalises. Pass the agent and frame delta.
+func _nav_dir(agent: NavigationAgent3D, target: Vector3, delta: float) -> Vector3:
+	agent.target_position = target
+	var to_target := target - global_position
+	to_target.y = 0.0
+
+	# --- progress / stuck tracking (horizontal) -------------------------------
+	var moved := global_position - _last_pos
+	moved.y = 0.0
+	_last_pos = global_position
+	if to_target.length() > 1.2 and moved.length() < 0.5 * delta:  # <0.5 m/s = stalled
+		_stuck_time += delta
+	else:
+		_stuck_time = maxf(0.0, _stuck_time - delta * 3.0)
+
+	# Standing on a crate/ledge ABOVE the player, fully off the navmesh, or simply
+	# stalled: navigation can't route us DOWN a ledge (a crate top bakes as its own
+	# disconnected navmesh island, so the path leads nowhere useful), so head
+	# straight at the player to reach an edge and let gravity drop us onto the
+	# floor. Keying on height beats trusting is_navigation_finished(), which flips
+	# frame to frame. Climbing UP onto a low crate toward a player above us is
+	# handled separately by _tick_jump.
+	var above := global_position.y - target.y > 0.8
 	var edge := _off_mesh_edge()
-	if edge != Vector3.ZERO:
-		# On a crate: prefer walking toward the player, but if they are ~directly
-		# below (no horizontal heading) drift toward the nearest ground so we reach
-		# an edge and drop off instead of standing there forever.
-		var to_player := fallback_target - global_position
-		to_player.y = 0.0
-		if to_player.length() > 0.6:
-			return to_player
-		return edge
-	var dir := next - global_position
+	if above or edge != Vector3.ZERO or _stuck_time > 0.35:
+		if to_target.length() > 0.8:
+			return to_target
+		if edge != Vector3.ZERO:
+			return edge                                 # player ~straight below
+		return -global_transform.basis.z
+
+	# --- normal navmesh follow ------------------------------------------------
+	var dir := agent.get_next_path_position() - global_position
 	dir.y = 0.0
 	if dir.length() < 0.15:
-		dir = fallback_target - global_position
-		dir.y = 0.0
+		dir = to_target
 	return dir
 
 

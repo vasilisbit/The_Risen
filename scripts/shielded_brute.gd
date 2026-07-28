@@ -83,9 +83,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _chase(delta: float) -> void:
-	_agent.target_position = _player.global_position
-	var next := _agent.get_next_path_position()
-	var dir := _nav_dir(next, _player.global_position)
+	var dir := _nav_dir(_agent, _player.global_position, delta)
 	if dir.length() > 0.05:
 		dir = dir.normalized()
 		var spd := MOVE_SPEED * EnemyBase.speed_scale
