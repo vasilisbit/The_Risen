@@ -93,6 +93,28 @@ func _ready() -> void:
 	_apply_external_model()
 	if show_nameplate:
 		_build_nameplate()
+	# Some spawn markers sit on/over a crate, so the enemy lands ON TOP of it -
+	# off the navmesh, with no path down, stuck forever. Snap it onto the nearest
+	# navigable point once the navmesh is baked and synced.
+	_snap_to_navmesh.call_deferred()
+
+
+## Drop the enemy onto the navmesh if it spawned off it (e.g. on a crate top).
+## Waits for the runtime navmesh bake + a map sync before querying.
+func _snap_to_navmesh() -> void:
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if _dead or not is_inside_tree():
+		return
+	var map := get_world_3d().navigation_map
+	if not map.is_valid():
+		return
+	var closest := NavigationServer3D.map_get_closest_point(map, global_position)
+	# Only move if we're clearly off-mesh (small offsets are just the navmesh
+	# sitting a little above the floor - leave those alone).
+	if closest != Vector3.ZERO and global_position.distance_to(closest) > 0.75:
+		global_position = closest + Vector3.UP * 0.1
+		velocity = Vector3.ZERO
 
 
 ## Swap the primitive capsule for a real model if one has been dropped in at

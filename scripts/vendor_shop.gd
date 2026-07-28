@@ -72,6 +72,15 @@ func _do_open() -> void:
 
 
 func close() -> void:
+	# Fade out through black just like the open, so leaving the shop isn't a hard cut.
+	var gs := get_node_or_null("/root/GameState")
+	if gs and gs.has_method("fade_black_then"):
+		gs.fade_black_then(_do_close)
+	else:
+		_do_close()
+
+
+func _do_close() -> void:
 	visible = false
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -561,6 +570,9 @@ func _build_backdrop() -> Control:
 		for m in robot.find_children("*", "MeshInstance3D", true, false):
 			(m as MeshInstance3D).material_override = mech_mat
 		vp.add_child(robot)
+		var idle := Node.new()                       # subtle standing idle
+		idle.set_script(load("res://scripts/forge_master_idle.gd"))
+		robot.add_child(idle)
 
 	var cam := Camera3D.new()
 	cam.fov = 38.0

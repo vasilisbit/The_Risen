@@ -13,7 +13,9 @@ signal launch_confirmed(mission_id: String)
 const GOLD := Color(0.95, 0.78, 0.32)
 const DIM := Color(0.55, 0.58, 0.66)
 const LOCKED := Color(0.35, 0.36, 0.40)
-const CARD_SIZE := Vector2(236, 156)
+## Matched to the class-select cards so the two full-screen pickers read at the
+## same scale (they share the same centered full-rect layout).
+const CARD_SIZE := Vector2(300, 240)
 
 var mission_id: String = ""
 
@@ -121,14 +123,14 @@ func _build() -> void:
 
 	_heading = Label.new()
 	_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_heading.add_theme_font_size_override("font_size", 30)
+	_heading.add_theme_font_size_override("font_size", 34)
 	_heading.add_theme_color_override("font_color", GOLD)
 	box.add_child(_heading)
 
 	var sub := Label.new()
 	sub.text = "Choose your difficulty."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 13)
+	sub.add_theme_font_size_override("font_size", 14)
 	sub.add_theme_color_override("font_color", DIM)
 	box.add_child(sub)
 
@@ -141,7 +143,7 @@ func _build() -> void:
 
 	_note = Label.new()
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_note.add_theme_font_size_override("font_size", 12)
+	_note.add_theme_font_size_override("font_size", 13)
 	_note.add_theme_color_override("font_color", DIM)
 	box.add_child(_note)
 
@@ -151,13 +153,13 @@ func _build() -> void:
 	box.add_child(buttons)
 
 	_launch = Button.new()
-	_launch.custom_minimum_size = Vector2(260, 46)
+	_launch.custom_minimum_size = Vector2(320, 50)
 	_launch.pressed.connect(_confirm)
 	buttons.add_child(_launch)
 
 	var cancel := Button.new()
 	cancel.text = "CANCEL"
-	cancel.custom_minimum_size = Vector2(140, 46)
+	cancel.custom_minimum_size = Vector2(160, 50)
 	cancel.pressed.connect(close)
 	buttons.add_child(cancel)
 
@@ -181,7 +183,7 @@ func _build_card(tier: Dictionary) -> PanelContainer:
 	var name_label := Label.new()
 	name_label.text = String(tier["title"])
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 21)
+	name_label.add_theme_font_size_override("font_size", 23)
 	name_label.add_theme_color_override("font_color", tier["color"])
 	col.add_child(name_label)
 
@@ -189,7 +191,7 @@ func _build_card(tier: Dictionary) -> PanelContainer:
 	blurb.text = String(tier["blurb"])
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	blurb.add_theme_font_size_override("font_size", 12)
+	blurb.add_theme_font_size_override("font_size", 14)
 	blurb.modulate = Color(0.78, 0.80, 0.86)
 	blurb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(blurb)

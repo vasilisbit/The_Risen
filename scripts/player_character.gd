@@ -119,10 +119,16 @@ const GRIPS := {
 	# different axis convention, so the uniform +90 pitch pointed its barrel the
 	# wrong way. This rotation was solved by aiming its barrel (+X) down -Z in the
 	# socket and reading back the local Euler - it lands the barrel forward.
-	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(-75.2, 56.7, 117.6), "scale": 0.95},
+	# Scaled UP so the longer barrel/pump reaches forward to where the support hand
+	# sits (the shared rifle grip holds the off hand well forward); at 1.4 the left
+	# hand lands on the pump instead of grabbing air past a too-short gun.
+	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(-75.2, 56.7, 117.6), "scale": 1.4},
 	"Sniper": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 0.9},
 	"Hand Cannon": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
 }
+## Weapons whose model needs recolouring to the dark gunmetal look (the shotgun is
+## a bare FBX; the Sci-Fi glTF guns already carry their own dark materials).
+const RECOLOR := {"Shotgun": true}
 
 ## Put the gun in the character's hand instead of drawing the camera viewmodel.
 ## Needs a per-weapon grip transform first - see set_weapon().
@@ -349,7 +355,20 @@ func set_weapon(name_: String) -> void:
 			_weapon_model.rotation_degrees = grip["rot"]
 			_weapon_model.scale = Vector3.ONE * float(grip["scale"])
 			_weapon_model.visible = weapon_drawn
+			if RECOLOR.has(name_):
+				_recolor_weapon(_weapon_model)
 		return
+
+
+## Paint a weapon's meshes gunmetal so a bare/odd-textured model (the shotgun FBX)
+## matches the dark Sci-Fi look of the auto rifle instead of rendering pale.
+func _recolor_weapon(model: Node3D) -> void:
+	var metal := StandardMaterial3D.new()
+	metal.albedo_color = Color(0.14, 0.15, 0.17)
+	metal.metallic = 0.8
+	metal.roughness = 0.34
+	for m in model.find_children("*", "MeshInstance3D", true, false):
+		(m as MeshInstance3D).material_override = metal
 
 
 ## Holster/draw the held weapon (the Guardian is unarmed in the hub).
