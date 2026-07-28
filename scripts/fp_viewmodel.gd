@@ -20,10 +20,9 @@ const CHARACTER := "res://scripts/player_character.gd"
 @export var cam_position: Vector3 = Vector3(-0.22, 1.47, 0.56)
 @export var cam_look_at: Vector3 = Vector3(-0.22, 1.47, -1.0)
 @export var cam_fov: float = 48.0
-## Near plane: sits just past the neck/torso so they are clipped out, short of the
-## gun so it stays. This is what removes the body from the viewmodel (the rig is
-## one skinned mesh, so the torso can't just be hidden).
-@export var cam_near: float = 0.6
+## Near plane. The torso is now removed by the arms-only vertex mask (no hard
+## cut), so this only needs to stay off the very closest geometry.
+@export var cam_near: float = 0.05
 ## Aim: the viewmodel dips/rises a touch with the look pitch. Small - too much and
 ## looking down slides the clipped body edge into view.
 @export var pitch_follow: float = 0.05
@@ -63,6 +62,7 @@ func _ready() -> void:
 	if scene is GDScript:
 		_rig = Node3D.new()
 		_rig.set_script(scene)
+		_rig.set("arms_only", true)                     # show only the forearms+hands
 		_rig.rotation.y = PI                            # face -Z like the real body
 		_viewport.add_child(_rig)
 
@@ -79,15 +79,15 @@ func _ready() -> void:
 ## isolated world is otherwise pitch black.
 func _build_lighting() -> void:
 	var key := DirectionalLight3D.new()
-	key.rotation = Vector3(deg_to_rad(-45), deg_to_rad(35), 0)
-	key.light_energy = 1.3
+	key.rotation = Vector3(deg_to_rad(-50), deg_to_rad(35), 0)
+	key.light_energy = 1.0
 	_viewport.add_child(key)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0, 0, 0, 0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.55, 0.6, 0.72)
-	env.ambient_light_energy = 0.7
+	env.ambient_light_color = Color(0.42, 0.46, 0.55)
+	env.ambient_light_energy = 0.35
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	var we := WorldEnvironment.new()
 	we.environment = env

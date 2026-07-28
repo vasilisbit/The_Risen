@@ -11,13 +11,11 @@ extends Ability
 
 const GRENADE_COOLDOWN := 30.0
 
-## Tuned in-engine so a level throw LANDS ~10 m away (card: "τόξο 10m") with
-## roughly 20 degrees of loft, touching down around 1.0 s - comfortably inside
-## the 1.5 s fuse, so the grenade comes to rest near the target instead of
-## airbursting mid-arc. The first pass at 12 m/s was still flying at the fuse
-## and "landed" 15 m out.
-const THROW_SPEED := 10.5
-const THROW_LOFT := 0.36          # upward component added to the aim direction
+## Throws farther now (user wanted more range): ~18-20 m on a level throw. The
+## grenade fuse was lengthened to 2.5 s to match, so a long throw still lands and
+## settles near the target instead of airbursting mid-arc.
+const THROW_SPEED := 17.0
+const THROW_LOFT := 0.32          # upward component added to the aim direction
 const MUZZLE_FORWARD := 0.6       # spawn ahead of the camera, not inside it
 
 ## Path to the Grenade subclass this class throws. Set by the Guardian.
