@@ -442,12 +442,17 @@ func _process(_delta: float) -> void:
 			var posed := _skeleton.get_bone_pose_rotation(idx)
 			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, arm_lift))
 
-	# One-handed weapons: collapse the whole left arm to nothing so no support arm
-	# is drawn (scaling its root bone shrinks every child - forearm and hand too).
-	if _hide_left_arm and weapon_drawn and _left_arm_root >= 0:
-		_skeleton.set_bone_pose_scale(_left_arm_root, Vector3.ONE * 0.01)
-	# Otherwise nudge the support hand down for weapons that need it.
-	elif _support_lower != 0.0 and weapon_drawn and not _left_arm_bones.is_empty():
+	# One-handed weapons (Hand Cannon) collapse the whole left arm to nothing so no
+	# support arm is drawn (scaling its root bone shrinks every child - forearm and
+	# hand too). EVERY OTHER weapon must actively RESTORE that scale to 1: the idle
+	# clip carries no scale track, so a collapse left over from a previous one-handed
+	# weapon persists and would strip the support hand off every later weapon. So set
+	# the scale explicitly each frame rather than only when hiding.
+	if _left_arm_root >= 0:
+		var arm_scale := 0.01 if (_hide_left_arm and weapon_drawn) else 1.0
+		_skeleton.set_bone_pose_scale(_left_arm_root, Vector3.ONE * arm_scale)
+	# Optional per-weapon support-hand nudge (only while the support arm is shown).
+	if not _hide_left_arm and _support_lower != 0.0 and weapon_drawn and not _left_arm_bones.is_empty():
 		for idx in _left_arm_bones:
 			var b := _skeleton.get_bone_global_pose(idx).basis.orthonormalized()
 			var local_axis := (b.transposed() * sk_axis).normalized()
