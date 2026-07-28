@@ -154,7 +154,7 @@ func _physics_process(delta: float) -> void:
 				_halt_horizontal()
 				_face(_player.global_position)
 			else:
-				_chase()
+				_chase(delta)
 			_try_attacks(dist)
 
 	move_and_slide()
@@ -170,10 +170,8 @@ func _try_attacks(dist: float) -> void:
 		fireball()
 
 
-func _chase() -> void:
-	_agent.target_position = _player.global_position
-	var next := _agent.get_next_path_position()
-	var dir := _nav_dir(next, _player.global_position)
+func _chase(delta: float) -> void:
+	var dir := _nav_dir(_agent, _player.global_position, delta)
 	if dir.length() > 0.05:
 		dir = dir.normalized()
 		var spd := move_speed()
