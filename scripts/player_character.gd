@@ -99,8 +99,11 @@ const BODY_LAYER := 1 << 18
 ## the player already had, just isolated. Set on the viewmodel rig, not the body.
 @export var arms_only: bool = false
 ## Bone-name fragments whose vertices are KEPT for arms_only; everything weighted
-## mainly to any other bone (spine/pelvis/leg/neck/head) is discarded.
-const ARM_KEEP := ["clavicle", "upperarm", "lowerarm", "hand", "thumb", "index",
+## mainly to any other bone (spine/pelvis/leg/neck/head/UPPER arm/shoulder) is
+## discarded. Deliberately only the FOREARMS and hands - keeping the upper arms and
+## clavicles put big bulky shoulder masses right next to the camera, which read as
+## deformed blobs. Forearms+hands reaching to the gun is the real viewmodel look.
+const ARM_KEEP := ["lowerarm", "hand", "thumb", "index",
 	"middle", "ring", "pinky", "wrist", "weapon"]
 
 ## Grip transform in the weapon_r socket. The socket's axes are unusual (its
@@ -221,15 +224,17 @@ func _mask_to_arms(hero: Node3D) -> void:
 	shader.code = """
 shader_type spatial;
 render_mode cull_disabled;
+uniform vec3 arm_albedo : source_color = vec3(0.12, 0.13, 0.17);
 void fragment() {
 	if (COLOR.r < 0.5) { discard; }
-	ALBEDO = vec3(0.14, 0.16, 0.21);
+	ALBEDO = arm_albedo;
 	METALLIC = 0.0;
-	ROUGHNESS = 0.7;
+	ROUGHNESS = 0.8;
 }
 """
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
+	mat.set_shader_parameter("arm_albedo", Color(0.12, 0.13, 0.17))
 
 	for m in hero.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D
