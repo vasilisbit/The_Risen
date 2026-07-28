@@ -76,6 +76,15 @@ const AIM_BONES := ["spine_02", "spine_03"]
 const ARM_BONES := ["upperarm_l", "upperarm_r"]
 @export var arm_lift: float = 0.0
 
+## Left (support) arm bones, swung DOWN off the gun for one-handed weapons so the
+## Hand Cannon isn't held in two hands. Amount per weapon set in set_weapon().
+const LEFT_ARM_BONES := ["upperarm_l", "lowerarm_l"]
+## Per-weapon support-hand lower (radians about the skeleton left-right axis).
+## 0 = keep the animation's two-handed grip. The Hand Cannon is one-handed; the
+## shotgun's support hand rode too high on the rifle pose, so nudge it down onto
+## the pump.
+const SUPPORT_LOWER := {"Hand Cannon": 1.7, "Shotgun": 0.22}
+
 ## Render layer the real body sits on so the main camera can exclude it (true
 ## first person - no own neck/back) while the mirror camera still shows it.
 ## Kept distinct from the mirror's own no-reflect layer (1<<19).
@@ -114,6 +123,8 @@ var _weapon_model: Node3D
 var _current: String = ""
 var _aim_bones: Array[int] = []
 var _arm_bones: Array[int] = []
+var _left_arm_bones: Array[int] = []
+var _support_lower: float = 0.0     # how far to drop the support arm (per weapon)
 var _aim_pitch: float = 0.0
 
 
@@ -146,6 +157,10 @@ func _ready() -> void:
 		var idx := _find_bone_ci(String(b))
 		if idx >= 0:
 			_arm_bones.append(idx)
+	for b in LEFT_ARM_BONES:
+		var idx := _find_bone_ci(String(b))
+		if idx >= 0:
+			_left_arm_bones.append(idx)
 
 	_build_animation(_skeleton.get_parent())
 	_build_hand_attachment()
@@ -231,6 +246,8 @@ func set_weapon(name_: String) -> void:
 	# proper per-weapon grip transform, the camera viewmodel draws the gun.
 	if not hand_weapon_enabled or _hand_attach == null:
 		return
+	# One-handed weapons drop the support arm off the gun (see _process).
+	_support_lower = float(SUPPORT_LOWER.get(name_, 0.0))
 	if _weapon_model and is_instance_valid(_weapon_model):
 		_weapon_model.queue_free()
 		_weapon_model = null
@@ -319,6 +336,15 @@ func _process(_delta: float) -> void:
 			var local_axis := (b.transposed() * sk_axis).normalized()
 			var posed := _skeleton.get_bone_pose_rotation(idx)
 			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, arm_lift))
+
+	# Support-arm drop for one-handed weapons: swing the LEFT arm down off the gun
+	# about the same skeleton axis, so the Hand Cannon reads as held in one hand.
+	if _support_lower != 0.0 and weapon_drawn and not _left_arm_bones.is_empty():
+		for idx in _left_arm_bones:
+			var b := _skeleton.get_bone_global_pose(idx).basis.orthonormalized()
+			var local_axis := (b.transposed() * sk_axis).normalized()
+			var posed := _skeleton.get_bone_pose_rotation(idx)
+			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, _support_lower))
 
 
 ## Above this yaw rate (rad/s) while standing still, the feet step round with a

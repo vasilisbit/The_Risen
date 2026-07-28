@@ -161,6 +161,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			else Input.MOUSE_MODE_CAPTURED)
 	elif event.is_action_pressed("debug_damage"):
 		take_damage(DEBUG_DAMAGE_AMOUNT)
+	elif _is_menu_open():
+		return                 # browsing the inventory: hold abilities too
 	elif not combat_enabled:
 		return                 # hub: abilities are holstered along with the gun
 	elif event.is_action_pressed("super"):
@@ -197,6 +199,13 @@ func _snap_to_floor() -> void:
 	checkpoint = global_position
 
 
+## True while a full-screen menu (the inventory) is open. The world keeps running
+## underneath it, but the player's own input is held so they don't act blind.
+func _is_menu_open() -> bool:
+	var inv := get_tree().get_first_node_in_group("inventory_screen")
+	return inv != null and inv.visible
+
+
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		# Keep falling but ignore input while dead.
@@ -210,11 +219,16 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= _gravity * gravity_scale * delta
 
-	if Input.is_action_just_pressed("jump") and is_on_floor():
+	# The inventory no longer freezes the world, so an in-progress jump keeps its
+	# arc and lands while you browse - but new movement/jump input is ignored so
+	# you don't wander or leap around behind the open panel.
+	var menu_open := _is_menu_open()
+
+	if not menu_open and Input.is_action_just_pressed("jump") and is_on_floor():
 		# v = sqrt(2 * g * h) reaches exactly JUMP_HEIGHT at apex.
 		velocity.y = sqrt(2.0 * _gravity * JUMP_HEIGHT)
 
-	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input_dir := Vector2.ZERO if menu_open else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	# Sprint only counts while grounded: the horizontal speed is locked in at
 	# take-off, so tapping sprint mid-air can't extend a jump. Direction is

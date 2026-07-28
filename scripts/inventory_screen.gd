@@ -67,13 +67,14 @@ func toggle() -> void:
 func open() -> void:
 	refresh()
 	visible = true
-	get_tree().paused = true
+	# The world keeps running while the inventory is open (Destiny-style): a jump
+	# started before opening finishes in the air, time doesn't freeze. Only the
+	# mouse is released so the panel can be clicked.
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func close() -> void:
 	visible = false
-	get_tree().paused = false
 	# The hub still wants a captured mouse; only the menus release it.
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 

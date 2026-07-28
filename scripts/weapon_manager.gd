@@ -88,7 +88,14 @@ func _process(delta: float) -> void:
 	var w := active_weapon()
 	if w == null:
 		return
-	w.tick(delta)
+	w.tick(delta)               # reloads in progress keep ticking even while paused-in-menu
+
+	# The inventory no longer freezes the world (so a jump finishes), but the player
+	# should not fire/switch/reload while browsing it - a click on a panel item
+	# would otherwise also pull the trigger.
+	var inv := get_tree().get_first_node_in_group("inventory_screen")
+	if inv and inv.visible:
+		return
 
 	if Input.is_action_just_pressed("weapon_1"):
 		_switch(0)
@@ -156,7 +163,10 @@ func _fire() -> void:
 		exclude.append(_body.get_rid())
 	w.fire(origin, dir, get_world_3d(), exclude)
 	if _viewmodel != null:
-		_viewmodel.kick()                # recoil the on-screen viewmodel
+		_viewmodel.kick()                # recoil the (legacy) camera viewmodel
+	var fpvm := get_parent().get_node_or_null("FPViewmodel")
+	if fpvm and fpvm.has_method("kick"):
+		fpvm.kick(w.weapon_name)         # recoil the first-person arms viewmodel
 	# Camera recoil, weighted per weapon so the shotgun throws the view and the
 	# auto rifle only nudges it.
 	var player := get_parent()
