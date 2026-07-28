@@ -23,10 +23,21 @@ const CHARACTER := "res://scripts/player_character.gd"
 ## Near plane: sits just past the neck/torso so they are clipped out, short of the
 ## gun so it stays. This is what removes the body from the viewmodel (the rig is
 ## one skinned mesh, so the torso can't just be hidden).
-@export var cam_near: float = 0.66
+@export var cam_near: float = 0.6
 ## Aim: the viewmodel dips/rises a touch with the look pitch. Small - too much and
 ## looking down slides the clipped body edge into view.
 @export var pitch_follow: float = 0.05
+
+## Per-weapon recoil impulse (metres back/up + radians of muzzle rise). The rig
+## snaps by this when fired and eases back, so the gun kicks toward you and up -
+## the heavy guns shove harder.
+const KICK := {
+	"Auto Rifle": {"back": 0.03, "up": 0.018, "rot": 0.05},
+	"Shotgun": {"back": 0.075, "up": 0.045, "rot": 0.11},
+	"Sniper": {"back": 0.065, "up": 0.04, "rot": 0.10},
+	"Hand Cannon": {"back": 0.05, "up": 0.03, "rot": 0.08},
+}
+const RECOIL_RECOVER := 12.0        # how fast the kick eases back to rest
 
 var _viewport: SubViewport
 var _cam: Camera3D
@@ -34,6 +45,8 @@ var _rig: Node3D
 var _layer: CanvasLayer
 var _tex: TextureRect
 var _pitch: float = 0.0
+var _recoil: Vector3 = Vector3.ZERO     # current rig offset (back/up) from recoil
+var _recoil_rot: float = 0.0            # current muzzle rise from recoil
 
 
 func _ready() -> void:
@@ -95,10 +108,19 @@ func _build_overlay() -> void:
 	_layer.add_child(_tex)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var win := get_window().size
 	if _viewport.size != win:
 		_viewport.size = win
+	# Ease the recoil back to rest. The kick itself is an instant snap; this is the
+	# recovery, so the gun jumps then settles.
+	var t := clampf(RECOIL_RECOVER * delta, 0.0, 1.0)
+	_recoil = _recoil.lerp(Vector3.ZERO, t)
+	_recoil_rot = lerpf(_recoil_rot, 0.0, t)
+	if _rig:
+		# Back (+Z toward the camera) and up (+Y); rotate the muzzle up.
+		_rig.position = _recoil
+		_rig.rotation = Vector3(-_recoil_rot, PI, 0.0)
 	_aim_camera()
 
 
@@ -122,6 +144,13 @@ func set_weapon(name_: String) -> void:
 
 func set_pitch(pitch: float) -> void:
 	_pitch = pitch
+
+
+## Recoil impulse on fire: snap the gun back and up, then _process eases it home.
+func kick(weapon_name := "Auto Rifle") -> void:
+	var k: Dictionary = KICK.get(weapon_name, KICK["Auto Rifle"])
+	_recoil = Vector3(0.0, float(k["up"]), float(k["back"]))
+	_recoil_rot = float(k["rot"])
 
 
 func set_shown(shown: bool) -> void:
