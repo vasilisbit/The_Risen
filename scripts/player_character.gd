@@ -76,19 +76,32 @@ const AIM_BONES := ["spine_02", "spine_03"]
 const ARM_BONES := ["upperarm_l", "upperarm_r"]
 @export var arm_lift: float = 0.0
 
-## Left (support) arm bones, swung DOWN off the gun for one-handed weapons so the
-## Hand Cannon isn't held in two hands. Amount per weapon set in set_weapon().
+## Left (support) arm bones, swung DOWN off the gun for weapons that need the
+## support hand adjusted. Amount per weapon in SUPPORT_LOWER (set in set_weapon).
 const LEFT_ARM_BONES := ["upperarm_l", "lowerarm_l"]
 ## Per-weapon support-hand lower (radians about the skeleton left-right axis).
-## 0 = keep the animation's two-handed grip. The Hand Cannon is one-handed; the
-## shotgun's support hand rode too high on the rifle pose, so nudge it down onto
-## the pump.
-const SUPPORT_LOWER := {"Hand Cannon": 1.7, "Shotgun": 0.22}
+## 0 = keep the animation's two-handed grip.
+const SUPPORT_LOWER := {}
+## Weapons held in ONE hand: the whole left arm is collapsed to nothing (its root
+## bone scaled to ~0), so no support arm shows at all - cleaner than swinging it
+## down, which the arms-only mask would still draw.
+const HIDE_LEFT_ARM := {"Hand Cannon": true}
+const LEFT_ARM_ROOT := "clavicle_l"
 
 ## Render layer the real body sits on so the main camera can exclude it (true
 ## first person - no own neck/back) while the mirror camera still shows it.
 ## Kept distinct from the mirror's own no-reflect layer (1<<19).
 const BODY_LAYER := 1 << 18
+
+## Dedicated first-person arms: when true this instance shows ONLY the forearms
+## and hands of the mannequin - the torso/legs/head are discarded per-vertex, so
+## the viewmodel needs no near-plane clip and has no hard cut. The same nice hands
+## the player already had, just isolated. Set on the viewmodel rig, not the body.
+@export var arms_only: bool = false
+## Bone-name fragments whose vertices are KEPT for arms_only; everything weighted
+## mainly to any other bone (spine/pelvis/leg/neck/head) is discarded.
+const ARM_KEEP := ["clavicle", "upperarm", "lowerarm", "hand", "thumb", "index",
+	"middle", "ring", "pinky", "wrist", "weapon"]
 
 ## Grip transform in the weapon_r socket. The socket's axes are unusual (its
 ## local X points along the character's forward and its Z points up), and the
@@ -124,7 +137,9 @@ var _current: String = ""
 var _aim_bones: Array[int] = []
 var _arm_bones: Array[int] = []
 var _left_arm_bones: Array[int] = []
+var _left_arm_root: int = -1        # clavicle_l, collapsed for one-handed weapons
 var _support_lower: float = 0.0     # how far to drop the support arm (per weapon)
+var _hide_left_arm: bool = false    # true for one-handed weapons (Hand Cannon)
 var _aim_pitch: float = 0.0
 
 
@@ -161,6 +176,10 @@ func _ready() -> void:
 		var idx := _find_bone_ci(String(b))
 		if idx >= 0:
 			_left_arm_bones.append(idx)
+	_left_arm_root = _find_bone_ci(LEFT_ARM_ROOT)
+
+	if arms_only:
+		_mask_to_arms(hero)
 
 	_build_animation(_skeleton.get_parent())
 	_build_hand_attachment()
@@ -183,6 +202,65 @@ func _apply_suit(hero: Node3D) -> void:
 		# can skip it (you never see your own neck/back/legs), while the hub mirror's
 		# camera still renders it. In the viewmodel's own viewport this is harmless.
 		mesh.layers = BODY_LAYER
+
+
+## Turn the full mannequin into an arms-only viewmodel mesh WITHOUT losing the
+## nice hands: bake a per-vertex keep/drop mask into vertex colours (a vertex is
+## "arm" when its dominant skin bone is an arm bone) and swap in a material that
+## discards the dropped fragments. The skin (bones + weights) is preserved, so the
+## arms still animate. This replaces the near-plane clip - no hard cut, no torso.
+func _mask_to_arms(hero: Node3D) -> void:
+	var keep := {}
+	for i in _skeleton.get_bone_count():
+		var nm := _skeleton.get_bone_name(i).to_lower()
+		for frag in ARM_KEEP:
+			if nm.contains(frag):
+				keep[i] = true
+				break
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode cull_disabled;
+void fragment() {
+	if (COLOR.r < 0.5) { discard; }
+	ALBEDO = vec3(0.14, 0.16, 0.21);
+	METALLIC = 0.0;
+	ROUGHNESS = 0.7;
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+
+	for m in hero.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		var mesh := mi.mesh
+		if mesh == null or mesh.get_surface_count() == 0:
+			continue
+		var new_mesh := ArrayMesh.new()
+		for s in mesh.get_surface_count():
+			var arrays: Array = mesh.surface_get_arrays(s)
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			var vcount: int = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			if bones.is_empty() or vcount == 0:
+				new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+				continue
+			var per := bones.size() / vcount          # 4 or 8 bone influences per vertex
+			var colors := PackedColorArray()
+			colors.resize(vcount)
+			for v in vcount:
+				var best_w := -1.0
+				var best_b := 0
+				for k in per:
+					var w := weights[v * per + k]
+					if w > best_w:
+						best_w = w
+						best_b = bones[v * per + k]
+				colors[v] = Color.WHITE if keep.has(best_b) else Color(0, 0, 0, 1)
+			arrays[Mesh.ARRAY_COLOR] = colors
+			new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mi.mesh = new_mesh
+		mi.material_override = mat
 
 
 ## Bone lookup that tolerates the rig's inconsistent capitalisation.
@@ -246,8 +324,9 @@ func set_weapon(name_: String) -> void:
 	# proper per-weapon grip transform, the camera viewmodel draws the gun.
 	if not hand_weapon_enabled or _hand_attach == null:
 		return
-	# One-handed weapons drop the support arm off the gun (see _process).
+	# One-handed weapons collapse the left arm; others may nudge the support hand.
 	_support_lower = float(SUPPORT_LOWER.get(name_, 0.0))
+	_hide_left_arm = HIDE_LEFT_ARM.has(name_)
 	if _weapon_model and is_instance_valid(_weapon_model):
 		_weapon_model.queue_free()
 		_weapon_model = null
@@ -337,9 +416,12 @@ func _process(_delta: float) -> void:
 			var posed := _skeleton.get_bone_pose_rotation(idx)
 			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, arm_lift))
 
-	# Support-arm drop for one-handed weapons: swing the LEFT arm down off the gun
-	# about the same skeleton axis, so the Hand Cannon reads as held in one hand.
-	if _support_lower != 0.0 and weapon_drawn and not _left_arm_bones.is_empty():
+	# One-handed weapons: collapse the whole left arm to nothing so no support arm
+	# is drawn (scaling its root bone shrinks every child - forearm and hand too).
+	if _hide_left_arm and weapon_drawn and _left_arm_root >= 0:
+		_skeleton.set_bone_pose_scale(_left_arm_root, Vector3.ONE * 0.01)
+	# Otherwise nudge the support hand down for weapons that need it.
+	elif _support_lower != 0.0 and weapon_drawn and not _left_arm_bones.is_empty():
 		for idx in _left_arm_bones:
 			var b := _skeleton.get_bone_global_pose(idx).basis.orthonormalized()
 			var local_axis := (b.transposed() * sk_axis).normalized()

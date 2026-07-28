@@ -14,8 +14,8 @@ extends RigidBody3D
 const DEFAULT_NAME := "Grenade"
 const DEFAULT_COLOR := Color(0.8, 0.8, 0.8)
 
-const FUSE := 1.5                 # s from throw to detonation
-const BODY_RADIUS := 0.16
+const FUSE := 2.5                 # s from throw to detonation (longer throw needs it)
+const BODY_RADIUS := 0.13
 const MASS := 0.6
 ## Bounce/roll: lively enough to skip off a wall, damped enough to settle near
 ## where it lands. At 0.35 bounce / 0.6 friction a level throw touched down at
@@ -105,18 +105,49 @@ func _build_body() -> void:
 	phys.friction = FRICTION
 	physics_material_override = phys
 
-	var mi := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = BODY_RADIUS
-	sphere.height = BODY_RADIUS * 2.0
-	mi.mesh = sphere
-	_mat = StandardMaterial3D.new()
-	_mat.albedo_color = _colour().darkened(0.5)
+	# A little sci-fi grenade instead of a bare ball: a gunmetal capsule casing
+	# with a glowing element band (the payload colour, which pulses on the fuse)
+	# and a small fuse cap. All parented to a holder so it tumbles as one.
+	var model := Node3D.new()
+	add_child(model)
+
+	var casing := StandardMaterial3D.new()
+	casing.albedo_color = Color(0.16, 0.17, 0.20)
+	casing.metallic = 0.85
+	casing.roughness = 0.35
+
+	_mat = StandardMaterial3D.new()          # the glowing band; _pulse() drives it
+	_mat.albedo_color = _colour().darkened(0.3)
 	_mat.emission_enabled = true
 	_mat.emission = _colour()
 	_mat.emission_energy_multiplier = 1.5
-	mi.material_override = _mat
-	add_child(mi)
+
+	var body := MeshInstance3D.new()
+	var cap := CapsuleMesh.new()
+	cap.radius = BODY_RADIUS * 0.82
+	cap.height = BODY_RADIUS * 2.4
+	body.mesh = cap
+	body.material_override = casing
+	model.add_child(body)
+
+	var band := MeshInstance3D.new()         # glowing element ring around the middle
+	var ring := CylinderMesh.new()
+	ring.top_radius = BODY_RADIUS * 0.9
+	ring.bottom_radius = BODY_RADIUS * 0.9
+	ring.height = BODY_RADIUS * 0.55
+	band.mesh = ring
+	band.material_override = _mat
+	model.add_child(band)
+
+	var fuse := MeshInstance3D.new()         # small cap at one end (the fuse/spoon)
+	var fm := CylinderMesh.new()
+	fm.top_radius = BODY_RADIUS * 0.35
+	fm.bottom_radius = BODY_RADIUS * 0.5
+	fm.height = BODY_RADIUS * 0.5
+	fuse.mesh = fm
+	fuse.material_override = casing
+	fuse.position = Vector3(0, BODY_RADIUS * 1.35, 0)
+	model.add_child(fuse)
 
 
 ## Blink faster as the fuse runs down, so the throw is readable in flight.
