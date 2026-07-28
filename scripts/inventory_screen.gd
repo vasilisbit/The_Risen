@@ -66,6 +66,10 @@ func toggle() -> void:
 
 func open() -> void:
 	refresh()
+	_fade(_do_open)
+
+
+func _do_open() -> void:
 	visible = true
 	# The world keeps running while the inventory is open (Destiny-style): a jump
 	# started before opening finishes in the air, time doesn't freeze. Only the
@@ -74,9 +78,23 @@ func open() -> void:
 
 
 func close() -> void:
+	_fade(_do_close)
+
+
+func _do_close() -> void:
 	visible = false
 	# The hub still wants a captured mouse; only the menus release it.
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+## Quick fade through black around the open/close so it isn't a hard cut, matching
+## the vendor screen's transition.
+func _fade(at_black: Callable) -> void:
+	var gs := get_node_or_null("/root/GameState")
+	if gs and gs.has_method("fade_black_then"):
+		gs.fade_black_then(at_black, 0.16)
+	else:
+		at_black.call()
 
 
 ## Rebuild both lists from the save. Public so tests can inspect the contents.

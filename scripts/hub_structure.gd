@@ -144,6 +144,9 @@ func _build_vendor_stall() -> void:
 		var mech_mat := _mat(Color(0.34, 0.36, 0.40), 0.9, 0.32)
 		for m in clerk.find_children("*", "MeshInstance3D", true, false):
 			(m as MeshInstance3D).material_override = mech_mat
+		var idle := Node.new()                     # subtle standing idle (no clips ship)
+		idle.set_script(load("res://scripts/forge_master_idle.gd"))
+		clerk.add_child(idle)
 
 	# Invisible full-height barrier at the counter, so the player can't jump the
 	# counter and walk into the shop area behind it.
