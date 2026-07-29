@@ -104,6 +104,7 @@ func _ready() -> void:
 	health = max_health
 	_player = _find_player()
 	_last_pos = global_position
+	_last_grounded_y = global_position.y
 	_apply_external_model()
 	if show_nameplate:
 		_build_nameplate()
@@ -124,6 +125,12 @@ var _jump_cd: float = 0.0
 ## wanted to move but barely have, and where we were last frame.
 var _stuck_time: float = 0.0
 var _last_pos: Vector3 = Vector3.ZERO
+## An enemy that drops this far below the last floor it stood on has fallen off the
+## map - it is culled (counted as killed) so a stray body in the void can't leave a
+## "kill everything" objective unclearable. Tracked from the real grounded height
+## (updated each frame it's on the floor), so it adapts to any level's layout.
+const FALL_DISTANCE := 40.0
+var _last_grounded_y: float = 0.0
 
 
 func _tick_jump(desired_dir: Vector3, delta: float) -> void:
@@ -232,6 +239,18 @@ func _wire_model_animation(inst: Node3D) -> void:
 
 
 func _process(_delta: float) -> void:
+	# Off-the-map failsafe: an enemy knocked into the void (off a ledge, through a
+	# gap) would otherwise stay alive-but-unreachable and block a "kill everything"
+	# objective (the reported Earth exploder). Track the last floor it stood on and,
+	# once it has dropped FALL_DISTANCE below that, count it as killed. Bosses are
+	# exempt - they live in sealed arenas and drive their own outcome, so a physics
+	# glitch mustn't hand a free win.
+	if not _dead and not is_in_group("boss"):
+		if is_on_floor():
+			_last_grounded_y = global_position.y
+		elif global_position.y < _last_grounded_y - FALL_DISTANCE:
+			_die()
+			return
 	if _model_anim == null:
 		return
 	# Don't interrupt a one-shot clip (e.g. an attack) that is still playing.
