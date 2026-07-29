@@ -13,3 +13,19 @@ Thumbs.db
 # Crash dumps and local logs
 *.dmp
 *.log
+
+# Local secrets (fal.ai API key, etc.) - NEVER commit
+.env
+.env.local
+.env.*
+
+assets/thirdparty/fab
+assets/thirdparty/godot-3d-planet-generator
+assets/thirdparty/KayKit_Space_Base_Bits_1.0_FREE
+assets/thirdparty/kenney_blaster-kit_2.1
+assets/thirdparty/Sci-Fi Essentials Kit\[Standard\]
+assets/thirdparty/Universal Animation Library\[Standard\]
+assets/thirdparty/Universal Animation Library 2\[Standard\]
+assets/thirdparty/Universal Base Characters\[Standard\]
+assets/thirdparty/voxel-mechas
+assets/thirdparty/voxelspacecolony
