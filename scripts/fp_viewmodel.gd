@@ -27,6 +27,18 @@ const CHARACTER := "res://scripts/player_character.gd"
 ## looking down slides the clipped body edge into view.
 @export var pitch_follow: float = 0.05
 
+## Per-weapon viewmodel framing (camera pos/look/fov in the rig's space), tuned
+## in-engine so each gun frames right - barrel forward, both hands on it, sensible
+## scale. The auto rifle is the baseline; the shotgun rides a touch higher and
+## level, the long sniper is pulled back to fit, and the one-handed hand cannon is
+## brought in closer so it isn't lost in the corner. Applied by set_weapon().
+const FRAMING := {
+	"Auto Rifle":  {"pos": Vector3(-0.22, 1.47, 0.56), "look": Vector3(-0.22, 1.47, -1.0), "fov": 48.0},
+	"Shotgun":     {"pos": Vector3(-0.20, 1.50, 0.50), "look": Vector3(-0.20, 1.44, -1.0), "fov": 47.0},
+	"Sniper":      {"pos": Vector3(-0.26, 1.47, 0.70), "look": Vector3(-0.26, 1.46, -1.0), "fov": 45.0},
+	"Hand Cannon": {"pos": Vector3(-0.15, 1.46, 0.46), "look": Vector3(-0.15, 1.41, -1.0), "fov": 50.0},
+}
+
 ## Per-weapon recoil impulse (metres back/up + radians of muzzle rise). The rig
 ## snaps by this when fired and eases back, so the gun kicks toward you and up -
 ## the heavy guns shove harder.
@@ -140,6 +152,17 @@ func set_weapon(name_: String) -> void:
 		_rig.set_weapon(name_)
 		if _rig.has_method("set_weapon_visible"):
 			_rig.set_weapon_visible(true)
+	_apply_framing(name_)
+
+
+## Reframe the viewmodel camera for the equipped weapon (see FRAMING); unknown
+## weapons fall back to the auto-rifle baseline.
+func _apply_framing(name_: String) -> void:
+	var f: Dictionary = FRAMING.get(name_, FRAMING["Auto Rifle"])
+	cam_position = f["pos"]
+	cam_look_at = f["look"]
+	cam_fov = f["fov"]
+	_aim_camera()
 
 
 func set_pitch(pitch: float) -> void:
