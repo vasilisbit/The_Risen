@@ -34,6 +34,7 @@ func _ready() -> void:
 	_build_kill_plane()
 	_build_rooms()
 	_build_lights()
+	_build_environment()
 
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
@@ -181,6 +182,48 @@ func _build_lights() -> void:
 	add_child(sun)
 	for cz in [-121.5, -136.5, -151.5]:
 		_omni(Vector3(0, Y_ROOM + 4, cz), 16, 1.6, Color(1.0, 0.6, 0.45))
+
+
+## KayKit Space Base kit (CC0), real-world scale (~2 m tiles), base at y=0.
+const KAY := "res://assets/thirdparty/KayKit_Space_Base_Bits_1.0_FREE/Assets/gltf/"
+
+## Visual-only Mars-surface backdrop around the low-gravity ascent: a ground plane
+## far below the kill plane, towering canyon mesas well outside the play volume, and
+## a KayKit mining base scattered along the sides - so the climb reads as traversing
+## a real Mars mining canyon instead of floating in an orange void. Everything here
+## is decoration with NO collision and sits clear of the +-13 play column, so it
+## never touches the platforms, kill plane (y=-12), gravity zone or the room navmesh.
+func _build_environment() -> void:
+	# Mars ground far below for depth (a slab; the kill plane still catches falls).
+	_panel(Vector3(0, -15.0, -54), Vector3(120, 1.0, 170), _rock2)
+	# Canyon mesa walls running the length of the climb, pushed out to x=+-26 so the
+	# widest scaled footprint still clears the +-13 play column.
+	var zs := [8.0, -12.0, -32.0, -52.0, -72.0, -92.0, -110.0]
+	for i in zs.size():
+		var s := 8.0 + float(i % 3) * 2.0
+		_kay("terrain_tall", Vector3(-26, -14.0, zs[i]), 0.0, s)
+		_kay("terrain_tall", Vector3(26, -14.0, zs[i]), PI, 8.0 + float((i + 2) % 3) * 2.0)
+	# A mining base strung along the canyon sides (metal greys read well on red Mars).
+	_kay("landingpad_large", Vector3(-15, -14.5, 4), 0.0, 2.6)
+	_kay("spacetruck", Vector3(-15, -13.6, 4), 0.7, 2.0)
+	_kay("drill_structure", Vector3(16, -14.0, -18), 0.0, 3.2)
+	_kay("structure_tall", Vector3(-16, -14.0, -34), 0.3, 3.4)
+	_kay("solarpanel", Vector3(16, -14.0, -50), 0.5, 3.2)
+	_kay("containers_A", Vector3(-16, -14.0, -64), 0.1, 2.6)
+	_kay("structure_low", Vector3(16, -14.0, -80), -0.4, 3.2)
+	_kay("containers_C", Vector3(-16, -14.0, -96), 0.2, 2.6)
+	_kay("drill_structure", Vector3(15, -14.0, -108), 0.6, 3.6)
+
+
+func _kay(nm: String, pos: Vector3, rot_y: float, scl: float) -> void:
+	var scene := load(KAY + nm + ".gltf")
+	if scene == null:
+		return
+	var m := scene.instantiate() as Node3D
+	m.position = pos
+	m.rotation.y = rot_y
+	m.scale = Vector3.ONE * scl
+	add_child(m)
 
 
 func _box(center: Vector3, size: Vector3, mat: StandardMaterial3D) -> MeshInstance3D:
