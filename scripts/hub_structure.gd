@@ -71,12 +71,16 @@ func _ready() -> void:
 ## central hologram table, the window and the doorway. Visual-only (no collision,
 ## so they don't affect nav or block the player).
 const PROP_DIR := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/"
+## Fully-textured Fab "Sci-fi Console Game" terminal, used as the cockpit's pilot
+## control stations (replaces the plain grey desks).
+const CONSOLE_PATH := "res://assets/thirdparty/fab/sci_fi_console_game_fbx/Sci-fi Console Game.fbx"
 
 func _build_props() -> void:
-	# Cockpit: a pilot station by the window, storage along the walls.
-	_prop("Prop_Desk_Medium", Vector3(-3.4, 0, -4.0), PI, 1.0)
+	# Cockpit: two lit sci-fi control terminals flanking the window (angled toward
+	# the pilot seat), with the chair between them. The desks used to be plain boxes.
+	_console(Vector3(-3.3, 0, -4.2), 0.42)
 	_prop("Prop_Chair", Vector3(-3.4, 0, -3.1), 0.0, 1.0)
-	_prop("Prop_Desk_Medium", Vector3(3.4, 0, -4.0), PI, 1.0)
+	_console(Vector3(3.3, 0, -4.2), -0.42)
 	_prop("Prop_Locker", Vector3(-4.5, 0, 1.6), -PI * 0.5, 1.0)
 	_prop("Prop_Locker", Vector3(-4.5, 0, 0.3), -PI * 0.5, 1.0)
 	_prop("Prop_Shelves_WideTall", Vector3(4.5, 0, 1.2), PI * 0.5, 1.0)
@@ -168,6 +172,21 @@ func _build_vendor_stall() -> void:
 	add_child(nameplate)
 	# Warm forge glow over the counter.
 	_omni(Vector3(0, 2.4, 11.6), 7.0, 2.2, Color(1.0, 0.72, 0.4))
+
+
+## A textured sci-fi terminal as a pilot control station. The FBX imports at 100x
+## with its local Z as world height, so scale 1.15 gives a ~1.5 m standing console;
+## at rot_y 0 the screen faces +Z (toward the player). Solid collision like a prop.
+func _console(pos: Vector3, rot_y: float) -> void:
+	var scene := load(CONSOLE_PATH)
+	if scene == null:
+		return
+	var m := scene.instantiate() as Node3D
+	add_child(m)
+	m.position = pos
+	m.rotation.y = rot_y
+	m.scale = Vector3.ONE * 1.15
+	_add_prop_collision(m)
 
 
 func _prop(name_: String, pos: Vector3, rot_y: float, scale: float) -> void:
