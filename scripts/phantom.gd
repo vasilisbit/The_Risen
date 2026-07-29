@@ -13,6 +13,8 @@ const TELEPORT_INTERVAL := 20.0
 const ADDS_COUNT := 3
 const EYE_HEIGHT := 1.6
 const BOLT_COLOR := Color(0.70, 0.25, 1.0)
+const SHELL_COLOR := Color(0.70, 0.30, 1.0)   # purple arc-shield (Earth boss is blue)
+const MAX_SHIELD := 600.0                     # gate shield, mirrors the Brute's 500
 const RUSHER := "res://scenes/enemies/rusher.tscn"
 
 enum State { IDLE, ACTIVE }
@@ -20,6 +22,9 @@ enum State { IDLE, ACTIVE }
 ## Exposed for tests / telemetry.
 var teleports_done: int = 0
 
+## Purple energy shield: gates all HP damage until broken, exactly like the Earth
+## Shielded Brute's arc shield (rendered as the same silhouette shell, in purple).
+var shield: float = MAX_SHIELD
 var _state: State = State.IDLE
 var _shoot_timer: float = 0.0
 var _teleport_timer: float = TELEPORT_INTERVAL
@@ -108,18 +113,38 @@ func teleport() -> void:
 	teleports_done += 1
 
 
-## No shield gate - straight HP, with a one-off adds summon at 50%.
+## Purple gate shield first (invulnerable until it breaks, like the Earth boss),
+## then straight HP with a one-off adds summon at 50%.
 func take_damage(amount: float) -> void:
 	if _dead or amount <= 0.0:
 		return
 	amount = absorb_shield(amount)
 	if amount <= 0.0:
 		return
+	if shield > 0.0:
+		shield = maxf(0.0, shield - amount)
+		return
 	health = maxf(0.0, health - amount)
 	if health <= 0.0:
 		_die()
 	elif not _adds_spawned and health <= max_health * 0.5:
 		_spawn_adds()
+
+
+# --- nameplate: a purple gate shield drives the shared arc-shield shell --------
+# nameplate_tier() already returns "boss" (Phantom is in the "boss" group), so it
+# gets the gold boss plate; these give it the Brute's silhouette shell in purple.
+
+func nameplate_shield() -> float:
+	return shield + elemental_shield
+
+
+func nameplate_shield_max() -> float:
+	return MAX_SHIELD + max_elemental_shield
+
+
+func nameplate_shield_color() -> Color:
+	return SHELL_COLOR
 
 
 func _spawn_adds() -> void:

@@ -17,6 +17,15 @@ const HEAD_MIN_LOCAL_Y := 1.4
 const LOOT_SCENE_PATH := "res://scenes/weapons/loot_drop.tscn"
 const NAMEPLATE_SCENE_PATH := "res://scripts/enemy_nameplate.gd"
 
+## Physics layers. Enemies occupy their OWN layer, NOT the world/player layer 1,
+## so the PLAYER (layer 1, default mask) never physically collides with them: a
+## crowd can no longer pin you or stand on your head. Enemies still collide with
+## the world (layer 1) to walk the floor, and with EACH OTHER (ENEMY_LAYER) so a
+## wave doesn't spawn stacked on one spot. The player's hitscan masks both layers
+## explicitly (see Weapon.HIT_MASK) since enemies are no longer on layer 1.
+const WORLD_LAYER := 1
+const ENEMY_LAYER := 1 << 4        # physics layer 5 (value 16)
+
 ## Display names for the floating nameplate, keyed by the subclass class_name.
 const NAMES := {
 	"Rusher": "Risen Rusher",
@@ -87,6 +96,10 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 
 
 func _ready() -> void:
 	add_to_group("enemy")
+	# Move off the shared world/player layer so the player can't be pinned or
+	# stood on; still collide with the world and with other enemies.
+	collision_layer = ENEMY_LAYER
+	collision_mask = WORLD_LAYER | ENEMY_LAYER
 	_apply_difficulty()
 	health = max_health
 	_player = _find_player()
@@ -123,16 +136,25 @@ func _tick_jump(desired_dir: Vector3, delta: float) -> void:
 		return
 	flat = flat.normalized()
 	var space := get_world_3d().direct_space_state
+	# Only real WORLD geometry counts as a ledge - never the player or another
+	# enemy. Masking to WORLD_LAYER drops other enemies (now on ENEMY_LAYER), and
+	# excluding the player's body by RID stops an enemy "climbing" the player and
+	# ending up perched on their head - the reported can't-move bug.
+	var skip: Array[RID] = [get_rid()]
+	if _player is CollisionObject3D:
+		skip.append((_player as CollisionObject3D).get_rid())
 	# 1) Is something blocking us right ahead at foot/shin height?
 	var low_from := global_position + Vector3.UP * 0.35
 	var low_q := PhysicsRayQueryParameters3D.create(low_from, low_from + flat * LEDGE_REACH)
-	low_q.exclude = [get_rid()]
+	low_q.exclude = skip
+	low_q.collision_mask = WORLD_LAYER
 	if space.intersect_ray(low_q).is_empty():
 		return                                        # clear path, no need to jump
 	# 2) Is it low enough to mount? Above LEDGE_MAX_HEIGHT there must be open air.
 	var high_from := global_position + Vector3.UP * LEDGE_MAX_HEIGHT
 	var high_q := PhysicsRayQueryParameters3D.create(high_from, high_from + flat * LEDGE_REACH)
-	high_q.exclude = [get_rid()]
+	high_q.exclude = skip
+	high_q.collision_mask = WORLD_LAYER
 	if not space.intersect_ray(high_q).is_empty():
 		return                                        # too tall (a wall), don't bother
 	velocity.y = JUMP_SPEED

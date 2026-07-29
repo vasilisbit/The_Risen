@@ -103,7 +103,7 @@ func _unstick_survivors() -> void:
 	for e in _alive:
 		if is_instance_valid(e) and e is Node3D:
 			var m: Node3D = markers[randi() % markers.size()]
-			(e as Node3D).global_position = m.global_position + Vector3(0, 1, 0)
+			(e as Node3D).global_position = m.global_position + Vector3(0, 1, 0) + _spawn_jitter()
 
 
 # --- wave lifecycle ---------------------------------------------------------
@@ -168,7 +168,9 @@ func _spawn_one(type_path: String, pos: Vector3) -> void:
 		var host := get_tree().current_scene
 		if host:
 			host.add_child(e)
-			e.global_position = pos + Vector3(0, 1, 0)
+			# Jitter around the marker so several enemies routed to the SAME
+			# random marker don't drop in stacked on one spot.
+			e.global_position = pos + Vector3(0, 1, 0) + _spawn_jitter()
 			_alive.append(e)
 			if e.has_signal("died"):
 				e.died.connect(_on_enemy_died)
@@ -229,6 +231,12 @@ func _on_all_complete() -> void:
 
 
 # --- helpers ----------------------------------------------------------------
+
+## A small horizontal offset so enemies sharing a spawn marker don't land stacked
+## (they also physically separate now that enemies collide with each other).
+func _spawn_jitter() -> Vector3:
+	return Vector3(randf_range(-1.6, 1.6), 0.0, randf_range(-1.6, 1.6))
+
 
 ## Spread the waves evenly over the three chambers, so with 5 waves the fight
 ## still walks the player through all three rooms (0,0,1,1,2) instead of
