@@ -35,6 +35,7 @@ func _ready() -> void:
 	_build_rooms()
 	_build_lights()
 	_build_environment()
+	_build_start_base()
 
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
@@ -213,6 +214,26 @@ func _build_environment() -> void:
 	_kay("structure_low", Vector3(16, -14.0, -80), -0.4, 3.2)
 	_kay("containers_C", Vector3(-16, -14.0, -96), 0.2, 2.6)
 	_kay("drill_structure", Vector3(15, -14.0, -108), 0.6, 3.6)
+
+
+## A STANDABLE KayKit landing base behind the spawn (z ~ +4..+19): the player
+## arrives here on solid ground ringed by base structures, then jumps -Z into the
+## low-gravity ascent. Only the floor slab + a back wall have collision (so you
+## can't stroll off the rear into the void); the kit pieces are visual dressing.
+## Sits entirely BEHIND the ascent (z > 4), so it never bridges a platform gap.
+func _build_start_base() -> void:
+	_box(Vector3(0, -0.25, 11), Vector3(18, 0.5, 15), _rock2)          # standable floor
+	_box(Vector3(0, 2.0, 18.7), Vector3(18, 4.5, 0.5), _rock)         # back wall (no fall-off)
+	# Base structures ringing the courtyard (visual). A landing pad + spacetruck as
+	# the "you landed here" focal point at the back.
+	_kay("landingpad_large", Vector3(0, 0.02, 15), 0.0, 3.2)
+	_kay("spacetruck", Vector3(0, 0.6, 15), 0.0, 2.0)
+	_kay("structure_tall", Vector3(-7.5, 0, 16.5), 0.25, 2.2)
+	_kay("structure_low", Vector3(7.5, 0, 16.5), -0.25, 2.2)
+	_kay("containers_A", Vector3(-8.2, 0, 9), 0.1, 2.2)
+	_kay("containers_C", Vector3(8.2, 0, 9), -0.1, 2.2)
+	_kay("solarpanel", Vector3(-8.2, 0, 4.5), 0.5, 2.4)
+	_kay("drill_structure", Vector3(8.2, 0, 4.5), -0.4, 2.4)
 
 
 func _kay(nm: String, pos: Vector3, rot_y: float, scl: float) -> void:
