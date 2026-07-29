@@ -45,19 +45,40 @@ Tight loop, do it constantly:
   wall/glass are on `NO_REFLECT 1<<19`.
 
 ## Asset pipeline (fal.ai + Blender + Godot)
-AI 3D-gen studios (Tripo, Meshy) **gate export behind paid plans** — do NOT rely on
-free-tier download. Use **fal.ai's API** instead: it returns the file directly.
-- Auth: `FAL_KEY` in a **gitignored `.env`** (never commit keys).
-- Models: `tripo3d/.../image-to-3d` (→ GLB), `fal-ai/patina` (image→PBR set),
-  `fal-ai/nano-banana` (albedo/emission/concept), `fal-ai/elevenlabs/...` (SFX),
-  `fal-ai/stable-audio-25/...` (music). Queue pattern: POST → poll `status_url` →
-  fetch `response_url`; parse result URLs defensively.
+AI 3D-gen **studios** (Tripo, Meshy) gate export behind paid plans — do NOT rely on
+their free-tier download. Use **fal.ai's API** instead: it returns the file directly.
+- Auth: `FAL_KEY` in **`.env.local`** (gitignored — never commit keys). Header is
+  `Authorization: Key <FAL_KEY>`.
+- **Helper**: `tools/falgen.py` (stdlib only) — run with `uv run --no-project python
+  tools/falgen.py image "<prompt>" out.png [--model <id>]`, or `... raw <model>
+  '<json>'` to debug a model's response shape. Add `tripo`/`patina` commands as needed.
+- Models: `fal-ai/nano-banana-pro` (concepts + **FLAT albedo** textures + emission),
+  `fal-ai/nano-banana-pro/edit`, `fal-ai/patina` (albedo→PBR set), `tripo3d/tripo/
+  v2.5/text-to-3d` and `.../image-to-3d` (→ GLB), `fal-ai/elevenlabs/sound-effects/v2`
+  (SFX), `fal-ai/stable-audio-25/text-to-audio` (music). Queue: `POST
+  https://queue.fal.run/<model>` → poll `status_url` → fetch `response_url`; parse
+  result URLs defensively.
+- **Workflow** (best control): nano-banana concept → Tripo **image-to-3d** →
+  PATINA/nano-banana textures. Or Tripo **text-to-3d** direct for quick hero props.
+- **Budget-first** ($20 pool): texturing existing greybox geometry (nano-banana
+  albedo, one image ≈ pennies) is far cheaper than generating many models. Validate
+  the key with ONE cheap image before a batch; Tripo models cost more per gen.
+- **Un-UV'd meshes** (OSM/greybox): apply generated albedo via
+  `StandardMaterial3D.uv1_triplanar = true` + `uv1_scale` — world-projected, tiles
+  without needing UVs. (Earth city greybox was textured this way; `earth_level.gd`.)
 - **Blender toolkit MCP** for cleanup: decimate raw AI meshes (they come ~1–2 M
   tris) to game-ready (~10–30 k), generate collision, re-export GLB.
 - **Texture budgets**: floor/large ≤1024 px; embedded-in-GLB ≤512 px; APIs return
   2–4K, always downscale before commit.
 - **GLB webp gotcha**: when shrinking embedded textures, the bytes must match the
   declared `mimeType` (`image/webp` via EXT_texture_webp) or Godot's decoder breaks.
+
+**The one texture lesson that matters:** if a texture source is meant for PATINA,
+the prompt must demand a "FLAT UNLIT ALBEDO TEXTURE MAP — NO lighting, NO
+reflections, NO gradients". A pretty glossy render bakes its highlights into the
+basecolor and the material is ruined. Verify flatness numerically (channel std)
+before spending on PBR conversion.
+
 
 ### Importing owned assets (check the inventory first!)
 The user has a **large `assets/thirdparty/` library** — CHECK it (planning-repo
