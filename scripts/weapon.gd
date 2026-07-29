@@ -78,6 +78,12 @@ const ELEMENT_COLORS := {
 	"Void": Color(0.70, 0.40, 1.00),
 }
 
+## Hitscan collision mask: world geometry (layer 1) so shots stop on walls, plus
+## the enemy layer (5) that EnemyBase now occupies. Enemies were moved off layer 1
+## so the player no longer physically collides with them (EnemyBase.ENEMY_LAYER);
+## the gun must mask that layer explicitly or its raycast passes straight through.
+const HIT_MASK := 1 | (1 << 4)             # world + enemy layer
+
 signal state_changed                       # ammo / reload changed
 
 ## Scales outgoing damage - Mars wave buffs raise this (e.g. +20% -> 1.2).
@@ -186,7 +192,7 @@ func fire(origin: Vector3, direction: Vector3, world: World3D, exclude: Array = 
 	var space := world.direct_space_state
 	for i in pellets:
 		var dir := _apply_spread(direction)
-		var query := PhysicsRayQueryParameters3D.create(origin, origin + dir * effective_range, 1)
+		var query := PhysicsRayQueryParameters3D.create(origin, origin + dir * effective_range, HIT_MASK)
 		query.exclude = exclude
 		var hit := space.intersect_ray(query)
 		if hit.is_empty():
