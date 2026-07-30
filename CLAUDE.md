@@ -58,11 +58,21 @@ their free-tier download. Use **fal.ai's API** instead: it returns the file dire
   (SFX), `fal-ai/stable-audio-25/text-to-audio` (music). Queue: `POST
   https://queue.fal.run/<model>` → poll `status_url` → fetch `response_url`; parse
   result URLs defensively.
-- **Workflow** (best control): nano-banana concept → Tripo **image-to-3d** →
-  PATINA/nano-banana textures. Or Tripo **text-to-3d** direct for quick hero props.
-- **Budget-first** ($20 pool): texturing existing greybox geometry (nano-banana
-  albedo, one image ≈ pennies) is far cheaper than generating many models. Validate
-  the key with ONE cheap image before a batch; Tripo models cost more per gen.
+- **Which 3D model (verified pricing/quality, 2026-07):**
+  - **Tripo P1** (`tripo3d/p1/{text,image,multiview}-to-3d`) — **$0.40/gen**, but
+    **game-ready**: clean low-poly, quad remesh, PBR, `face_limit`, orientation
+    control. GLB ~1–2 MB, drops straight into Godot. **DEFAULT for hero assets.**
+  - **Tripo v2.5/v3.1** (`tripo3d/tripo/v2.5/...`; append v3.0/v3.1) — **~$0.01/gen**
+    but HIGH-POLY (~17 MB), must decimate in Blender. Use for cheap bulk/experiments.
+  - **Hunyuan3D v3.1** (`fal-ai/hunyuan3d-v3/text-to-3d`) — up to 1.5 M poly + PBR,
+    $0.225 (rapid) / $0.375 (pro). Ultra-detail statement pieces; needs decimation.
+  - Others on fal: Meshy-6, Hyper3D Rodin, Trellis (image-to-3d alternatives).
+- **Workflow** (best control): nano-banana-pro concept image → **Tripo P1
+  image-to-3d** (or multiview for consistency) → Blender toolkit MCP (assemble
+  chunks / set origin+scale / collision) → Godot import. Text-to-3d P1 for quick
+  hero props. Ground/greybox surfaces: nano-banana flat albedo via triplanar.
+- **Budget** ($20 pool): P1 hero assets ~$0.40 each (a full level's set ≈ $5–8);
+  textures are pennies. Validate a model with ONE gen before batching.
 - **Un-UV'd meshes** (OSM/greybox): apply generated albedo via
   `StandardMaterial3D.uv1_triplanar = true` + `uv1_scale` — world-projected, tiles
   without needing UVs. (Earth city greybox was textured this way; `earth_level.gd`.)
