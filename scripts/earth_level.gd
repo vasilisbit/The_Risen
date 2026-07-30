@@ -53,6 +53,7 @@ var _tex_cache: Dictionary = {}
 func _ready() -> void:
 	_build_ground()
 	_build_lights()
+	_build_atmosphere()
 	for row in BUILDINGS:
 		_place_chunk(row)
 	for row in PROPS:
@@ -144,12 +145,50 @@ func _tex_mat(tex: String, tint: Color, scale: float) -> StandardMaterial3D:
 
 
 func _build_lights() -> void:
-	var sun := DirectionalLight3D.new()          # bleak overcast war sky
-	sun.rotation = Vector3(-1.0, -0.7, 0)
-	sun.light_energy = 1.0
-	sun.light_color = Color(0.86, 0.86, 0.9)
+	var sun := DirectionalLight3D.new()          # hazy low war sun through smoke
+	sun.rotation = Vector3(-0.62, -0.85, 0)
+	sun.light_energy = 0.9
+	sun.light_color = Color(1.0, 0.93, 0.82)
 	sun.shadow_enabled = true
 	add_child(sun)
+
+
+## Destiny-2 ruined-Earth mood: a hazy overcast sky, dusty fog so distant ruins
+## fade into smoke, ACES tonemap and a touch of glow. Runtime WorldEnvironment
+## (built here, not in Blender - atmosphere is a Godot feature).
+func _build_atmosphere() -> void:
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color(0.48, 0.50, 0.55)
+	sky_mat.sky_horizon_color = Color(0.66, 0.62, 0.55)      # dusty tan haze
+	sky_mat.ground_horizon_color = Color(0.55, 0.51, 0.46)
+	sky_mat.ground_bottom_color = Color(0.32, 0.30, 0.28)
+	sky_mat.sun_angle_max = 25.0
+	sky_mat.sun_curve = 0.08
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.55
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_white = 6.0
+	# Dusty distance fog - ruins dissolve into smoke down the street.
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.66, 0.62, 0.55)
+	env.fog_light_energy = 0.9
+	env.fog_density = 0.014
+	env.fog_sky_affect = 0.35
+	env.fog_aerial_perspective = 0.4
+	# A little bloom on the sky/hotspots.
+	env.glow_enabled = true
+	env.glow_intensity = 0.25
+	env.glow_bloom = 0.05
+
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
 
 
 # --- spawns: along the street, split into the z-zones earth_mission reads ---------
