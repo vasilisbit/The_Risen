@@ -52,6 +52,7 @@ var _tex_cache: Dictionary = {}
 
 func _ready() -> void:
 	_build_ground()
+	_build_bounds()
 	_build_lights()
 	_build_atmosphere()
 	for row in BUILDINGS:
@@ -145,25 +146,25 @@ func _tex_mat(tex: String, tint: Color, scale: float) -> StandardMaterial3D:
 
 
 func _build_lights() -> void:
-	var sun := DirectionalLight3D.new()          # hazy low war sun through smoke
-	sun.rotation = Vector3(-0.62, -0.85, 0)
-	sun.light_energy = 0.9
-	sun.light_color = Color(1.0, 0.93, 0.82)
+	var sun := DirectionalLight3D.new()          # warm afternoon sun, low from the side
+	sun.rotation = Vector3(deg_to_rad(-38), deg_to_rad(-125), 0)
+	sun.light_energy = 1.35
+	sun.light_color = Color(1.0, 0.90, 0.72)     # golden afternoon
 	sun.shadow_enabled = true
 	add_child(sun)
 
 
-## Destiny-2 ruined-Earth mood: a hazy overcast sky, dusty fog so distant ruins
-## fade into smoke, ACES tonemap and a touch of glow. Runtime WorldEnvironment
+## Afternoon ruined-Earth mood: warm hazy afternoon sky, light golden fog for depth
+## (not a thick overcast), ACES tonemap + subtle glow. Runtime WorldEnvironment
 ## (built here, not in Blender - atmosphere is a Godot feature).
 func _build_atmosphere() -> void:
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.48, 0.50, 0.55)
-	sky_mat.sky_horizon_color = Color(0.66, 0.62, 0.55)      # dusty tan haze
-	sky_mat.ground_horizon_color = Color(0.55, 0.51, 0.46)
-	sky_mat.ground_bottom_color = Color(0.32, 0.30, 0.28)
-	sky_mat.sun_angle_max = 25.0
-	sky_mat.sun_curve = 0.08
+	sky_mat.sky_top_color = Color(0.33, 0.50, 0.78)          # afternoon blue
+	sky_mat.sky_horizon_color = Color(0.82, 0.76, 0.63)      # warm hazy horizon
+	sky_mat.ground_horizon_color = Color(0.72, 0.63, 0.50)
+	sky_mat.ground_bottom_color = Color(0.42, 0.35, 0.28)
+	sky_mat.sun_angle_max = 12.0
+	sky_mat.sun_curve = 0.1
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 
@@ -171,30 +172,45 @@ func _build_atmosphere() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.6
+	env.ambient_light_color = Color(0.9, 0.84, 0.72)         # warm bounce
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_white = 6.0
-	# Dusty distance fog - ruins dissolve into smoke down the street.
+	# Light warm afternoon haze - depth without hiding the street.
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.66, 0.62, 0.55)
-	env.fog_light_energy = 0.9
-	env.fog_density = 0.014
-	env.fog_sky_affect = 0.35
-	env.fog_aerial_perspective = 0.4
-	# A little bloom on the sky/hotspots.
+	env.fog_light_color = Color(0.88, 0.80, 0.64)
+	env.fog_light_energy = 1.0
+	env.fog_density = 0.007
+	env.fog_sky_affect = 0.2
+	env.fog_aerial_perspective = 0.3
 	env.glow_enabled = true
-	env.glow_intensity = 0.25
-	env.glow_bloom = 0.05
+	env.glow_intensity = 0.3
+	env.glow_bloom = 0.06
 
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 
 
+## Containment walls so the player can't leave the street corridor into the void.
+## Buildings overlap them; in gaps they read as more ruined concrete. Full length
+## on both sides, plus end walls behind the start and behind the boss plaza.
+func _build_bounds() -> void:
+	var tint := Color(0.78, 0.75, 0.70)
+	_ground_box(Vector3(-15.5, 6.5, -36), Vector3(0.6, 15, 112), "concrete", tint, 0.1)
+	_ground_box(Vector3(15.5, 6.5, -36), Vector3(0.6, 15, 112), "concrete", tint, 0.1)
+	_ground_box(Vector3(0, 6.5, 14), Vector3(32, 15, 0.6), "concrete", tint, 0.1)     # behind start
+	_ground_box(Vector3(0, 6.5, -87), Vector3(34, 15, 0.6), "concrete", tint, 0.1)    # behind plaza
+
+
 # --- spawns: along the street, split into the z-zones earth_mission reads ---------
 
 func _build_spawns() -> void:
-	var zs := [-2.0, -10.0, -16.0, -24.0, -30.0, -38.0, -44.0, -50.0, -58.0, -64.0]
+	# 30 markers (earth_mission spawns one enemy per marker; the objective wants 30,
+	# so fewer = the mission stalls before the Archive Core). Spread across the three
+	# z-zones earth_mission reads, both lanes, kept clear of the player start (z~9).
+	var zs := [-2.0, -6.0, -12.0, -16.0, -22.0, -26.0, -32.0, -36.0,
+		-42.0, -46.0, -50.0, -54.0, -58.0, -62.0, -64.0]     # 15 * 2 lanes = 30
 	var lanes := [-5.0, 0.0, 5.0]
 	var i := 0
 	for z in zs:
