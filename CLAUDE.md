@@ -119,3 +119,16 @@ trailer, **never push** unless asked. `git add` the `.uid` next to any new `.gd`
 `enemy_base.gd` (+ subclasses), `enemy_nameplate.gd` (health/shield/arc-shield shell),
 `wave_manager.gd` (Mars), `game_state.gd` (fade transitions), `extraction_countdown.gd`,
 `save_manager.gd`, `hub_structure.gd`, `mars_level.gd`.
+
+## Generated content (fal.ai)
+- **`tools/falgen.py`** — fal.ai queue helper; **`tools/gen_earth_chunks.py`** —
+  batch Tripo-P1 chunk generator (shared style suffix keeps a set cohesive).
+- **`assets/generated/earth/`** — nano-banana ground textures (concrete/asphalt/
+  rubble) + `chunks/` (12 Tripo-P1 ruined-city GLBs, full PBR). Committed (not
+  gitignored like `thirdparty/`, since the levels reference them).
+- **`scripts/earth_level.gd`** now ASSEMBLES those chunks into the Earth level
+  (scale → AABB-seat on ground → trimesh collision → navmesh) with a triplanar-
+  textured street, afternoon `WorldEnvironment`, and containment walls. It reads its
+  30 `spawn_point` markers as before (earth_mission drives the zone waves).
+- **TODO:** PATINA (`fal-ai/patina`) the ground albedos → PBR; then Mars/Venus the
+  same way. Budget ~$6 of $20 spent (Tripo P1 = $0.40/gen).
