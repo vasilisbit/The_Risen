@@ -10,8 +10,8 @@ const EXPLODER := "res://scenes/enemies/exploder.tscn"
 const BRUTE := "res://scenes/enemies/shielded_brute.tscn"
 const ARCHIVE_CORE := "res://scripts/archive_core.gd"
 
-const ARCHIVE_POS := Vector3(0, 3.1, -78)     # in the boss arena
-const BOSS_POS := Vector3(0, 3.1, -85)
+const ARCHIVE_POS := Vector3(0, 1.5, -55)     # end of the street, before the plaza
+const BOSS_POS := Vector3(0, 1.0, -68)        # boss plaza (Tripo-chunk ruined city)
 
 # Player advances toward -Z; spawn a zone once the player crosses its trigger.
 const ZONE_TRIGGER_Z := [0.0, -18.0, -50.0]
