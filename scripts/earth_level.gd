@@ -134,15 +134,30 @@ func _tex_mat(tex: String, tint: Color, scale: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = tint
 	m.roughness = 0.95
-	if not _tex_cache.has(tex):
-		var p: String = GEN_TEX % tex
-		_tex_cache[tex] = load(p) if ResourceLoader.exists(p) else null
-	var t: Texture2D = _tex_cache[tex]
+	var t: Texture2D = _gen_tex(tex)
 	if t != null:
 		m.albedo_texture = t
 		m.uv1_triplanar = true
 		m.uv1_scale = Vector3(scale, scale, scale)
+		# PATINA-generated PBR maps (fal-ai/patina, tools/falgen.py patina). Normal +
+		# roughness are linear data; triplanar reuses uv1_scale automatically.
+		var n: Texture2D = _gen_tex(tex + "_normal")
+		if n != null:
+			m.normal_enabled = true
+			m.normal_texture = n
+		var r: Texture2D = _gen_tex(tex + "_roughness")
+		if r != null:
+			m.roughness = 1.0  # scalar becomes a multiplier over the texture
+			m.roughness_texture = r
+			m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	return m
+
+
+func _gen_tex(name: String) -> Texture2D:
+	if not _tex_cache.has(name):
+		var p: String = GEN_TEX % name
+		_tex_cache[name] = load(p) if ResourceLoader.exists(p) else null
+	return _tex_cache[name]
 
 
 func _build_lights() -> void:

@@ -8,6 +8,9 @@ from .env.local (gitignored). See CLAUDE.md "Asset pipeline" for the rules.
 
 Usage:
   uv run python tools/falgen.py image "<prompt>" out.png [--model fal-ai/nano-banana-pro]
+  uv run python tools/falgen.py upload <path>                     # -> prints fal CDN url
+  uv run python tools/falgen.py patina <albedo.png> <out_prefix> [--maps normal,roughness]
+                                                                 # albedo->PBR (fal-ai/patina)
   uv run python tools/falgen.py raw <model> '<json payload>'     # debug: print full response
 """
 import os, sys, time, json, urllib.request, urllib.error
@@ -60,6 +63,22 @@ def run(model, payload, timeout=420):
     raise SystemExit("timed out")
 
 
+def upload(path):
+    """Upload a local file to fal's storage; return its CDN url (3-step REST flow)."""
+    name = os.path.basename(path)
+    ct = "image/png" if name.lower().endswith(".png") else "application/octet-stream"
+    init = _req("https://rest.alpha.fal.ai/storage/upload/initiate",
+                {"file_name": name, "content_type": ct}, "POST")
+    up_url = init["upload_url"]; file_url = init["file_url"]
+    with open(path, "rb") as f:
+        data = f.read()
+    put = urllib.request.Request(up_url, data=data, method="PUT",
+                                 headers={"Content-Type": ct})
+    with urllib.request.urlopen(put, timeout=180) as r:
+        r.read()
+    return file_url
+
+
 def first_url(res):
     for k in ("images", "image", "outputs", "files"):
         v = res.get(k)
@@ -86,6 +105,26 @@ def main():
             print("NO_URL; raw:", json.dumps(res)[:800]); return
         urllib.request.urlretrieve(url, out)
         print("SAVED", out, "from", url)
+    elif cmd == "upload":
+        print(upload(sys.argv[2]))
+    elif cmd == "patina":
+        albedo, prefix = sys.argv[2], sys.argv[3]
+        maps = ["normal", "roughness"]
+        if "--maps" in sys.argv:
+            maps = sys.argv[sys.argv.index("--maps") + 1].split(",")
+        src = albedo if albedo.startswith("http") else upload(albedo)
+        res = run("fal-ai/patina", {"image_url": src, "maps": maps, "output_format": "png"})
+        imgs = res.get("images", [])
+        if len(imgs) != len(maps):
+            print("WARN map count mismatch; raw:", json.dumps(res)[:1200])
+        for i, m in enumerate(maps):
+            if i >= len(imgs):
+                break
+            it = imgs[i]
+            u = it.get("url") if isinstance(it, dict) else it
+            out = f"{prefix}_{m}.png"
+            urllib.request.urlretrieve(u, out)
+            print("SAVED", out, "from", u)
     elif cmd == "raw":
         model, payload = sys.argv[2], json.loads(sys.argv[3])
         print(json.dumps(run(model, payload), indent=2)[:2000])
