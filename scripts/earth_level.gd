@@ -47,6 +47,11 @@ const PLAZA := [
 const ARCHIVE_Z := -55.0
 const BOSS_Z := -68.0
 
+# High-poly street buildings (regenerated via Tripo H3.1) get a cheap AABB box
+# collider instead of per-mesh trimesh - see _place_chunk. Plaza structures + props
+# stay trimesh (they sit in the play area and must be walkable-around).
+const STRUCTURES := ["apartment_block", "tower", "shopfront_row", "office_ruin"]
+
 var _tex_cache: Dictionary = {}
 
 
@@ -84,8 +89,22 @@ func _place_chunk(row: Array) -> void:
 	m.scale = Vector3.ONE * float(row[4])
 	var ab := _world_aabb(m)                      # at position (0,0,0), post scale+rot
 	m.position = Vector3(float(row[1]), -ab.position.y, float(row[2]))
-	for node in m.find_children("*", "MeshInstance3D", true, false):
-		(node as MeshInstance3D).create_trimesh_collision()   # solid, walkable-around
+	if String(row[0]) in STRUCTURES:
+		# high-poly street building: one cheap box collider from the seated AABB. Keeps
+		# physics + navmesh bake fast (nav parses static colliders) vs trimeshing ~300k
+		# tris; the player walks the street past these side facades, never inside them.
+		var world := _world_aabb(m)
+		var col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		# inset the footprint (x/z) to 0.85 so building edges clear the x=+-5 enemy
+		# spawn lanes; keep full height so the facade stays solid to shoot against.
+		box.size = Vector3(world.size.x * 0.85, world.size.y, world.size.z * 0.85)
+		col.shape = box
+		col.position = world.position + world.size * 0.5
+		add_child(col)
+	else:
+		for node in m.find_children("*", "MeshInstance3D", true, false):
+			(node as MeshInstance3D).create_trimesh_collision()   # solid, walkable-around
 
 
 func _world_aabb(root: Node3D) -> AABB:
@@ -240,10 +259,29 @@ func _build_skyline() -> void:
 
 
 func _skyline_box(center: Vector3, size: Vector3, rng: RandomNumberGenerator) -> void:
-	var g: float = rng.randf_range(0.40, 0.60)
+	# Windowed war-damaged facade (fal.ai nano-banana + PATINA) triplanar-mapped so
+	# the distant towers read as real skyscrapers, with a per-building brightness/tint
+	# jitter for variety. Falls back to a flat grey-blue tint if the texture is absent.
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(g * 0.90, g * 0.96, g * 1.10)   # cool hazy grey-blue
 	mat.roughness = 1.0
+	var facade: Texture2D = _gen_tex("skyscraper_facade")
+	if facade != null:
+		var v: float = rng.randf_range(0.72, 1.0)
+		mat.albedo_texture = facade
+		mat.albedo_color = Color(v, v * 1.02, v * 1.06)      # subtle cool jitter
+		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(0.045, 0.045, 0.045)         # ~1 facade tile / 22 m
+		var n: Texture2D = _gen_tex("skyscraper_facade_normal")
+		if n != null:
+			mat.normal_enabled = true
+			mat.normal_texture = n
+		var r: Texture2D = _gen_tex("skyscraper_facade_roughness")
+		if r != null:
+			mat.roughness_texture = r
+			mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	else:
+		var g: float = rng.randf_range(0.40, 0.60)
+		mat.albedo_color = Color(g * 0.90, g * 0.96, g * 1.10)
 	var mesh := MeshInstance3D.new()
 	var bm := BoxMesh.new(); bm.size = size
 	mesh.mesh = bm
