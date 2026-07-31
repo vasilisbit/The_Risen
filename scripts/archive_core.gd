@@ -57,7 +57,7 @@ func _ready() -> void:
 	_prompt.text = "Press E - Archive Core"
 	_prompt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_prompt.no_depth_test = true
-	_prompt.position = Vector3(0, 1.4, 0)
+	_prompt.position = Vector3(0, 2.3, 0)   # clear above the core model (not inside it)
 	_prompt.visible = false
 	add_child(_prompt)
 

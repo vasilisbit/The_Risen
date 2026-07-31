@@ -57,6 +57,7 @@ var _tex_cache: Dictionary = {}
 
 func _ready() -> void:
 	_build_ground()
+	_build_outskirts()
 	_build_bounds()
 	_build_skyline()
 	_build_lights()
@@ -135,6 +136,29 @@ func _build_ground() -> void:
 	_ground_box(Vector3(0, -0.3, -38), Vector3(44, 0.6, 108), "concrete", Color(0.85, 0.83, 0.80), 0.12)  # base/sidewalks
 	_ground_box(Vector3(0, 0.02, -34), Vector3(17, 0.5, 92), "asphalt", Color(0.9, 0.9, 0.92), 0.16)      # road
 	_ground_box(Vector3(0, 0.03, -72), Vector3(34, 0.5, 26), "rubble", Color(0.9, 0.85, 0.78), 0.2)       # plaza floor
+
+
+## Ground + roads spreading out under the skyline so the ruined city sits on real
+## terrain (not floating over the void) now that the walls are invisible. Visual only -
+## the player is contained by the barriers, so no collision/nav cost out here. A broad
+## weathered-concrete slab (tucked just under the play-area ground) plus a grid of
+## asphalt streets threading between the outer towers. Distance fog fades it all out.
+func _build_outskirts() -> void:
+	_deco_ground(Vector3(0, -0.5, -45), Vector3(320, 0.4, 440), "concrete", Color(0.80, 0.78, 0.74), 0.03)
+	for x in [-95.0, -62.0, -32.0, 32.0, 62.0, 95.0]:       # north-south avenues
+		_deco_ground(Vector3(x, -0.45, -45), Vector3(9, 0.4, 440), "asphalt", Color(0.9, 0.9, 0.92), 0.05)
+	for z in [72.0, 34.0, -58.0, -112.0, -165.0]:           # east-west cross streets
+		_deco_ground(Vector3(0, -0.45, z), Vector3(320, 0.4, 9), "asphalt", Color(0.9, 0.9, 0.92), 0.05)
+
+
+func _deco_ground(center: Vector3, size: Vector3, tex: String, tint: Color, scale: float) -> void:
+	var mesh := MeshInstance3D.new()
+	var bm := BoxMesh.new(); bm.size = size
+	mesh.mesh = bm
+	mesh.position = center
+	mesh.material_override = _tex_mat(tex, tint, scale)
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mesh)
 
 
 func _ground_box(center: Vector3, size: Vector3, tex: String, tint: Color, scale: float) -> void:
@@ -217,14 +241,15 @@ func _build_atmosphere() -> void:
 	env.ambient_light_color = Color(0.9, 0.84, 0.72)         # warm bounce
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_white = 6.0
-	# Light warm afternoon haze - just enough depth on the distant skyline without
-	# drowning the cloudy sky (the sky shader owns the horizon, so fog_sky_affect ~0).
+	# Depth haze that stays clear around the player and thickens with distance, so the
+	# outskirts + skyscrapers fade into the smog the further out you look (exponential
+	# fog = near-clear, far-dense by nature). Sky shader owns the horizon (sky_affect 0).
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.90, 0.83, 0.68)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.0022
+	env.fog_density = 0.0034
 	env.fog_sky_affect = 0.0
-	env.fog_aerial_perspective = 0.55
+	env.fog_aerial_perspective = 0.7
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
 	env.glow_bloom = 0.06
@@ -302,15 +327,22 @@ func _skyline_box(center: Vector3, size: Vector3, rng: RandomNumberGenerator) ->
 		add_child(top)
 
 
-## Containment walls so the player can't leave the street corridor into the void.
-## Buildings overlap them; in gaps they read as more ruined concrete. Full length
-## on both sides, plus end walls behind the start and behind the boss plaza.
+## INVISIBLE containment barriers around the street corridor: the player is kept in
+## but sees straight out over the outskirts + skyline (the old solid concrete walls
+## are gone). Collision-only, no mesh - still parsed by the navmesh (static colliders)
+## so enemies also stay in. Sides full length + end caps behind start and plaza.
 func _build_bounds() -> void:
-	var tint := Color(0.78, 0.75, 0.70)
-	_ground_box(Vector3(-15.5, 6.5, -36), Vector3(0.6, 15, 112), "concrete", tint, 0.1)
-	_ground_box(Vector3(15.5, 6.5, -36), Vector3(0.6, 15, 112), "concrete", tint, 0.1)
-	_ground_box(Vector3(0, 6.5, 14), Vector3(32, 15, 0.6), "concrete", tint, 0.1)     # behind start
-	_ground_box(Vector3(0, 6.5, -87), Vector3(34, 15, 0.6), "concrete", tint, 0.1)    # behind plaza
+	_barrier(Vector3(-15.5, 6.5, -36), Vector3(0.6, 15, 112))
+	_barrier(Vector3(15.5, 6.5, -36), Vector3(0.6, 15, 112))
+	_barrier(Vector3(0, 6.5, 14), Vector3(32, 15, 0.6))      # behind start
+	_barrier(Vector3(0, 6.5, -87), Vector3(34, 15, 0.6))     # behind plaza
+
+
+func _barrier(center: Vector3, size: Vector3) -> void:
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new(); shape.size = size
+	col.shape = shape; col.position = center
+	add_child(col)
 
 
 # --- spawns: along the street, split into the z-zones earth_mission reads ---------
