@@ -8,7 +8,7 @@ extends EnemyBase
 
 const DETECT_RANGE := 30.0
 const SHOOT_COOLDOWN := 1.0
-const PROJECTILE_DAMAGE := 150.0
+const PROJECTILE_DAMAGE := 100.0   # normal-mode balance: was 150
 const TELEPORT_INTERVAL := 20.0
 const ADDS_COUNT := 3
 const EYE_HEIGHT := 1.6
@@ -98,19 +98,40 @@ func shoot() -> void:
 	p.setup(global_position + Vector3(0, EYE_HEIGHT, 0), _player, get_rid())
 
 
-## Blink to a random chamber spawn marker (markers sit on room floors, so this
-## can't drop the boss inside geometry). Public so it is unit-testable.
+## Blink to a chamber spawn marker whose spot is CLEAR of geometry, so the boss can
+## never materialise inside a pillar / crate / wall (a plain random pick could, and
+## did). Tries markers in random order and takes the first clear one. Unit-testable.
 func teleport() -> void:
 	_teleport_timer = TELEPORT_INTERVAL
 	var markers := get_tree().get_nodes_in_group("spawn_point")
 	if markers.is_empty():
 		return
-	var dest: Vector3 = (markers[randi() % markers.size()] as Node3D).global_position + Vector3(0, 1.0, 0)
+	markers.shuffle()
+	var dest: Vector3 = (markers[0] as Node3D).global_position + Vector3(0, 1.0, 0)
+	for mk in markers:
+		var cand: Vector3 = (mk as Node3D).global_position + Vector3(0, 1.0, 0)
+		if _spot_clear(cand):
+			dest = cand
+			break
 	_blink_vfx(global_position + Vector3(0, 1.0, 0))     # leaving
 	global_position = dest
 	velocity = Vector3.ZERO
 	_blink_vfx(dest)                                     # arriving
 	teleports_done += 1
+
+
+## True when a body-sized sphere at `p` doesn't overlap world or enemy geometry, so
+## the boss can appear there without clipping into cover or a wall.
+func _spot_clear(p: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var shape := SphereShape3D.new()
+	shape.radius = 1.1
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = shape
+	q.transform = Transform3D(Basis(), p + Vector3(0, 0.2, 0))
+	q.collision_mask = WORLD_LAYER | ENEMY_LAYER
+	q.exclude = [get_rid()]
+	return space.intersect_shape(q, 1).is_empty()
 
 
 ## Purple gate shield first (invulnerable until it breaks, like the Earth boss),

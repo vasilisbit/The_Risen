@@ -27,13 +27,13 @@ const RAGE_SPEED_MULT := 1.5
 const DETECT_RANGE := 35.0
 
 const MELEE_RANGE := 3.0
-const MELEE_DAMAGE := 150.0
+const MELEE_DAMAGE := 100.0       # normal-mode balance: was 150
 const MELEE_COOLDOWN := 2.0
-const FIREBALL_DAMAGE := 100.0
+const FIREBALL_DAMAGE := 65.0     # normal-mode balance: was 100
 const FIREBALL_COOLDOWN := 3.0
 const FIREBALL_RANGE := 30.0
 
-const SLAM_DAMAGE := 200.0
+const SLAM_DAMAGE := 135.0        # normal-mode balance: was 200
 const SLAM_RADIUS := 5.0
 const SLAM_COOLDOWN := 8.0
 const SLAM_KNOCKBACK := 3.0       # metres, exact (Guardian.apply_push)
