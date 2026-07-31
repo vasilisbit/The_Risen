@@ -9,10 +9,10 @@ extends EnemyBase
 const MOVE_SPEED := 4.0
 const DETECT_RANGE := 25.0
 const MELEE_RANGE := 3.0
-const MELEE_DAMAGE := 200.0
+const MELEE_DAMAGE := 140.0       # normal-mode balance: was 200
 const MELEE_COOLDOWN := 1.5
 const SLAM_RANGE := 5.0
-const SLAM_DAMAGE := 150.0
+const SLAM_DAMAGE := 100.0        # normal-mode balance: was 150
 const SLAM_RADIUS := 5.0          # hard cutoff: hits at 4 m, nothing at 6 m
 const SLAM_COOLDOWN := 10.0
 const SLAM_KNOCKBACK := 9.0

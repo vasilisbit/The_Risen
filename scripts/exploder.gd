@@ -10,7 +10,7 @@ extends EnemyBase
 const SPRINT_SPEED := 5.5         # m/s (below the player's 6 m/s walk)
 const DETECT_RANGE := 8.0
 const CONTACT_RANGE := 1.6        # centre distance that triggers detonation
-const EXPLOSION_DAMAGE := 200.0
+const EXPLOSION_DAMAGE := 120.0   # normal-mode balance: was 200 (one-shot the player)
 const EXPLOSION_RADIUS := 4.0     # hard cutoff (5 m away takes 0)
 const BASE_EMISSION := 0.6
 const PULSE_AMPLITUDE := 2.6

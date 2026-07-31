@@ -33,10 +33,11 @@ var _mat: StandardMaterial3D
 func _ready() -> void:
 	add_to_group("grenade")
 	mass = MASS
-	# Collide with the world (layer 1) but sit on its own layer so the
-	# grenade can never be shot or targeted like an enemy.
+	# Collide with the world (layer 1) AND enemies (layer 5, EnemyBase.ENEMY_LAYER)
+	# so the grenade bounces off bodies instead of passing through them, but sit on
+	# no layer itself so it can never be shot or targeted like an enemy.
 	collision_layer = 0
-	collision_mask = 1
+	collision_mask = 1 | (1 << 4)
 	continuous_cd = true           # a fast throw must not tunnel through walls
 	angular_damp = ANGULAR_DAMP
 	linear_damp = LINEAR_DAMP

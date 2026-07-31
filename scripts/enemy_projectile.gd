@@ -10,7 +10,7 @@ const SPEED := 18.0            # m/s
 const LIFETIME := 5.0          # s
 const TARGET_CHEST := Vector3(0.0, 1.0, 0.0)
 
-var damage: float = 100.0
+var damage: float = 60.0       # default (Shooter); bosses set their own. Was 100.
 ## Bolt tint - set before the node enters the tree (the Phantom fires purple).
 var bolt_color: Color = Color(1.0, 0.55, 0.1)
 ## Who fired it, for PlayerDeath attribution (T-0026). Set by the shooter.
