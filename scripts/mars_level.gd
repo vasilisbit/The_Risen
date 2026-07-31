@@ -18,14 +18,23 @@ const PLATFORMS: Array[Vector3] = [
 ]
 const CHECKPOINT_INDICES := [0, 2, 4, 6, 8, 10, 12, 14]     # 8 checkpoints
 
+const GEN_TEX := "res://assets/generated/mars/%s.png"
+const ROCK := "res://assets/generated/mars/rocks/%s.glb"
+
 var _rock: StandardMaterial3D
 var _rock2: StandardMaterial3D
+var _regolith: StandardMaterial3D
 var _portal: StandardMaterial3D
+var _tex_cache: Dictionary = {}
+var _sun_dir: Vector3 = Vector3(0.4, 0.5, -0.7)     # direction TO the sun (for the sky)
 
 
 func _ready() -> void:
-	_rock = _mat(Color(0.50, 0.22, 0.15), 0.0, 0.9)
-	_rock2 = _mat(Color(0.40, 0.17, 0.12), 0.1, 0.85)
+	# fal.ai Mars PBR rock/regolith (nano-banana + PATINA) applied triplanar; falls
+	# back to the old flat red-rock colours if the textures are absent.
+	_rock = _mars_mat("rock", Color(0.95, 0.82, 0.74), 0.0, 0.95, 0.22)
+	_rock2 = _mars_mat("rock", Color(0.72, 0.60, 0.54), 0.05, 0.9, 0.22)
+	_regolith = _mars_mat("regolith", Color(0.98, 0.86, 0.76), 0.0, 1.0, 0.16)
 	_portal = _mat(Color(0.2, 0.4, 1.0), 0.0, 0.3, true, Color(0.3, 0.5, 1.0), 2.5)
 
 	_build_platforms()
@@ -34,6 +43,7 @@ func _ready() -> void:
 	_build_kill_plane()
 	_build_rooms()
 	_build_lights()
+	_build_atmosphere()
 	_build_environment()
 	_build_start_base()
 
@@ -177,12 +187,48 @@ func _room_markers(cz: float) -> void:
 func _build_lights() -> void:
 	var sun := DirectionalLight3D.new()          # dusty red-orange Mars sun
 	sun.rotation = Vector3(-0.9, -0.6, 0)
-	sun.light_energy = 1.0
-	sun.light_color = Color(1.0, 0.7, 0.5)
+	sun.light_energy = 1.05
+	sun.light_color = Color(1.0, 0.72, 0.52)
 	sun.shadow_enabled = true
 	add_child(sun)
+	_sun_dir = sun.global_transform.basis.z       # a Light faces -Z, so +Z points at the sun
 	for cz in [-121.5, -136.5, -151.5]:
 		_omni(Vector3(0, Y_ROOM + 4, cz), 16, 1.6, Color(1.0, 0.6, 0.45))
+
+
+## Dusty Mars daytime atmosphere: a butterscotch/salmon sky (shaders/mars_sky.gdshader)
+## with a hazy sun, warm sky ambient, ACES tonemap, and a reddish dust fog so the
+## canyon backdrop fades into the haze. Runtime WorldEnvironment (replaces the stale
+## flat-colour one that used to live in mars.tscn).
+func _build_atmosphere() -> void:
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://shaders/mars_sky.gdshader")
+	sky_mat.set_shader_parameter("sun_dir", _sun_dir)
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color(0.85, 0.60, 0.48)
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_white = 6.0
+	# reddish suspended-dust haze - thickens the canyon distance without hiding the play space
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.82, 0.55, 0.40)
+	env.fog_light_energy = 1.0
+	env.fog_density = 0.006
+	env.fog_sky_affect = 0.0
+	env.fog_aerial_perspective = 0.5
+	env.glow_enabled = true
+	env.glow_intensity = 0.25
+	env.glow_bloom = 0.05
+
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
 
 
 ## KayKit Space Base kit (CC0), real-world scale (~2 m tiles), base at y=0.
@@ -195,15 +241,20 @@ const KAY := "res://assets/thirdparty/KayKit_Space_Base_Bits_1.0_FREE/Assets/glt
 ## is decoration with NO collision and sits clear of the +-13 play column, so it
 ## never touches the platforms, kill plane (y=-12), gravity zone or the room navmesh.
 func _build_environment() -> void:
-	# Mars ground far below for depth (a slab; the kill plane still catches falls).
-	_panel(Vector3(0, -15.0, -54), Vector3(120, 1.0, 170), _rock2)
-	# Canyon mesa walls running the length of the climb, pushed out to x=+-26 so the
-	# widest scaled footprint still clears the +-13 play column.
-	var zs := [8.0, -12.0, -32.0, -52.0, -72.0, -92.0, -110.0]
+	# Mars ground far below for depth (regolith slab; the kill plane still catches falls).
+	_panel(Vector3(0, -15.0, -54), Vector3(180, 1.0, 210), _regolith)
+	# Detailed Tripo H3.1 Mars rock canyon walls running the length of the climb, pushed
+	# out to x=+-34 so the widest scaled footprint still clears the +-13 play column.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 70315
+	var zs := [10.0, -8.0, -26.0, -44.0, -62.0, -80.0, -98.0, -114.0]
+	var kinds := ["mars_cliff", "mars_mesa", "mars_spire", "mars_cliff", "mars_mesa", "mars_cliff", "mars_spire", "mars_mesa"]
 	for i in zs.size():
-		var s := 8.0 + float(i % 3) * 2.0
-		_kay("terrain_tall", Vector3(-26, -14.0, zs[i]), 0.0, s)
-		_kay("terrain_tall", Vector3(26, -14.0, zs[i]), PI, 8.0 + float((i + 2) % 3) * 2.0)
+		_place_rock(kinds[i], Vector3(-34, -14.5, zs[i]), rng.randf_range(0.0, TAU), 26.0 + rng.randf_range(0.0, 12.0))
+		_place_rock(kinds[(i + 3) % kinds.size()], Vector3(34, -14.5, zs[i]), rng.randf_range(0.0, TAU), 26.0 + rng.randf_range(0.0, 12.0))
+	# scattered boulders lower down for canyon variety (clear of the +-13 column)
+	for b in [Vector3(-21, -14.5, -6), Vector3(21, -14.5, -40), Vector3(-22, -14.5, -76), Vector3(20, -14.5, -104)]:
+		_place_rock("mars_boulder", b, rng.randf_range(0.0, TAU), rng.randf_range(6.0, 10.0))
 	# A mining base strung along the canyon sides (metal greys read well on red Mars).
 	_kay("landingpad_large", Vector3(-15, -14.5, 4), 0.0, 2.6)
 	_kay("spacetruck", Vector3(-15, -13.6, 4), 0.7, 2.0)
@@ -234,6 +285,44 @@ func _build_start_base() -> void:
 	_kay("containers_C", Vector3(8.2, 0, 9), -0.1, 2.2)
 	_kay("solarpanel", Vector3(-8.2, 0, 4.5), 0.5, 2.4)
 	_kay("drill_structure", Vector3(8.2, 0, 4.5), -0.4, 2.4)
+
+
+## Place a detailed Tripo H3.1 Mars rock: uniform-scale the unit-cube-normalized mesh
+## so its largest dimension = target_size (m), rotate, then seat its base at pos.y via
+## the measured world AABB. Visual only (no collision) - the canyon frames the play
+## column from outside it, so nothing here touches platforms/nav.
+func _place_rock(nm: String, pos: Vector3, rot_y: float, target_size: float) -> void:
+	var scene := load(ROCK % nm)
+	if scene == null:
+		return
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	m.rotation.y = rot_y
+	m.scale = Vector3.ONE * target_size
+	var ab := _world_aabb(m)
+	m.position = Vector3(pos.x, pos.y - ab.position.y, pos.z)
+
+
+func _world_aabb(root: Node3D) -> AABB:
+	var result := AABB()
+	var have := false
+	for node in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var la := mi.get_aabb()
+		var xf := mi.global_transform
+		for i in 8:
+			var corner := la.position + Vector3(
+				la.size.x if (i & 1) else 0.0,
+				la.size.y if (i & 2) else 0.0,
+				la.size.z if (i & 4) else 0.0)
+			var w: Vector3 = xf * corner
+			if not have:
+				result = AABB(w, Vector3.ZERO); have = true
+			else:
+				result = result.expand(w)
+	return result
 
 
 func _kay(nm: String, pos: Vector3, rot_y: float, scl: float) -> void:
@@ -301,6 +390,37 @@ func _omni(pos: Vector3, range_m: float, energy: float, color: Color) -> void:
 	light.light_energy = energy
 	light.light_color = color
 	add_child(light)
+
+
+func _gen_tex(name: String) -> Texture2D:
+	if not _tex_cache.has(name):
+		var p: String = GEN_TEX % name
+		_tex_cache[name] = load(p) if ResourceLoader.exists(p) else null
+	return _tex_cache[name]
+
+
+## Triplanar-textured Mars material (fal.ai albedo + PATINA normal/roughness). Falls
+## back to a flat tinted material when the texture is missing.
+func _mars_mat(tex: String, tint: Color, metallic: float, roughness: float, scale: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = tint
+	m.metallic = metallic
+	m.roughness = roughness
+	var t: Texture2D = _gen_tex(tex)
+	if t != null:
+		m.albedo_texture = t
+		m.uv1_triplanar = true
+		m.uv1_scale = Vector3(scale, scale, scale)
+		var n: Texture2D = _gen_tex(tex + "_normal")
+		if n != null:
+			m.normal_enabled = true
+			m.normal_texture = n
+		var r: Texture2D = _gen_tex(tex + "_roughness")
+		if r != null:
+			m.roughness = 1.0
+			m.roughness_texture = r
+			m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	return m
 
 
 func _mat(color: Color, metallic: float, roughness: float, emission := false, em := Color.BLACK, em_energy := 0.0) -> StandardMaterial3D:
