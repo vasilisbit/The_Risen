@@ -53,6 +53,7 @@ var _tex_cache: Dictionary = {}
 func _ready() -> void:
 	_build_ground()
 	_build_bounds()
+	_build_skyline()
 	_build_lights()
 	_build_atmosphere()
 	for row in BUILDINGS:
@@ -160,6 +161,9 @@ func _gen_tex(name: String) -> Texture2D:
 	return _tex_cache[name]
 
 
+var _sun_dir: Vector3 = Vector3(0, 0.5, -0.8)     # direction TO the sun (for the sky)
+
+
 func _build_lights() -> void:
 	var sun := DirectionalLight3D.new()          # warm afternoon sun, low from the side
 	sun.rotation = Vector3(deg_to_rad(-38), deg_to_rad(-125), 0)
@@ -167,19 +171,22 @@ func _build_lights() -> void:
 	sun.light_color = Color(1.0, 0.90, 0.72)     # golden afternoon
 	sun.shadow_enabled = true
 	add_child(sun)
+	_sun_dir = sun.global_transform.basis.z       # a Light faces -Z, so +Z points at the sun
 
 
 ## Afternoon ruined-Earth mood: warm hazy afternoon sky, light golden fog for depth
 ## (not a thick overcast), ACES tonemap + subtle glow. Runtime WorldEnvironment
 ## (built here, not in Blender - atmosphere is a Godot feature).
 func _build_atmosphere() -> void:
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.33, 0.50, 0.78)          # afternoon blue
-	sky_mat.sky_horizon_color = Color(0.82, 0.76, 0.63)      # warm hazy horizon
-	sky_mat.ground_horizon_color = Color(0.72, 0.63, 0.50)
-	sky_mat.ground_bottom_color = Color(0.42, 0.35, 0.28)
-	sky_mat.sun_angle_max = 12.0
-	sky_mat.sun_curve = 0.1
+	# Procedural cloud sky (shaders/earth_sky.gdshader) - drifting sunlit clouds over
+	# a warm afternoon gradient, sun placed from the DirectionalLight direction.
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://shaders/earth_sky.gdshader")
+	sky_mat.set_shader_parameter("sun_dir", _sun_dir)
+	sky_mat.set_shader_parameter("top_color", Color(0.30, 0.47, 0.76))
+	sky_mat.set_shader_parameter("horizon_color", Color(0.84, 0.77, 0.63))
+	sky_mat.set_shader_parameter("sun_color", Color(1.0, 0.86, 0.62))
+	sky_mat.set_shader_parameter("cloud_cover", 0.38)
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 
@@ -191,13 +198,14 @@ func _build_atmosphere() -> void:
 	env.ambient_light_color = Color(0.9, 0.84, 0.72)         # warm bounce
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_white = 6.0
-	# Light warm afternoon haze - depth without hiding the street.
+	# Light warm afternoon haze - just enough depth on the distant skyline without
+	# drowning the cloudy sky (the sky shader owns the horizon, so fog_sky_affect ~0).
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.88, 0.80, 0.64)
+	env.fog_light_color = Color(0.90, 0.83, 0.68)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.007
-	env.fog_sky_affect = 0.2
-	env.fog_aerial_perspective = 0.3
+	env.fog_density = 0.0022
+	env.fog_sky_affect = 0.0
+	env.fog_aerial_perspective = 0.55
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
 	env.glow_bloom = 0.06
@@ -205,6 +213,55 @@ func _build_atmosphere() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+
+
+## Distant ruined-city skyline beyond the containment walls: silhouette skyscrapers
+## (visual only, no collision, shadows off) so the street reads as part of a real
+## bombed metropolis. Only the tops clear the 14 m walls; the afternoon haze / aerial
+## perspective fades them into the sky. Seeded so the layout is reproducible. Many
+## get a broken/stepped crown for a war-torn silhouette.
+func _build_skyline() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260731
+	# [x_min, x_max, z_min, z_max, count, h_min, h_max]
+	var bands := [
+		[-120.0, -24.0,   40.0, -150.0, 26, 22.0, 78.0],   # left flank
+		[  24.0, 120.0,   40.0, -150.0, 26, 22.0, 78.0],   # right flank
+		[ -75.0,  75.0, -105.0, -215.0, 24, 34.0, 94.0],   # far skyline down the street
+		[ -75.0,  75.0,   45.0,  125.0, 14, 26.0, 66.0],   # behind the start
+	]
+	for b in bands:
+		for i in int(b[4]):
+			var x: float = rng.randf_range(b[0], b[1])
+			var z: float = rng.randf_range(b[2], b[3])
+			var hgt: float = rng.randf_range(b[5], b[6])
+			var w := Vector3(rng.randf_range(8.0, 20.0), hgt, rng.randf_range(8.0, 20.0))
+			_skyline_box(Vector3(x, hgt * 0.5, z), w, rng)
+
+
+func _skyline_box(center: Vector3, size: Vector3, rng: RandomNumberGenerator) -> void:
+	var g: float = rng.randf_range(0.40, 0.60)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(g * 0.90, g * 0.96, g * 1.10)   # cool hazy grey-blue
+	mat.roughness = 1.0
+	var mesh := MeshInstance3D.new()
+	var bm := BoxMesh.new(); bm.size = size
+	mesh.mesh = bm
+	mesh.position = center
+	mesh.material_override = mat
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mesh)
+	if rng.randf() < 0.55:                                    # broken/stepped crown
+		var tb := BoxMesh.new()
+		tb.size = Vector3(size.x * rng.randf_range(0.3, 0.7),
+			rng.randf_range(4.0, 16.0), size.z * rng.randf_range(0.3, 0.7))
+		var top := MeshInstance3D.new()
+		top.mesh = tb
+		top.position = center + Vector3(rng.randf_range(-size.x * 0.25, size.x * 0.25),
+			size.y * 0.5 + tb.size.y * 0.5, rng.randf_range(-size.z * 0.25, size.z * 0.25))
+		top.material_override = mat
+		top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(top)
 
 
 ## Containment walls so the player can't leave the street corridor into the void.
