@@ -59,6 +59,7 @@ func _ready() -> void:
 	_build_ground()
 	_build_outskirts()
 	_build_bounds()
+	_build_fog_ring()
 	_build_skyline()
 	_build_lights()
 	_build_atmosphere()
@@ -144,7 +145,7 @@ func _build_ground() -> void:
 ## weathered-concrete slab (tucked just under the play-area ground) plus a grid of
 ## asphalt streets threading between the outer towers. Distance fog fades it all out.
 func _build_outskirts() -> void:
-	_deco_ground(Vector3(0, -0.5, -45), Vector3(320, 0.4, 440), "concrete", Color(0.80, 0.78, 0.74), 0.03)
+	_deco_ground(Vector3(0, -0.5, -15), Vector3(440, 0.4, 580), "concrete", Color(0.80, 0.78, 0.74), 0.03)
 	for x in [-95.0, -62.0, -32.0, 32.0, 62.0, 95.0]:       # north-south avenues
 		_deco_ground(Vector3(x, -0.45, -45), Vector3(9, 0.4, 440), "asphalt", Color(0.9, 0.9, 0.92), 0.05)
 	for z in [72.0, 34.0, -58.0, -112.0, -165.0]:           # east-west cross streets
@@ -241,15 +242,21 @@ func _build_atmosphere() -> void:
 	env.ambient_light_color = Color(0.9, 0.84, 0.72)         # warm bounce
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_white = 6.0
-	# Depth haze that stays clear around the player and thickens with distance, so the
-	# outskirts + skyscrapers fade into the smog the further out you look (exponential
-	# fog = near-clear, far-dense by nature). Sky shader owns the horizon (sky_affect 0).
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.90, 0.83, 0.68)
-	env.fog_light_energy = 1.0
-	env.fog_density = 0.0034
-	env.fog_sky_affect = 0.0
-	env.fog_aerial_perspective = 0.7
+	# REAL volumetric fog, kept out of the play corridor and concentrated at STREET
+	# LEVEL just beyond the invisible barriers via a ring of FogVolumes
+	# (_build_fog_ring). The corridor stays clear; a faint global density gives gentle
+	# far-distance fade. Sky shader owns the horizon (sky_affect 0) so fog never
+	# climbs into the sky. (Plain depth fog off - it washed the whole vertical view.)
+	env.fog_enabled = false
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.0016            # faint global depth only; the street-
+	                                               # level wall is the FogVolume ring below
+	env.volumetric_fog_albedo = Color(0.87, 0.83, 0.75)
+	env.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
+	env.volumetric_fog_length = 400.0
+	env.volumetric_fog_detail_spread = 2.0
+	env.volumetric_fog_ambient_inject = 1.0
+	env.volumetric_fog_sky_affect = 0.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
 	env.glow_bloom = 0.06
@@ -267,12 +274,19 @@ func _build_atmosphere() -> void:
 func _build_skyline() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260731
-	# [x_min, x_max, z_min, z_max, count, h_min, h_max]
+	# [x_min, x_max, z_min, z_max, count, h_min, h_max]. Dense enough on the back
+	# hemisphere (behind/left/right of the z~9 spawn) that the horizon is fully walled
+	# off in those directions - near rows + a tall far ring back-fill any gaps.
 	var bands := [
-		[-120.0, -24.0,   40.0, -150.0, 26, 22.0, 78.0],   # left flank
+		[-120.0, -24.0,   40.0, -150.0, 26, 22.0, 78.0],   # left flank (down the street)
 		[  24.0, 120.0,   40.0, -150.0, 26, 22.0, 78.0],   # right flank
 		[ -75.0,  75.0, -105.0, -215.0, 24, 34.0, 94.0],   # far skyline down the street
-		[ -75.0,  75.0,   45.0,  125.0, 14, 26.0, 66.0],   # behind the start
+		[ -62.0,  62.0,   48.0,  150.0, 24, 46.0, 102.0],  # tall wall directly behind start
+		[-150.0, -22.0,   28.0,  165.0, 28, 34.0,  94.0],  # left side + back-left (near->far)
+		[  22.0, 150.0,   28.0,  165.0, 28, 34.0,  94.0],  # right side + back-right
+		[-185.0, 185.0,  120.0,  235.0, 26, 52.0, 112.0],  # far outer back ring (gap filler)
+		[-185.0, -95.0,  -60.0,  150.0, 16, 40.0, 100.0],  # deep left backdrop
+		[  95.0, 185.0,  -60.0,  150.0, 16, 40.0, 100.0],  # deep right backdrop
 	]
 	for b in bands:
 		for i in int(b[4]):
@@ -343,6 +357,36 @@ func _barrier(center: Vector3, size: Vector3) -> void:
 	var shape := BoxShape3D.new(); shape.size = size
 	col.shape = shape; col.position = center
 	add_child(col)
+
+
+## Street-level smog wall beyond the invisible barriers: a ring of box FogVolumes
+## hugging the play corridor (real volumetric fog, dense at ground via height_falloff,
+## soft edges). The corridor itself is left clear; each slab starts right at a barrier
+## and extends outward across the outskirts, so the fog "begins at the walls" and
+## thickens into the distance. Needs volumetric_fog_enabled on the environment.
+func _build_fog_ring() -> void:
+	# A shallower, lighter band hugging each barrier: enough to read as a street-level
+	# smog wall at the perimeter, but sheer enough that the enclosing skyscrapers show
+	# through it as silhouettes (rather than a solid grey blanket that hides them).
+	var d := 0.11
+	_fog_slab(Vector3(-52, 16, -36), Vector3(74, 32, 320), d)    # left of the corridor
+	_fog_slab(Vector3(52, 16, -36), Vector3(74, 32, 320), d)     # right
+	_fog_slab(Vector3(0, 16, 58), Vector3(360, 32, 88), d)       # in front of the start
+	_fog_slab(Vector3(0, 16, -133), Vector3(360, 32, 92), d)     # behind the plaza
+
+
+func _fog_slab(center: Vector3, size: Vector3, density: float) -> void:
+	var fv := FogVolume.new()
+	fv.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+	fv.size = size
+	fv.position = center
+	var fm := FogMaterial.new()
+	fm.density = density
+	fm.albedo = Color(0.87, 0.83, 0.75)
+	fm.height_falloff = 1.4          # concentrate the smog near the ground
+	fm.edge_fade = 0.3               # soften the box edges so it reads as fog
+	fv.material = fm
+	add_child(fv)
 
 
 # --- spawns: along the street, split into the z-zones earth_mission reads ---------
