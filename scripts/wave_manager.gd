@@ -46,6 +46,10 @@ var _spawn_done: bool = false
 var _wave_active: bool = false
 var _label: Label
 var _buff_layer: CanvasLayer
+## Top-left objective list (ObjectiveManager, like Earth). WaveManager feeds it:
+## "reached" when the fight starts, register_kill per non-boss wave cleared, "boss"
+## when the last wave (with the Phantom) is done.
+var _obj_mgr: Node
 
 ## Live enemies of the current wave. `remaining` is derived from this (not from
 ## the died signal alone), so an enemy that vanishes without emitting died can't
@@ -70,8 +74,19 @@ func _ready() -> void:
 	var tel := get_node_or_null("/root/Telemetry")
 	if tel:
 		tel.mission_started(mission_id)
+	_obj_mgr = _find_obj_mgr()
 	_build_ui()
-	_update_label("Reach the Nexus Chamber")
+
+
+## Sibling ObjectiveManager (top-left objective list), if the scene has one.
+func _find_obj_mgr() -> Node:
+	var p := get_parent()
+	if p != null:
+		var m := p.get_node_or_null("ObjectiveManager")
+		if m != null:
+			return m
+	var scene := get_tree().current_scene
+	return scene.get_node_or_null("ObjectiveManager") if scene else null
 
 
 func _physics_process(delta: float) -> void:
@@ -79,6 +94,8 @@ func _physics_process(delta: float) -> void:
 		var p := get_tree().get_first_node_in_group("player")
 		if p != null and (p as Node3D).global_position.z <= START_TRIGGER_Z:
 			_started = true
+			if _obj_mgr != null:
+				_obj_mgr.notify_flag("reached")   # objective 1: reached the chamber
 			start_wave(0)
 		return
 	# Once fighting: keep the count honest (catch enemies freed without a died
@@ -206,25 +223,34 @@ func _check_cleared() -> void:
 	if wave_index >= WAVES.size() - 1:
 		_on_all_complete()
 	else:
+		# Count this (non-boss) wave toward objective 2 "Survive the assault waves".
+		if _obj_mgr != null:
+			_obj_mgr.register_kill()
 		# Show the upgrade picker the instant the wave clears - its countdown IS
 		# the inter-wave timer (see buff_select.gd), and it doesn't pause, so the
 		# player can read, move and loot while it runs.
-		_update_label("Wave %d cleared" % (wave_index + 1))
+		_update_label()
 		_show_buff_ui()
 
 
 func _on_all_complete() -> void:
-	_update_label("All waves cleared!")
+	_update_label()
 	all_waves_complete.emit()
 	var tel := get_node_or_null("/root/Telemetry")
 	if tel:
-		# The last wave has no buff pick, so it reports an empty selection.
-		tel.wave_completed(wave_index + 1, "")
+		tel.wave_completed(wave_index + 1, "")   # last wave has no buff pick
+	if _obj_mgr != null:
+		# Route the finish through the objective list, so completing the last
+		# objective runs the SAME green-objectives + extraction-countdown ending as
+		# Earth (ObjectiveManager owns mission_completed + complete_mission + extract).
+		_obj_mgr.notify_flag("boss")
+		return
+	# Fallback (no ObjectiveManager): finish it ourselves, as before.
+	if tel:
 		tel.mission_completed(mission_id)
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("complete_mission"):
 		sm.complete_mission(mission_id)
-	# Loot window (grab the Phantom's drops) before returning to the ship.
 	var ec := ExtractionCountdown.new()
 	add_child(ec)
 	ec.begin(30.0, return_scene)
@@ -288,12 +314,12 @@ func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_label = Label.new()
-	_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	# Sit below the top-centre health/shield bar so the two don't overlap.
-	_label.position = Vector2(-190, 92)
-	_label.custom_minimum_size = Vector2(380, 0)
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.add_theme_font_size_override("font_size", 22)
+	# Top-LEFT, under the radar and clear of the objective list (like Earth's HUD -
+	# nothing important sits top-centre anymore). Shows only the live wave count.
+	_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_label.position = Vector2(24, 132)
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_label.add_theme_font_size_override("font_size", 18)
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_label.add_theme_constant_override("outline_size", 6)
 	layer.add_child(_label)

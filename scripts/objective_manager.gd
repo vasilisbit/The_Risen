@@ -21,6 +21,13 @@ const MISSION_OBJECTIVES := {
 		{"text": "Retrieve the Archive Core", "type": "flag", "flag": "archive", "done": false},
 		{"text": "Defeat the Shielded Brute", "type": "flag", "flag": "boss", "done": false},
 	],
+	# Mars: reach the chamber, survive the assault waves, kill the boss. Driven by
+	# WaveManager (notify_flag "reached"/"boss"; register_kill per non-boss wave clear).
+	"Mars": [
+		{"text": "Reach the Nexus Chamber", "type": "flag", "flag": "reached", "done": false},
+		{"text": "Survive the assault waves", "type": "kill", "target": 4, "current": 0, "done": false},
+		{"text": "Defeat the Teleporting Phantom", "type": "flag", "flag": "boss", "done": false},
+	],
 	# GDD §3.4. The final objective is fired by the Ember Tyrant (T-0021).
 	"Venus": [
 		{"text": "Climb to the volcano summit", "type": "flag", "flag": "summit", "done": false},
