@@ -55,6 +55,9 @@ func _return_to_ship() -> void:
 		return
 	_going = true
 	set_process(false)
+	# Auto-collect everything still on the floor as the player extracts, so no drops
+	# are lost by leaving - they're added to the inventory they'll see on the ship.
+	_collect_all_loot()
 	# Clear any pause left on by an open menu, so the hub isn't frozen on arrival.
 	get_tree().paused = false
 	var gs := get_node_or_null("/root/GameState")
@@ -68,6 +71,15 @@ func _return_to_ship() -> void:
 	# happen this node is already freed and the callback is a safe no-op.
 	var guard := get_tree().create_timer(2.0)
 	guard.timeout.connect(_force_return)
+
+
+## Grab every uncollected loot drop still lying in the mission and bank it to the
+## player's inventory (each drop's own pickup() adds to SaveManager + saves). Called
+## as we leave, so extracting sweeps the floor for you.
+func _collect_all_loot() -> void:
+	for l in get_tree().get_nodes_in_group("loot"):
+		if is_instance_valid(l) and l.has_method("pickup"):
+			l.pickup()
 
 
 ## Last-resort scene swap. Runs only if we are still in the finished mission.

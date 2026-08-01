@@ -51,6 +51,7 @@ CHUNKS = {
     "mars_solar": "a ground-mounted sci-fi Mars solar panel array, several angled dusty photovoltaic panels on a metal frame",
     "mars_rover": "a six-wheeled sci-fi Mars exploration rover vehicle, dusty armored hull with a sensor mast and equipment",
     "mars_mountain": "a massive distant Mars mountain, a huge eroded red rock peak with layered martian sediment, imposing tall rugged silhouette",
+    "mars_gate": "a colossal sci-fi ceremonial ARCHWAY GATE, two massive tall pillars on the left and right supporting a huge ornate arched top beam, a giant EMPTY HOLLOW open doorway opening in the middle to walk through, like a triumphal arch or temple gateway, nothing blocking the central passage, weathered Mars base architecture",
 }
 
 

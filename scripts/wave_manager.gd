@@ -314,11 +314,11 @@ func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_label = Label.new()
-	# Top-LEFT, under the radar and clear of the objective list (like Earth's HUD -
-	# nothing important sits top-centre anymore). Shows only the live wave count.
-	_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_label.position = Vector2(24, 132)
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	# Directly UNDER the top-centre health/shield bar. Shows only the live wave count.
+	_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_label.position = Vector2(-160, 54)
+	_label.custom_minimum_size = Vector2(320, 0)
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.add_theme_font_size_override("font_size", 18)
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_label.add_theme_constant_override("outline_size", 6)

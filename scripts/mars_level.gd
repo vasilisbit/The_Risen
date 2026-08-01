@@ -135,9 +135,12 @@ func _build_gravity_zone() -> void:
 	a.body_exited.connect(_on_gravity_exited)
 
 
+## Low-g, but heavier than before (0.4 -> 0.6): 0.4 g let a running jump carry ~19 m
+## and skip whole sections of the puzzle. At 0.6 g a hop still clears the ~10-12 m
+## gaps but can't leap-frog platforms, so the climb has to be done rung by rung.
 func _on_gravity_entered(body: Node) -> void:
 	if body.is_in_group("player") and ("gravity_scale" in body):
-		body.gravity_scale = 0.4
+		body.gravity_scale = 0.6
 
 
 func _on_gravity_exited(body: Node) -> void:
@@ -171,27 +174,25 @@ func _on_kill_plane(body: Node) -> void:
 		body.fall_respawn()
 
 
-# --- 3 large wave rooms in a row, joined by portal doorways. Big on all 3 axes so
-# the fights have real room to move: 34 m wide x 12 m tall x 24 m deep each. ---
+# --- ONE big wave chamber (the inner walls are gone) so all the fighting happens in
+# a single hall. 34 m wide x 18 m TALL x 72 m deep, entered through a grand gate. ---
 const ROOM_W := 34.0
-const ROOM_H := 12.0
+const ROOM_H := 18.0
 const ROOM_DEPTH := 24.0
-const ROOMS_Z := [-126.0, -150.0, -174.0]     # room centres (entrance at -114)
-const SPAN_Z := -150.0                          # centre of the whole 3-room block
-const SPAN_LEN := 72.0                          # 3 * ROOM_DEPTH
+const ROOMS_Z := [-126.0, -150.0, -174.0]     # marker/cover clusters (entrance at -114)
+const SPAN_Z := -150.0                          # centre of the whole hall
+const SPAN_LEN := 72.0
 
 func _build_rooms() -> void:
-	# One long floor + ceiling + side walls spanning all three rooms.
+	# One long floor + ceiling + side walls spanning the whole hall.
 	_box(Vector3(0, Y_ROOM - T * 0.5, SPAN_Z), Vector3(ROOM_W, T, SPAN_LEN), _rock2)
 	_box(Vector3(0, Y_ROOM + ROOM_H + T * 0.5, SPAN_Z), Vector3(ROOM_W, T, SPAN_LEN), _rock2)
 	_box(Vector3(-ROOM_W * 0.5, Y_ROOM + ROOM_H * 0.5, SPAN_Z), Vector3(T, ROOM_H, SPAN_LEN), _rock)
 	_box(Vector3(ROOM_W * 0.5, Y_ROOM + ROOM_H * 0.5, SPAN_Z), Vector3(T, ROOM_H, SPAN_LEN), _rock)
-	# Cross-walls with portal doorways at the entrance and between rooms.
-	_door_wall(-114.0, true)      # platforming -> Room 1
-	_door_wall(-138.0, true)      # Room 1 -> Room 2 (portal)
-	_door_wall(-162.0, true)      # Room 2 -> Room 3 (portal)
-	_door_wall(-186.0, false)     # Room 3 far wall (solid end)
-	# 8 spawn markers per room + cover obstacles.
+	# Only the entrance (grand gate) and the far end wall remain - no internal walls.
+	_door_wall(-114.0, true)      # platforming -> hall (the grandiose gate)
+	_door_wall(-186.0, false)     # far end wall (solid)
+	# spawn markers + cover, still clustered in three zones across the long hall.
 	for cz in ROOMS_Z:
 		_room_markers(cz)
 		_room_cover(cz)
@@ -226,12 +227,6 @@ func _room_cover(cz: float) -> void:
 const PROP_DIR := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/"
 
 func _prop_cover(base: Vector3, prop: String, model_scale: float, coll: Vector3) -> void:
-	var col := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = coll
-	col.shape = shape
-	col.position = base + Vector3(0, coll.y * 0.5, 0)
-	add_child(col)
 	var scene := load(PROP_DIR + prop + ".gltf")
 	if scene is PackedScene:
 		var m := (scene as PackedScene).instantiate() as Node3D
@@ -239,26 +234,54 @@ func _prop_cover(base: Vector3, prop: String, model_scale: float, coll: Vector3)
 		m.position = base
 		m.add_to_group("cover_crate", true)
 		add_child(m)
-	else:
-		# Fallback to a primitive so cover is never invisible.
-		_box(base + Vector3(0, coll.y * 0.5, 0), coll, _rock2).add_to_group("cover_crate", true)
+		# Collider measured from the placed model's world AABB, so it always matches
+		# the visible crate (the old hand-guessed box could miss it -> walk-through).
+		var ab := _world_aabb(m)
+		if ab.size.length() > 0.05:
+			var col := CollisionShape3D.new()
+			var shape := BoxShape3D.new()
+			shape.size = ab.size
+			col.shape = shape
+			col.position = ab.position + ab.size * 0.5
+			add_child(col)
+			return
+	# Fallback to a primitive so cover is never invisible (and always solid).
+	_box(base + Vector3(0, coll.y * 0.5, 0), coll, _rock2).add_to_group("cover_crate", true)
 
 
-const DOOR_W := 4.0
-const DOOR_H := 4.0
+const DOOR_W := 8.0
+const DOOR_H := 9.0
 
 func _door_wall(z: float, has_door: bool) -> void:
 	var half := ROOM_W * 0.5
 	if not has_door:
 		_box(Vector3(0, Y_ROOM + ROOM_H * 0.5, z), Vector3(ROOM_W, ROOM_H, T), _rock)
 		return
-	# DOOR_W-wide doorway centred on x=0; walls fill either side to the room edge.
+	# Wide grand doorway centred on x=0; walls fill either side to the room edge.
 	var side_w := half - DOOR_W * 0.5
 	_box(Vector3(-(DOOR_W * 0.5 + side_w * 0.5), Y_ROOM + ROOM_H * 0.5, z), Vector3(side_w, ROOM_H, T), _rock)
 	_box(Vector3(DOOR_W * 0.5 + side_w * 0.5, Y_ROOM + ROOM_H * 0.5, z), Vector3(side_w, ROOM_H, T), _rock)
 	_box(Vector3(0, Y_ROOM + DOOR_H + (ROOM_H - DOOR_H) * 0.5, z), Vector3(DOOR_W, ROOM_H - DOOR_H, T), _rock)  # lintel
-	# Blue portal panel filling the doorway (visual only - no collision).
-	_panel(Vector3(0, Y_ROOM + DOOR_H * 0.5, z), Vector3(DOOR_W, DOOR_H, 0.08), _portal)
+	_grand_gate(z)
+
+
+## A grandiose gateway framing the entrance opening (replaces the flat cyan panel):
+## two heavy ornate columns, a stepped header beam, and cyan energy accents glowing
+## down the inner faces - grand, cohesive with the rock hall, and the DOOR_W-wide
+## passage between the columns stays completely clear.
+func _grand_gate(z: float) -> void:
+	var fz := z + 1.3                                # protrude toward the player
+	var col_h := DOOR_H + 4.0
+	var cx := DOOR_W * 0.5 + 1.3
+	for sx in [-1.0, 1.0]:
+		_box(Vector3(sx * cx, Y_ROOM + col_h * 0.5, fz), Vector3(2.6, col_h, 2.8), _rock)
+		_box(Vector3(sx * cx, Y_ROOM + col_h + 0.6, fz), Vector3(3.2, 1.2, 3.4), _rock2)   # capital
+		# cyan energy strip glowing down the inner face of each column
+		_panel(Vector3(sx * (DOOR_W * 0.5 + 0.05), Y_ROOM + DOOR_H * 0.5, fz + 1.45), Vector3(0.15, DOOR_H, 0.4), _portal)
+	# header beam + a stepped crown above the opening
+	_box(Vector3(0, Y_ROOM + DOOR_H + 1.7, fz), Vector3(DOOR_W + 5.6, 3.2, 2.8), _rock)
+	_box(Vector3(0, Y_ROOM + DOOR_H + 4.1, fz - 0.3), Vector3(DOOR_W + 1.0, 1.8, 2.0), _rock2)
+	_panel(Vector3(0, Y_ROOM + DOOR_H + 0.15, fz + 1.45), Vector3(DOOR_W, 0.3, 0.4), _portal)  # glowing lintel band
 
 
 func _room_markers(cz: float) -> void:
@@ -422,13 +445,25 @@ func _place_struct(nm: String, pos: Vector3, rot_y: float, target_size: float, s
 func _build_mountains() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 91127
+	var cz := -80.0                                  # rough centre of the whole level
+	# A huge visual regolith plane under everything so the distant mountains sit on real
+	# ground (they were floating over the void beyond the small play-area slab). No
+	# collision - the player never reaches out here; the solid play ground stays put.
+	var floor_mesh := MeshInstance3D.new()
+	var fm := PlaneMesh.new(); fm.size = Vector2(900, 900)
+	floor_mesh.mesh = fm
+	floor_mesh.material_override = _regolith
+	floor_mesh.position = Vector3(0, -15.05, cz)     # just below the mountain bases
+	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(floor_mesh)
 	var kinds := ["mars_mountain", "mars_mesa", "mars_mountain", "mars_cliff"]
 	var count := 22
-	var cz := -80.0                                  # rough centre of the whole level
 	for i in count:
 		var ang: float = TAU * float(i) / float(count) + rng.randf_range(-0.12, 0.12)
 		var rad: float = rng.randf_range(150.0, 210.0)
-		var pos := Vector3(sin(ang) * rad, -15.0, cz + cos(ang) * rad)
+		# seat ~2 m INTO the ground plane so no gap shows under the base (the models'
+		# AABB bottom isn't always flush with their lowest geometry).
+		var pos := Vector3(sin(ang) * rad, -17.0, cz + cos(ang) * rad)
 		var size: float = rng.randf_range(70.0, 140.0)
 		var nm: String = kinds[i % kinds.size()]
 		if nm.begins_with("mars_mountain"):
