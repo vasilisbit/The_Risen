@@ -20,6 +20,13 @@ const CHECKPOINT_INDICES := [0, 2, 4, 6, 8, 10, 12, 14]     # 8 checkpoints
 
 const GEN_TEX := "res://assets/generated/mars/%s.png"
 const ROCK := "res://assets/generated/mars/rocks/%s.glb"
+const STRUCT := "res://assets/generated/mars/structures/%s.glb"
+
+# Platforms that PHASE in/out (disappear on an interval) to make the climb harder.
+# The checkpoints (even indices) stay solid; the odd rungs between them phase, so
+# there's always a path - you just have to time each hop. See _build_phaser/_process.
+const PHASE_INDICES := [1, 3, 5, 7, 9, 11, 13]
+const PHASE_PERIOD := 4.2         # s for a full solid->gone->solid cycle
 
 var _rock: StandardMaterial3D
 var _rock2: StandardMaterial3D
@@ -27,6 +34,8 @@ var _regolith: StandardMaterial3D
 var _portal: StandardMaterial3D
 var _tex_cache: Dictionary = {}
 var _sun_dir: Vector3 = Vector3(0.4, 0.5, -0.7)     # direction TO the sun (for the sky)
+var _phasers: Array = []                             # {mesh, col, mat, offset}
+var _phase_t: float = 0.0
 
 
 func _ready() -> void:
@@ -46,6 +55,7 @@ func _ready() -> void:
 	_build_atmosphere()
 	_build_environment()
 	_build_start_base()
+	_build_mountains()
 
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
@@ -55,7 +65,67 @@ func _ready() -> void:
 func _build_platforms() -> void:
 	for i in PLATFORMS.size():
 		var size := Vector3(6, T, 6) if i == 0 else Vector3(3, T, 3)
-		_box(PLATFORMS[i], size, _rock)
+		if i in PHASE_INDICES:
+			_build_phaser(i, PLATFORMS[i], size)
+		else:
+			_box(PLATFORMS[i], size, _rock)
+
+
+## A phasing platform: solid + visible for most of its cycle, then a warning pulse,
+## then it fades out and drops its collision, then fades back in. Staggered per index
+## so the climb reads as a rippling set of energy-rock rungs. The mesh + collider are
+## tracked in _phasers and driven by _process.
+func _build_phaser(index: int, center: Vector3, size: Vector3) -> void:
+	var mat := _rock.duplicate() as StandardMaterial3D
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.8, 1.0)          # cyan energy edge, pulsed in _process
+	mat.emission_energy_multiplier = 0.6
+	var mesh := MeshInstance3D.new()
+	var bm := BoxMesh.new(); bm.size = size
+	mesh.mesh = bm
+	mesh.material_override = mat
+	mesh.position = center
+	add_child(mesh)
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new(); shape.size = size
+	col.shape = shape
+	col.position = center
+	add_child(col)
+	# stagger so neighbours aren't all gone at once
+	var offset: float = float(index) / float(max(PHASE_INDICES.size(), 1)) * PHASE_PERIOD
+	_phasers.append({"mesh": mesh, "col": col, "mat": mat, "offset": offset})
+
+
+## Drive the phasing platforms. Cycle (fraction 0..1 of PHASE_PERIOD):
+##   0.00-0.60 solid   0.60-0.72 warning (fast pulse, still solid)
+##   0.72-0.90 gone (faded out, no collision)   0.90-1.00 fading back in
+func _process(delta: float) -> void:
+	if _phasers.is_empty():
+		return
+	_phase_t += delta
+	for p in _phasers:
+		var f: float = fmod(_phase_t + float(p["offset"]), PHASE_PERIOD) / PHASE_PERIOD
+		var mesh: MeshInstance3D = p["mesh"]
+		var col: CollisionShape3D = p["col"]
+		var mat: StandardMaterial3D = p["mat"]
+		var alpha := 1.0
+		var solid := true
+		var glow := 0.6
+		if f < 0.60:
+			alpha = 1.0; solid = true; glow = 0.6
+		elif f < 0.72:                                   # warning: fast cyan pulse
+			solid = true
+			glow = 0.6 + 3.5 * (0.5 + 0.5 * sin((f - 0.60) * 90.0))
+		elif f < 0.90:                                   # gone
+			alpha = 0.12; solid = false; glow = 0.2
+		else:                                            # fading back in
+			alpha = clampf((f - 0.90) / 0.10, 0.0, 1.0); solid = true; glow = 1.2
+		var c := mat.albedo_color; c.a = alpha
+		mat.albedo_color = c
+		mat.emission_energy_multiplier = glow
+		mesh.visible = alpha > 0.02
+		col.disabled = not solid
 
 
 func _build_gravity_zone() -> void:
@@ -272,16 +342,17 @@ func _build_environment() -> void:
 	# scattered boulders lower down for canyon variety (clear of the +-13 column)
 	for b in [Vector3(-21, -14.5, -6), Vector3(21, -14.5, -40), Vector3(-22, -14.5, -76), Vector3(20, -14.5, -104)]:
 		_place_rock("mars_boulder", b, rng.randf_range(0.0, TAU), rng.randf_range(6.0, 10.0))
-	# A mining base strung along the canyon sides (metal greys read well on red Mars).
-	_kay("landingpad_large", Vector3(-15, -14.5, 4), 0.0, 2.6)
-	_kay("spacetruck", Vector3(-15, -13.6, 4), 0.7, 2.0)
-	_kay("drill_structure", Vector3(16, -14.0, -18), 0.0, 3.2)
-	_kay("structure_tall", Vector3(-16, -14.0, -34), 0.3, 3.4)
-	_kay("solarpanel", Vector3(16, -14.0, -50), 0.5, 3.2)
-	_kay("containers_A", Vector3(-16, -14.0, -64), 0.1, 2.6)
-	_kay("structure_low", Vector3(16, -14.0, -80), -0.4, 3.2)
-	_kay("containers_C", Vector3(-16, -14.0, -96), 0.2, 2.6)
-	_kay("drill_structure", Vector3(15, -14.0, -108), 0.6, 3.6)
+	# fal.ai Mars mining base strung along the canyon sides (replaces the KayKit kit so
+	# the whole map is one generated art style). Far below + unreachable, so visual only.
+	_place_struct("mars_landing_pad", Vector3(-16, -14.5, 4), 0.0, 12.0, false)
+	_place_struct("mars_rover", Vector3(-15, -14.5, 6), 0.7, 6.0, false)
+	_place_struct("mars_drill", Vector3(17, -14.5, -18), 0.0, 15.0, false)
+	_place_struct("mars_habitat_tall", Vector3(-17, -14.5, -34), 0.3, 12.0, false)
+	_place_struct("mars_solar", Vector3(17, -14.5, -50), 0.5, 10.0, false)
+	_place_struct("mars_containers", Vector3(-17, -14.5, -64), 0.1, 8.0, false)
+	_place_struct("mars_habitat_low", Vector3(17, -14.5, -80), -0.4, 9.0, false)
+	_place_struct("mars_containers", Vector3(-17, -14.5, -96), 0.2, 8.0, false)
+	_place_struct("mars_drill", Vector3(16, -14.5, -108), 0.6, 16.0, false)
 
 
 ## A STANDABLE KayKit landing base behind the spawn (z ~ +4..+19): the player
@@ -292,16 +363,16 @@ func _build_environment() -> void:
 func _build_start_base() -> void:
 	_box(Vector3(0, -0.25, 11), Vector3(18, 0.5, 15), _rock2)          # standable floor
 	_box(Vector3(0, 2.0, 18.7), Vector3(18, 4.5, 0.5), _rock)         # back wall (no fall-off)
-	# Base structures ringing the courtyard. These now carry SOLID collision (measured
-	# from each model's AABB) so the player can't walk through the assets behind spawn.
-	_kay("landingpad_large", Vector3(0, 0.02, 15), 0.0, 3.2)          # flat pad - walkable, left visual
-	_kay_solid("spacetruck", Vector3(0, 0.6, 15), 0.0, 2.0)
-	_kay_solid("structure_tall", Vector3(-7.5, 0, 16.5), 0.25, 2.2)
-	_kay_solid("structure_low", Vector3(7.5, 0, 16.5), -0.25, 2.2)
-	_kay_solid("containers_A", Vector3(-8.2, 0, 9), 0.1, 2.2)
-	_kay_solid("containers_C", Vector3(8.2, 0, 9), -0.1, 2.2)
-	_kay_solid("solarpanel", Vector3(-8.2, 0, 4.5), 0.5, 2.4)
-	_kay_solid("drill_structure", Vector3(8.2, 0, 4.5), -0.4, 2.4)
+	# fal.ai Mars base structures ringing the courtyard, all with SOLID collision
+	# (AABB box) so the player can't walk through the assets behind spawn.
+	_place_struct("mars_landing_pad", Vector3(0, 0.02, 15), 0.0, 9.0, true)
+	_place_struct("mars_rover", Vector3(0, 0.7, 14), 0.0, 4.5, true)
+	_place_struct("mars_habitat_tall", Vector3(-7.5, 0, 16.5), 0.25, 6.0, true)
+	_place_struct("mars_habitat_low", Vector3(7.5, 0, 16.5), -0.25, 5.0, true)
+	_place_struct("mars_containers", Vector3(-8.2, 0, 9), 0.1, 4.5, true)
+	_place_struct("mars_containers", Vector3(8.2, 0, 9), -0.1, 4.5, true)
+	_place_struct("mars_solar", Vector3(-8.2, 0, 4.5), 0.5, 5.0, true)
+	_place_struct("mars_drill", Vector3(8.2, 0, 4.5), -0.4, 8.0, true)
 
 
 ## Place a detailed Tripo H3.1 Mars rock: uniform-scale the unit-cube-normalized mesh
@@ -318,6 +389,52 @@ func _place_rock(nm: String, pos: Vector3, rot_y: float, target_size: float) -> 
 	m.scale = Vector3.ONE * target_size
 	var ab := _world_aabb(m)
 	m.position = Vector3(pos.x, pos.y - ab.position.y, pos.z)
+
+
+## Place a generated Mars structure GLB (mining base / mountain): scale so its largest
+## dimension = target_size, rotate, seat its base at pos.y. If `solid`, add a box
+## collider from the seated world AABB so the player can't walk through it.
+func _place_struct(nm: String, pos: Vector3, rot_y: float, target_size: float, solid: bool) -> void:
+	var scene := load(STRUCT % nm)
+	if scene == null:
+		return
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	m.rotation.y = rot_y
+	m.scale = Vector3.ONE * target_size
+	var ab := _world_aabb(m)
+	m.position = Vector3(pos.x, pos.y - ab.position.y, pos.z)
+	if solid:
+		var world := _world_aabb(m)
+		if world.size.length() < 0.05:
+			return
+		var col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = world.size
+		col.shape = box
+		col.position = world.position + world.size * 0.5
+		add_child(col)
+
+
+## A ring of huge Mars mountains around the whole level (well beyond the canyon walls
+## and the death barrier) so the horizon reads as an endless mountain range and the
+## map feels vast without actually being. Visual only; the dust fog fades them out.
+func _build_mountains() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 91127
+	var kinds := ["mars_mountain", "mars_mesa", "mars_mountain", "mars_cliff"]
+	var count := 22
+	var cz := -80.0                                  # rough centre of the whole level
+	for i in count:
+		var ang: float = TAU * float(i) / float(count) + rng.randf_range(-0.12, 0.12)
+		var rad: float = rng.randf_range(150.0, 210.0)
+		var pos := Vector3(sin(ang) * rad, -15.0, cz + cos(ang) * rad)
+		var size: float = rng.randf_range(70.0, 140.0)
+		var nm: String = kinds[i % kinds.size()]
+		if nm.begins_with("mars_mountain"):
+			_place_struct(nm, pos, rng.randf_range(0.0, TAU), size, false)
+		else:
+			_place_rock(nm, pos, rng.randf_range(0.0, TAU), size)   # mesa/cliff live in rocks/
 
 
 func _world_aabb(root: Node3D) -> AABB:

@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://g8iux6coufn0"
+path.s3tc="res://.godot/imported/mars_drill_Color_c288419b-7012-4e6f-b457-d5b16c349c3a.jpg-fe7f223f2e37430e5d43702c98df4eee.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "8dd71888d11db864f41340461c3d8db1"
+}
+
+[deps]
+
+source_file="res://assets/generated/mars/structures/mars_drill_Color_c288419b-7012-4e6f-b457-d5b16c349c3a.jpg"
+dest_files=["res://.godot/imported/mars_drill_Color_c288419b-7012-4e6f-b457-d5b16c349c3a.jpg-fe7f223f2e37430e5d43702c98df4eee.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0
