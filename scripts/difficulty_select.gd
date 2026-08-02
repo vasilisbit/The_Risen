@@ -63,31 +63,42 @@ func refresh() -> void:
 	var diff := get_node_or_null("/root/Difficulty")
 	if diff == null:
 		return
-	var current: String = diff.current()
+	var current: String = diff.current(mission_id)
 	for id in _cards:
 		var card: PanelContainer = _cards[id]
-		var unlocked: bool = diff.is_unlocked(id)
+		var unlocked: bool = diff.is_unlocked(id, mission_id)
 		var selected: bool = (id == current)
 		var style: StyleBoxFlat = card.get_theme_stylebox("panel")
 		style.border_color = GOLD if selected else (DIM if unlocked else LOCKED)
 		style.set_border_width_all(3 if selected else 1)
 		style.bg_color = Color(0.12, 0.11, 0.08, 0.97) if selected else Color(0.08, 0.09, 0.11, 0.95)
 		card.modulate = Color(1, 1, 1) if unlocked else Color(0.55, 0.55, 0.58)
-		(card.get_meta("lock") as Label).visible = not unlocked
+		var lock := card.get_meta("lock") as Label
+		lock.visible = not unlocked
+		if not unlocked:
+			lock.text = "LOCKED - %s" % _unlock_hint(id)
 	var applies: bool = diff.APPLIES_TO.has(mission_id)
 	_note.text = ("Modifiers apply to this mission.   Selected: %s" % current) if applies \
 		else "Modifiers do not apply to %s - it runs on Normal." % mission_id
 	_launch.text = "LAUNCH  -  %s" % (current if applies else "Normal")
 
 
+## How a locked tier is earned. Heroic is a global unlock (clear Venus); Legendary is
+## per-mission (beat THIS mission on Heroic).
+func _unlock_hint(id: String) -> String:
+	if id == "Legendary":
+		return "beat %s on Heroic first" % mission_id
+	return "complete the Venus mission first"
+
+
 func _select(id: String) -> void:
 	var diff := get_node_or_null("/root/Difficulty")
 	if diff == null:
 		return
-	if not diff.is_unlocked(id):
-		_note.text = "%s is locked - complete the Venus mission first." % id
+	if not diff.is_unlocked(id, mission_id):
+		_note.text = "%s is locked - %s." % [id, _unlock_hint(id)]
 		return
-	if diff.select(id):
+	if diff.select(id, mission_id):
 		var tel := get_node_or_null("/root/Telemetry")
 		if tel:
 			tel.difficulty_selected(id, mission_id)

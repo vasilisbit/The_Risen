@@ -71,8 +71,11 @@ func _default_data() -> Dictionary:
 		"equipped_armor": {},
 		"flux_currency": 0,
 		"mission_completion_flags": {"Earth": false, "Mars": false, "Venus": false},
-		"difficulty_unlocks": {"Heroic": false, "Legendary": false},
-		# Selected modifier tier (T-0027); unlocks after Venus.
+		# Heroic is a global unlock (after Venus). Legendary is per-mission now, tracked
+		# in heroic_cleared: a mission's Legendary unlocks once it's beaten on Heroic.
+		"difficulty_unlocks": {"Heroic": false},
+		"heroic_cleared": {},
+		# Selected modifier tier (T-0027).
 		"selected_difficulty": "Normal",
 		# Most recent mission deployed to - drives the hub window planet (T-0028).
 		"last_mission": "Earth",
