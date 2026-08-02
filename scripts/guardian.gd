@@ -57,8 +57,11 @@ const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
 const PUSH_TIME := 0.4           # s a wind gust / boss slam takes to shove you
 const STEP_DISTANCE := 2.2       # m of travel between footstep sounds
 
-## Multiplies gravity - a low-gravity Area3D (Mars) sets this to 0.4.
+## Multiplies gravity - a low-gravity Area3D (Mars) sets this to <1.
 var gravity_scale: float = 1.0
+## Multiplies jump take-off velocity. The Mars low-g zone lowers it so the floaty
+## fall stays but a jump is a controlled hop (can't leap across the whole puzzle).
+var jump_scale: float = 1.0
 ## Fraction of incoming damage ignored (Mars buff: -15% -> 0.15).
 var damage_reduction: float = 0.0
 ## Fraction ignored from equipped armour (summed across slots by SaveManager).
@@ -225,8 +228,9 @@ func _physics_process(delta: float) -> void:
 	var menu_open := _is_menu_open()
 
 	if not menu_open and Input.is_action_just_pressed("jump") and is_on_floor():
-		# v = sqrt(2 * g * h) reaches exactly JUMP_HEIGHT at apex.
-		velocity.y = sqrt(2.0 * _gravity * JUMP_HEIGHT)
+		# v = sqrt(2 * g * h) reaches exactly JUMP_HEIGHT at apex; jump_scale (Mars
+		# low-g) trims the leap so airtime * horizontal speed can't skip platforms.
+		velocity.y = sqrt(2.0 * _gravity * JUMP_HEIGHT) * jump_scale
 
 	var input_dir := Vector2.ZERO if menu_open else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()

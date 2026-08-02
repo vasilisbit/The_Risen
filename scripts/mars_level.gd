@@ -26,7 +26,7 @@ const STRUCT := "res://assets/generated/mars/structures/%s.glb"
 # The checkpoints (even indices) stay solid; the odd rungs between them phase, so
 # there's always a path - you just have to time each hop. See _build_phaser/_process.
 const PHASE_INDICES := [1, 3, 5, 7, 9, 11, 13]
-const PHASE_PERIOD := 4.2         # s for a full solid->gone->solid cycle
+const PHASE_PERIOD := 7.5         # s for a full solid->gone->solid cycle (solid most of it)
 
 var _rock: StandardMaterial3D
 var _rock2: StandardMaterial3D
@@ -97,9 +97,10 @@ func _build_phaser(index: int, center: Vector3, size: Vector3) -> void:
 	_phasers.append({"mesh": mesh, "col": col, "mat": mat, "offset": offset})
 
 
-## Drive the phasing platforms. Cycle (fraction 0..1 of PHASE_PERIOD):
-##   0.00-0.60 solid   0.60-0.72 warning (fast pulse, still solid)
-##   0.72-0.90 gone (faded out, no collision)   0.90-1.00 fading back in
+## Drive the phasing platforms. Solid for most of the (now longer) cycle so they
+## disappear infrequently. Cycle (fraction 0..1 of PHASE_PERIOD):
+##   0.00-0.74 solid   0.74-0.82 warning (fast pulse, still solid)
+##   0.82-0.92 gone (faded out, no collision)   0.92-1.00 fading back in
 func _process(delta: float) -> void:
 	if _phasers.is_empty():
 		return
@@ -112,15 +113,15 @@ func _process(delta: float) -> void:
 		var alpha := 1.0
 		var solid := true
 		var glow := 0.6
-		if f < 0.60:
+		if f < 0.74:
 			alpha = 1.0; solid = true; glow = 0.6
-		elif f < 0.72:                                   # warning: fast cyan pulse
+		elif f < 0.82:                                   # warning: fast cyan pulse
 			solid = true
-			glow = 0.6 + 3.5 * (0.5 + 0.5 * sin((f - 0.60) * 90.0))
-		elif f < 0.90:                                   # gone
+			glow = 0.6 + 3.5 * (0.5 + 0.5 * sin((f - 0.74) * 90.0))
+		elif f < 0.92:                                   # gone
 			alpha = 0.12; solid = false; glow = 0.2
 		else:                                            # fading back in
-			alpha = clampf((f - 0.90) / 0.10, 0.0, 1.0); solid = true; glow = 1.2
+			alpha = clampf((f - 0.92) / 0.08, 0.0, 1.0); solid = true; glow = 1.2
 		var c := mat.albedo_color; c.a = alpha
 		mat.albedo_color = c
 		mat.emission_energy_multiplier = glow
@@ -135,17 +136,24 @@ func _build_gravity_zone() -> void:
 	a.body_exited.connect(_on_gravity_exited)
 
 
-## Low-g, but heavier than before (0.4 -> 0.6): 0.4 g let a running jump carry ~19 m
-## and skip whole sections of the puzzle. At 0.6 g a hop still clears the ~10-12 m
-## gaps but can't leap-frog platforms, so the climb has to be done rung by rung.
+## Floaty Mars fall (0.6 g) BUT a trimmed jump take-off (0.7x). Gravity_scale alone
+## couldn't stop skips because the jump velocity is fixed - at 0.6 g a SPRINT jump
+## still carried ~19 m (two platforms). Cutting jump_scale drops a sprint jump to
+## ~13-14 m: it clears the ~10 m gaps but can't leap-frog, so the climb is rung-by-rung.
 func _on_gravity_entered(body: Node) -> void:
-	if body.is_in_group("player") and ("gravity_scale" in body):
-		body.gravity_scale = 0.6
+	if body.is_in_group("player"):
+		if "gravity_scale" in body:
+			body.gravity_scale = 0.6
+		if "jump_scale" in body:
+			body.jump_scale = 0.7
 
 
 func _on_gravity_exited(body: Node) -> void:
-	if body.is_in_group("player") and ("gravity_scale" in body):
-		body.gravity_scale = 1.0
+	if body.is_in_group("player"):
+		if "gravity_scale" in body:
+			body.gravity_scale = 1.0
+		if "jump_scale" in body:
+			body.jump_scale = 1.0
 
 
 func _build_checkpoints() -> void:
@@ -265,23 +273,29 @@ func _door_wall(z: float, has_door: bool) -> void:
 	_grand_gate(z)
 
 
-## A grandiose gateway framing the entrance opening (replaces the flat cyan panel):
-## two heavy ornate columns, a stepped header beam, and cyan energy accents glowing
-## down the inner faces - grand, cohesive with the rock hall, and the DOOR_W-wide
-## passage between the columns stays completely clear.
+## A grandiose gateway framing the entrance opening. Prefers the fal.ai image-to-3d
+## Mars archway model (an actual open arch, so the passage shows through); its wall-
+## opening stays clear of collision. Falls back to a primitive column+header gateway
+## with cyan accents if the model is missing.
 func _grand_gate(z: float) -> void:
+	if ResourceLoader.exists(STRUCT % "mars_arch"):
+		# Seated on the hall floor, framing the DOOR opening. Rotated 90 deg so the arch
+		# is WIDE across the doorway with its opening facing the passage (the raw model
+		# faces along x). ~20 m wide -> ~8 m central opening, matching DOOR_W.
+		_place_struct("mars_arch", Vector3(0, Y_ROOM, z + 0.5), PI * 0.5, 20.0, false)
+		# a little cyan glow at the threshold to keep the sci-fi read
+		_panel(Vector3(0, Y_ROOM + 0.15, z + 2.6), Vector3(DOOR_W, 0.3, 0.4), _portal)
+		return
 	var fz := z + 1.3                                # protrude toward the player
 	var col_h := DOOR_H + 4.0
 	var cx := DOOR_W * 0.5 + 1.3
 	for sx in [-1.0, 1.0]:
 		_box(Vector3(sx * cx, Y_ROOM + col_h * 0.5, fz), Vector3(2.6, col_h, 2.8), _rock)
 		_box(Vector3(sx * cx, Y_ROOM + col_h + 0.6, fz), Vector3(3.2, 1.2, 3.4), _rock2)   # capital
-		# cyan energy strip glowing down the inner face of each column
 		_panel(Vector3(sx * (DOOR_W * 0.5 + 0.05), Y_ROOM + DOOR_H * 0.5, fz + 1.45), Vector3(0.15, DOOR_H, 0.4), _portal)
-	# header beam + a stepped crown above the opening
 	_box(Vector3(0, Y_ROOM + DOOR_H + 1.7, fz), Vector3(DOOR_W + 5.6, 3.2, 2.8), _rock)
 	_box(Vector3(0, Y_ROOM + DOOR_H + 4.1, fz - 0.3), Vector3(DOOR_W + 1.0, 1.8, 2.0), _rock2)
-	_panel(Vector3(0, Y_ROOM + DOOR_H + 0.15, fz + 1.45), Vector3(DOOR_W, 0.3, 0.4), _portal)  # glowing lintel band
+	_panel(Vector3(0, Y_ROOM + DOOR_H + 0.15, fz + 1.45), Vector3(DOOR_W, 0.3, 0.4), _portal)
 
 
 func _room_markers(cz: float) -> void:
