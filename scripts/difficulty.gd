@@ -65,16 +65,24 @@ func _ready() -> void:
 
 # --- selection --------------------------------------------------------------
 
-func current() -> String:
+## The selected tier, clamped DOWN to the best tier actually unlocked for
+## `mission_id` (Legendary is per-mission now), so a stale/higher pick can't leak in.
+func current(mission_id: String = "") -> String:
+	if mission_id == "":
+		mission_id = current_mission()
 	var sm := get_node_or_null("/root/SaveManager")
 	var id := String(sm.data.get("selected_difficulty", NORMAL)) if sm else NORMAL
-	# A save that was made while a tier was unlocked, then reset, must not keep
-	# that tier selected.
-	return id if is_unlocked(id) else NORMAL
+	var order := [NORMAL, HEROIC, LEGENDARY]
+	for r in range(order.find(id), -1, -1):
+		if is_unlocked(order[r], mission_id):
+			return order[r]
+	return NORMAL
 
 
-func select(id: String) -> bool:
-	if not is_unlocked(id) or tier_of(id).is_empty():
+func select(id: String, mission_id: String = "") -> bool:
+	if mission_id == "":
+		mission_id = current_mission()
+	if not is_unlocked(id, mission_id) or tier_of(id).is_empty():
 		return false
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm:
@@ -84,15 +92,31 @@ func select(id: String) -> bool:
 	return true
 
 
-## Heroic and Legendary unlock once Venus is complete (GDD §7).
-func is_unlocked(id: String) -> bool:
+## NORMAL: always. HEROIC: global - unlocked once Venus is cleared (any difficulty).
+## LEGENDARY: PER-MISSION - unlocked once THAT mission has been beaten on Heroic.
+func is_unlocked(id: String, mission_id: String = "") -> bool:
 	if id == NORMAL:
 		return true
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm == null:
 		return false
-	var unlocks: Dictionary = sm.data.get("difficulty_unlocks", {})
-	return bool(unlocks.get(id, false))
+	if id == HEROIC:
+		var unlocks: Dictionary = sm.data.get("difficulty_unlocks", {})
+		return bool(unlocks.get(HEROIC, false))
+	if id == LEGENDARY:
+		if mission_id == "":
+			mission_id = current_mission()
+		return mission_heroic_cleared(mission_id)
+	return false
+
+
+## True once `mission_id` has been completed on Heroic (or Legendary).
+func mission_heroic_cleared(mission_id: String) -> bool:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm == null:
+		return false
+	var hc: Dictionary = sm.data.get("heroic_cleared", {})
+	return bool(hc.get(mission_id, false))
 
 
 func tier_of(id: String) -> Dictionary:
@@ -106,7 +130,7 @@ func tier_of(id: String) -> Dictionary:
 func active_tier(mission_id: String) -> Dictionary:
 	if not APPLIES_TO.has(mission_id):
 		return tier_of(NORMAL)
-	return tier_of(current())
+	return tier_of(current(mission_id))
 
 
 # --- queries used at mission load ------------------------------------------
@@ -137,15 +161,21 @@ func no_shield_regen() -> bool:
 	return bool(active_tier(current_mission()).get("no_shield_regen", false))
 
 
-## Called when a mission completes, to open the tiers up after Venus.
+## Called when a mission completes, to record progression toward the tier unlocks:
+##  - clearing a mission on Heroic/Legendary unlocks THAT mission's Legendary;
+##  - clearing Venus (on ANY difficulty) opens Heroic on every mission.
 func unlock_after(mission_id: String) -> void:
-	if mission_id != "Venus":
-		return
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm == null:
 		return
-	var unlocks: Dictionary = sm.data.get("difficulty_unlocks", {})
-	unlocks[HEROIC] = true
-	unlocks[LEGENDARY] = true
-	sm.data["difficulty_unlocks"] = unlocks
+	# The tier this mission was actually played on (Normal outside Earth/Venus).
+	var played := current(mission_id) if APPLIES_TO.has(mission_id) else NORMAL
+	if played == HEROIC or played == LEGENDARY:
+		var hc: Dictionary = sm.data.get("heroic_cleared", {})
+		hc[mission_id] = true
+		sm.data["heroic_cleared"] = hc
+	if mission_id == "Venus":
+		var unlocks: Dictionary = sm.data.get("difficulty_unlocks", {})
+		unlocks[HEROIC] = true
+		sm.data["difficulty_unlocks"] = unlocks
 	sm.save_game()
