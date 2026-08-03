@@ -58,19 +58,29 @@ their free-tier download. Use **fal.ai's API** instead: it returns the file dire
   (SFX), `fal-ai/stable-audio-25/text-to-audio` (music). Queue: `POST
   https://queue.fal.run/<model>` → poll `status_url` → fetch `response_url`; parse
   result URLs defensively.
-- **Which 3D model (verified pricing/quality, 2026-07):**
-  - **Tripo P1** (`tripo3d/p1/{text,image,multiview}-to-3d`) — **$0.40/gen**, but
-    **game-ready**: clean low-poly, quad remesh, PBR, `face_limit`, orientation
-    control. GLB ~1–2 MB, drops straight into Godot. **DEFAULT for hero assets.**
-  - **Tripo v2.5/v3.1** (`tripo3d/tripo/v2.5/...`; append v3.0/v3.1) — **~$0.01/gen**
-    but HIGH-POLY (~17 MB), must decimate in Blender. Use for cheap bulk/experiments.
-  - **Hunyuan3D v3.1** (`fal-ai/hunyuan3d-v3/text-to-3d`) — up to 1.5 M poly + PBR,
-    $0.225 (rapid) / $0.375 (pro). Ultra-detail statement pieces; needs decimation.
-  - Others on fal: Meshy-6, Hyper3D Rodin, Trellis (image-to-3d alternatives).
-- **Workflow** (best control): nano-banana-pro concept image → **Tripo P1
-  image-to-3d** (or multiview for consistency) → Blender toolkit MCP (assemble
-  chunks / set origin+scale / collision) → Godot import. Text-to-3d P1 for quick
-  hero props. Ground/greybox surfaces: nano-banana flat albedo via triplanar.
+- **Which 3D model (verified quality, 2026-08 — Earth + Mars built with this):**
+  - **Tripo H3.1** (`tripo3d/h3.1/{text,image}-to-3d`, `pbr:true`, `geometry_quality`/
+    `texture_quality:"detailed"`, `face_limit ~250–300k`) — **DEFAULT**. ~275k-tri
+    crisp detailed models + 4K PBR at **~pennies/gen**, ~10–12 MB. Same quality as
+    Hunyuan Pro, tiny cost. Used for all Earth buildings + Archive Core + Mars rock/
+    structures/arch.
+  - **Tripo P1** (`tripo3d/p1/...`, $0.40) — game-ready LOW-poly; reads soft/"playdough"
+    up close. Superseded by H3.1 for hero assets.
+  - **Hunyuan 3D v3.1 Pro** (`fal-ai/hunyuan-3d/v3.1/pro/{text,image}-to-3d`) —
+    **$0.675/gen and ~84 MB** at 1 M faces. Great geometry but pricey + must decimate
+    (Blender) — AVOID unless a specific look needs it.
+  - Others: Tripo v2.5 ($0.01 high-poly→decimate), Rodin v2.5, Trellis, Meshy.
+- **Workflow** (best control): nano-banana concept image → **Tripo H3.1 image-to-3d**
+  (`orientation:"align_image"`) → Blender MCP (render-check / decimate) → Godot import.
+  Text-to-3d H3.1 for quick props. Flat surfaces: nano-banana albedo + **fal-ai/patina**
+  (normal/roughness). **Tripo GLBs already carry PBR (Color/NormalGL/ORM) — no PATINA
+  on models.** Placement helper: unit-cube-normalize → scale to target metres → seat
+  base via measured world AABB (see `_place_chunk`/`_place_rock`/`_place_struct`).
+- **Godot import GOTCHA:** the glTF importer **extracts** embedded images to loose
+  `*_Color/NormalGL/ORM.jpg` files the imported `.scn` references → **commit those
+  extracted textures** (deleting them = "Resource file not found"). Overwriting a GLB
+  needs its `.glb.import` deleted + a rescan; heavy multi-GLB scans can drop the editor
+  plugin (wait ~30 s + reconnect).
 - **Budget** ($20 pool): P1 hero assets ~$0.40 each (a full level's set ≈ $5–8);
   textures are pennies. Validate a model with ONE gen before batching.
 - **Un-UV'd meshes** (OSM/greybox): apply generated albedo via
