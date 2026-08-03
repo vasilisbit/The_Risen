@@ -140,5 +140,9 @@ trailer, **never push** unless asked. `git add` the `.uid` next to any new `.gd`
   (scale → AABB-seat on ground → trimesh collision → navmesh) with a triplanar-
   textured street, afternoon `WorldEnvironment`, and containment walls. It reads its
   30 `spawn_point` markers as before (earth_mission drives the zone waves).
-- **TODO:** PATINA (`fal-ai/patina`) the ground albedos → PBR; then Mars/Venus the
-  same way. Budget ~$6 of $20 spent (Tripo P1 = $0.40/gen).
+- **Earth + Mars + Venus are ALL rebuilt** on this pipeline (Tripo H3.1 models +
+  nano-banana→PATINA PBR ground + per-planet sky shader + runtime fog atmosphere).
+  Per-planet batch generators: `gen_earth_buildings.py`/`gen_earth_chunks.py`,
+  `gen_mars_rocks.py`/`gen_mars_structures.py`, `gen_venus_rocks.py`/`gen_venus_textures.py`.
+- **TODO:** real audio (music/SFX); LOD/culling (T-0036/37) + downscale the 2–4K
+  ground pngs ≤1024. Budget ~$10 of $20 spent.
