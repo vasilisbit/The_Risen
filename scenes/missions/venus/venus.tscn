@@ -6,25 +6,11 @@
 [ext_resource type="Script" path="res://scripts/venus_mission.gd" id="4_mission"]
 [ext_resource type="Script" path="res://scripts/mission_timer.gd" id="5_timer"]
 
-[sub_resource type="Environment" id="Environment_venus"]
-background_mode = 1
-background_color = Color(0.85, 0.42, 0.16, 1)
-ambient_light_source = 2
-ambient_light_color = Color(0.85, 0.45, 0.22, 1)
-ambient_light_energy = 1.2
-tonemap_mode = 2
-fog_enabled = true
-fog_light_color = Color(0.95, 0.45, 0.15, 1)
-fog_density = 0.012
-
 [sub_resource type="NavigationMesh" id="NavigationMesh_venus"]
 geometry_parsed_geometry_type = 1
 agent_height = 1.8
 
 [node name="Venus" type="Node3D"]
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_venus")
 
 [node name="Nav" type="NavigationRegion3D" parent="."]
 navigation_mesh = SubResource("NavigationMesh_venus")

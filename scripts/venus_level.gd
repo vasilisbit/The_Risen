@@ -13,6 +13,13 @@ extends StaticBody3D
 
 const T := 0.5                          # slab thickness
 
+# fal.ai generated Venus assets (Tripo H3.1 rocks + nano-banana/PATINA ground textures).
+const GEN_TEX := "res://assets/generated/venus/%s.png"
+const ROCK := "res://assets/generated/venus/rocks/%s.glb"
+# Slope/arena cover uses compact Tripo volcanic rock (never a tall spire, so cover on
+# the climb can't wall the player in above the jump apex - see _rock_prop).
+const COVER_KINDS := ["venus_boulder", "venus_shard", "venus_boulder", "venus_shard"]
+
 # --- Section 1: Exterior Ascent ---
 const SLOPE_DEG := 15.0
 const ASCENT_LENGTH := 200.0            # m of path (GDD §3.4)
@@ -44,16 +51,23 @@ var _z_pool: float = 0.0
 var _rock: StandardMaterial3D
 var _rock_dark: StandardMaterial3D
 var _obsidian: StandardMaterial3D
+var _ash: StandardMaterial3D
 var _lava: StandardMaterial3D
 var _pool_mat: StandardMaterial3D
 
 var _wind_area: Area3D
+var _tex_cache: Dictionary = {}
+var _sun_dir: Vector3 = Vector3(0.3, 0.5, -0.8)     # direction TO the sun (for the sky)
 
 
 func _ready() -> void:
-	_rock = _mat(Color(0.32, 0.16, 0.10), 0.0, 0.95)
-	_rock_dark = _mat(Color(0.20, 0.11, 0.08), 0.0, 0.9)
-	_obsidian = _mat(Color(0.09, 0.07, 0.09), 0.4, 0.35)
+	# fal.ai Venus PBR volcanic-rock/obsidian/ash (nano-banana + PATINA) applied
+	# triplanar; falls back to the old flat volcanic colours if the textures are absent.
+	# The emissive lava/pool stay hand-authored (they glow, not textured).
+	_rock = _venus_mat("volcanic_rock", Color(0.82, 0.72, 0.64), 0.0, 0.9, 0.22)
+	_rock_dark = _venus_mat("volcanic_rock", Color(0.52, 0.44, 0.40), 0.0, 0.85, 0.22)
+	_obsidian = _venus_mat("obsidian", Color(0.78, 0.70, 0.76), 0.35, 0.35, 0.28, 0.55)
+	_ash = _venus_mat("ash", Color(0.66, 0.54, 0.46), 0.0, 1.0, 0.16)
 	_lava = _mat(Color(0.95, 0.30, 0.05), 0.0, 0.6, true, Color(1.0, 0.45, 0.08), 3.5)
 	_pool_mat = _mat(Color(1.0, 0.72, 0.20), 0.0, 0.5, true, Color(1.0, 0.80, 0.30), 5.0)
 
@@ -65,6 +79,8 @@ func _ready() -> void:
 	_build_descent()
 	_build_arena()
 	_build_lights()
+	_build_atmosphere()
+	_build_environment()
 	_build_spawns()
 	_build_kill_plane()
 
@@ -142,35 +158,34 @@ func _build_ascent_props() -> void:
 		_lava_area(Vector3(x, y + 0.6, z), Vector3(3, 1.2, 3))
 
 
-## A real rock model (Fab rock_collection_04) as cover, with a matching collision
-## box. Its material is overridden to the volcanic rock so we don't depend on the
-## pack's textures; falls back to a primitive if the mesh can't load. `base` is
-## the floor point the rock sits on.
-const ROCK_DIR := "res://assets/thirdparty/fab/rock_collection_04/"
-const ROCK_MESHES := [
-	"Rock_01/Meshes/SM_Rock_01.fbx", "Rock_03/Meshes/SM_Rock_03.fbx",
-	"Rock_05/Meshes/SM_Rock_05.fbx", "Rock_06/Meshes/SM_Rock_06.fbx",
-]
-const ROCK_SCALE := 1.0
+## A detailed Tripo H3.1 volcanic rock (fal.ai) as cover, seated on the slope with a
+## collision box measured from its world AABB. The model is scaled to a fixed ~1.7 m
+## HEIGHT (not its raw size) so cover on the climb always stays under the ~2 m jump
+## apex and can never wall the player in. Falls back to a primitive if the GLB is
+## missing. `base` is the floor point the rock sits on.
+const COVER_HEIGHT := 1.7
 
 func _rock_prop(base: Vector3, idx: int, coll: Vector3) -> void:
-	var col := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = coll
-	col.shape = shape
-	col.position = base + Vector3(0, coll.y * 0.5, 0)
-	add_child(col)
-	var scene := load(ROCK_DIR + ROCK_MESHES[idx % ROCK_MESHES.size()])
+	var nm: String = COVER_KINDS[idx % COVER_KINDS.size()]
+	var scene := load(ROCK % nm)
 	if scene is PackedScene:
 		var m := (scene as PackedScene).instantiate() as Node3D
-		m.scale = Vector3.ONE * ROCK_SCALE
-		m.position = base
-		m.rotation.y = float(idx) * 1.37
-		for vi in m.find_children("*", "MeshInstance3D", true, false):
-			(vi as MeshInstance3D).material_override = _rock_dark
 		add_child(m)
-	else:
-		_box(base + Vector3(0, coll.y * 0.5, 0), coll, _rock_dark)
+		m.rotation.y = float(idx) * 1.37
+		var raw := _world_aabb(m)
+		m.scale = Vector3.ONE * (COVER_HEIGHT / maxf(raw.size.y, 0.001))
+		var ab := _world_aabb(m)
+		m.position = Vector3(base.x, base.y - ab.position.y, base.z)
+		var world := _world_aabb(m)
+		if world.size.length() > 0.05:
+			var col := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = world.size
+			col.shape = box
+			col.position = world.position + world.size * 0.5
+			add_child(col)
+			return
+	_box(base + Vector3(0, coll.y * 0.5, 0), coll, _rock_dark)
 
 
 func _build_ascent_checkpoints() -> void:
@@ -227,6 +242,7 @@ func _build_descent() -> void:
 	_build_platforms()
 	_build_wall_ledges()
 	_build_pool_chamber(z_end)
+	_cavern_arch()
 
 
 ## 20 safe platforms, 2 m across and 3 m apart, descending toward the pool.
@@ -292,6 +308,33 @@ func _build_arena() -> void:
 		var a := TAU * float(i) / 8.0
 		var off := Vector3(cos(a), 0.0, sin(a)) * ERUPTION_RADIUS
 		_marker(ARENA_CENTER + off + Vector3(0, 0.1, 0), "eruption_point")
+
+	_arena_dressing()
+
+
+## Jagged Tripo obsidian shards rising out of the lava moat around the arena, framing
+## the boss fight. Placed BEYOND the platform rim (in the moat) so they never block
+## movement or the boss - visual only. Falls back to nothing if the GLB is missing.
+func _arena_dressing() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20456
+	var count := 10
+	for i in count:
+		var a := TAU * float(i) / float(count) + rng.randf_range(-0.15, 0.15)
+		var rad := ARENA_RADIUS + rng.randf_range(3.0, 9.0)
+		var pos := ARENA_CENTER + Vector3(cos(a), -1.5, sin(a)) * Vector3(rad, 1, rad)
+		_place_rock("venus_shard", pos, rng.randf_range(0.0, TAU), rng.randf_range(6.0, 12.0))
+
+
+## A grand natural volcanic arch framing the cavern mouth (ascent summit -> descent).
+## Visual only (no collision) so it can't block the passage; scaled to span well
+## wider than the ASCENT_WIDTH path so its opening clears the walkway.
+func _cavern_arch() -> void:
+	if not ResourceLoader.exists(ROCK % "venus_arch"):
+		return
+	# Rotated 90 deg so the arch's hollow opening faces along the path (the raw model
+	# spans the other axis) - the player walks up the centre and through the gateway.
+	_place_rock("venus_arch", Vector3(0, _y_summit, _z_cavern_start), PI * 0.5, 28.0)
 
 
 # --- Hazards ---------------------------------------------------------------
@@ -365,12 +408,13 @@ func _build_spawns() -> void:
 # --- Lighting --------------------------------------------------------------
 
 func _build_lights() -> void:
-	var sun := DirectionalLight3D.new()          # hazy orange Venus daylight
+	var sun := DirectionalLight3D.new()          # hazy orange Venus daylight through the deck
 	sun.rotation = Vector3(-0.7, 0.5, 0)
-	sun.light_energy = 1.1
-	sun.light_color = Color(1.0, 0.62, 0.32)
+	sun.light_energy = 0.9
+	sun.light_color = Color(1.0, 0.58, 0.30)
 	sun.shadow_enabled = true
 	add_child(sun)
+	_sun_dir = sun.global_transform.basis.z       # a Light faces -Z, so +Z points at the sun
 
 	# Lava glow up the cavern and around the arena.
 	for i in 6:
@@ -378,6 +422,145 @@ func _build_lights() -> void:
 		var y := _y_summit - 4.0 - PLATFORM_DROP * (float(i) * 3.5)
 		_omni(Vector3(0, y, z), 22.0, 2.2, Color(1.0, 0.42, 0.12))
 	_omni(ARENA_CENTER + Vector3(0, 8, 0), 40.0, 2.5, Color(1.0, 0.55, 0.25))
+
+
+# --- Atmosphere + horizon environment --------------------------------------
+
+## Oppressive Venus sky: a thick sulfuric-acid cloud overcast (shaders/venus_sky.
+## gdshader) with only a diffuse sun glow, warm sky ambient, ACES tonemap, dense
+## orange sulfur fog and lava glow. Runtime WorldEnvironment (replaces the stale
+## flat-orange one that used to live in venus.tscn - same trap as Earth/Mars).
+func _build_atmosphere() -> void:
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://shaders/venus_sky.gdshader")
+	sky_mat.set_shader_parameter("sun_dir", _sun_dir)
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.7
+	env.ambient_light_color = Color(0.92, 0.56, 0.30)
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_white = 6.0
+	# dense sulfurous haze - thick Venus atmosphere; fades the horizon volcanoes out
+	# without drowning the immediate play space.
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.86, 0.46, 0.17)
+	env.fog_light_energy = 1.0
+	env.fog_density = 0.009
+	env.fog_sky_affect = 0.0
+	env.fog_aerial_perspective = 0.55
+	env.glow_enabled = true
+	env.glow_intensity = 0.35
+	env.glow_bloom = 0.1
+
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+
+
+## Visual-only Venus surroundings: a vast ash plain far below and a ring of towering
+## distant volcanoes fading into the sulfur haze, so the volcano ascent/cavern read
+## as part of an endless molten hellscape instead of floating in an orange void.
+## Everything here has NO collision and sits far outside the play volume (the real
+## ground, kill plane and navmesh are untouched).
+func _build_environment() -> void:
+	# Huge ash plain under the whole level so the distant volcanoes sit on real ground.
+	var floor_mesh := MeshInstance3D.new()
+	var fm := PlaneMesh.new()
+	fm.size = Vector2(1600, 1600)
+	floor_mesh.mesh = fm
+	floor_mesh.material_override = _ash
+	floor_mesh.position = Vector3(0, -40.0, -200.0)
+	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(floor_mesh)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 51877
+	var count := 22
+	var kinds := ["venus_volcano", "venus_cliff", "venus_volcano", "venus_spire"]
+	for i in count:
+		var ang: float = TAU * float(i) / float(count) + rng.randf_range(-0.12, 0.12)
+		var rad: float = rng.randf_range(270.0, 380.0)
+		# seat a couple of metres INTO the plain so no gap shows under the base.
+		var pos := Vector3(sin(ang) * rad, -42.0, -200.0 + cos(ang) * rad)
+		var size: float = rng.randf_range(90.0, 180.0)
+		_place_rock(kinds[i % kinds.size()], pos, rng.randf_range(0.0, TAU), size)
+
+
+## Place a detailed Tripo H3.1 Venus rock: uniform-scale the mesh so its largest
+## dimension = target_size (m), rotate, then seat its base at pos.y via the measured
+## world AABB. Visual only (no collision) - used for the horizon ring, arena shards
+## and cavern arch, all outside the play volume.
+func _place_rock(nm: String, pos: Vector3, rot_y: float, target_size: float) -> void:
+	var scene := load(ROCK % nm)
+	if scene == null:
+		return
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	m.rotation.y = rot_y
+	var raw := _world_aabb(m)
+	var largest: float = maxf(raw.size.x, maxf(raw.size.y, raw.size.z))
+	m.scale = Vector3.ONE * (target_size / maxf(largest, 0.001))
+	var ab := _world_aabb(m)
+	m.position = Vector3(pos.x, pos.y - ab.position.y, pos.z)
+
+
+func _world_aabb(root: Node3D) -> AABB:
+	var result := AABB()
+	var have := false
+	for node in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var la := mi.get_aabb()
+		var xf := mi.global_transform
+		for i in 8:
+			var corner := la.position + Vector3(
+				la.size.x if (i & 1) else 0.0,
+				la.size.y if (i & 2) else 0.0,
+				la.size.z if (i & 4) else 0.0)
+			var w: Vector3 = xf * corner
+			if not have:
+				result = AABB(w, Vector3.ZERO); have = true
+			else:
+				result = result.expand(w)
+	return result
+
+
+func _gen_tex(name: String) -> Texture2D:
+	if not _tex_cache.has(name):
+		var p: String = GEN_TEX % name
+		_tex_cache[name] = load(p) if ResourceLoader.exists(p) else null
+	return _tex_cache[name]
+
+
+## Triplanar-textured Venus material (fal.ai albedo + PATINA normal/roughness). Falls
+## back to a flat tinted material when the texture is missing. `rough_scalar` scales
+## the roughness map (obsidian stays glossy at ~0.55).
+func _venus_mat(tex: String, tint: Color, metallic: float, roughness: float, scale: float, rough_scalar := 1.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = tint
+	m.metallic = metallic
+	m.roughness = roughness
+	var t: Texture2D = _gen_tex(tex)
+	if t != null:
+		m.albedo_texture = t
+		m.uv1_triplanar = true
+		m.uv1_scale = Vector3(scale, scale, scale)
+		var n: Texture2D = _gen_tex(tex + "_normal")
+		if n != null:
+			m.normal_enabled = true
+			m.normal_texture = n
+		var r: Texture2D = _gen_tex(tex + "_roughness")
+		if r != null:
+			m.roughness = rough_scalar
+			m.roughness_texture = r
+			m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	return m
 
 
 # --- Primitive builders ----------------------------------------------------
