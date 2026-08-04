@@ -98,10 +98,9 @@ var _labels: Dictionary = {}         # mission -> Label3D
 var _planets: Dictionary = {}        # mission -> planet-centre world position (aim point)
 var _planet_radius: Dictionary = {}  # mission -> world radius (for crosshair hit-testing)
 
-# Cockpit console that rises when you sit, and the seat that swivels to the window.
+# Cockpit console (always present); its screens light up while seated.
 var _console: Node3D
-var _console_tween: Tween
-const CONSOLE_STOW := Vector3(0.0, -0.75, 0.0)   # sunk into the dash when stowed
+var _screens: Array = []
 
 var _seat: Node3D
 var _seat_rest_yaw: float = 0.0
@@ -237,9 +236,9 @@ const CONSOLE_POS := Vector3(0.0, 1.12, -3.62)
 const CONSOLE_YAW := -90.0
 const CONSOLE_SCALE := 2.65
 const SCREEN_SLOTS := [
-	Vector3(-0.52, 1.28, -3.52), Vector3(0.0, 1.28, -3.52), Vector3(0.52, 1.28, -3.52),
+	Vector3(-0.52, 1.31, -3.55), Vector3(0.0, 1.31, -3.55), Vector3(0.52, 1.31, -3.55),
 ]
-const SCREEN_SIZE := Vector2(0.42, 0.20)
+const SCREEN_SIZE := Vector2(0.47, 0.32)
 const SCREEN_TILT := -46.0    # deg: the recessed screens face up toward the pilot
 
 func _build_console() -> void:
@@ -267,7 +266,8 @@ func _build_console() -> void:
 		box.position = Vector3(0.0, 1.0, -3.7)
 		_console.add_child(box)
 
-	# Subtle live readouts lying flat in the console's recessed screens.
+	# Subtle live readouts lying flat in the console's recessed screens - stored so
+	# they can be switched on only while you're seated.
 	var shader := load(SCREEN_SHADER)
 	for slot in SCREEN_SLOTS:
 		var scr := MeshInstance3D.new()
@@ -281,10 +281,13 @@ func _build_console() -> void:
 		_console.add_child(scr)
 		scr.position = slot
 		scr.rotation.x = deg_to_rad(SCREEN_TILT)   # tilt into the recessed screen
+		_screens.append(scr)
 
-	# Start stowed and hidden; taking the helm reveals + rises it.
-	_console.position = CONSOLE_STOW
-	_console.visible = false
+	# The console is a permanent fixture of the cockpit; only its screens turn on
+	# when you take the helm.
+	_console.position = Vector3.ZERO
+	_console.visible = true
+	_set_screens(false)
 
 
 ## Swivel the pilot seat: to the canopy when you sit, back to its rest angle when
@@ -304,26 +307,11 @@ func _swivel_seat(to_window: bool) -> void:
 	_seat_tween.tween_property(_seat, "rotation:y", target, 0.5)
 
 
-## Reveal and rise the console into place.
-func _deploy_console() -> void:
-	if _console == null:
-		return
-	_console.visible = true
-	if _console_tween and _console_tween.is_valid():
-		_console_tween.kill()
-	_console_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_console_tween.tween_property(_console, "position", Vector3.ZERO, 0.55)
-
-
-## Sink the console away and hide it once stowed.
-func _retract_console() -> void:
-	if _console == null:
-		return
-	if _console_tween and _console_tween.is_valid():
-		_console_tween.kill()
-	_console_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	_console_tween.tween_property(_console, "position", CONSOLE_STOW, 0.4)
-	_console_tween.chain().tween_callback(func() -> void: _console.visible = false)
+## Turn the console screens on/off (the console itself is always present).
+func _set_screens(on: bool) -> void:
+	for scr in _screens:
+		if is_instance_valid(scr):
+			scr.visible = on
 
 
 func _build_hud() -> void:
@@ -513,16 +501,21 @@ func _take_helm() -> void:
 	_hold = 0.0
 	_seated = true
 	_set_seated_hud(true)
-	_deploy_console()
+	_set_screens(true)
 	_swivel_seat(true)
+	# Hide the pilot's own body so you don't see a figure sitting beside you when you
+	# look around from the seat.
+	p.visible = false
 
 
 func _leave_helm() -> void:
 	_seated = false
 	_hold = 0.0
 	_set_seated_hud(false)
-	_retract_console()
+	_set_screens(false)
 	_swivel_seat(false)
+	if _player and is_instance_valid(_player):
+		_player.visible = true
 	if _player and is_instance_valid(_player):
 		_player.process_mode = Node.PROCESS_MODE_INHERIT
 		var crosshair := _player.get_node_or_null("DebugHUD") as CanvasLayer

@@ -109,24 +109,33 @@ func _build_props() -> void:
 ## fal.ai interior detail props (overhead struts, wall pipes, a side console) that
 ## dress the cockpit like the reference. Each no-ops if its GLB isn't imported yet.
 ## Transforms are first-pass; tune against screenshots.
+const STRUTS_GLB := "res://assets/generated/interior/overhead_struts.glb"
+const PIPE_GLB := "res://assets/generated/interior/pipe_bundle.glb"
+const SIDE_CONSOLE_GLB := "res://assets/generated/interior/side_console.glb"
+## Cockpit walls are at x = +-5 (interior faces +-4.85). These are grouped so their
+## transforms can be fine-tuned in play, then baked here.
 func _build_interior_details() -> void:
-	# Overhead ceiling struts spanning the cockpit (hung near the ceiling).
-	_gen_prop_glb("res://assets/generated/interior/overhead_struts.glb", Vector3(0.0, 3.5, -1.5), 0.0, 6.0, false)
-	# Pipe runs along the cockpit side walls.
-	_gen_prop_glb("res://assets/generated/interior/pipe_bundle.glb", Vector3(-4.6, 2.4, 0.5), 0.0, 5.0, false)
-	_gen_prop_glb("res://assets/generated/interior/pipe_bundle.glb", Vector3(4.6, 2.4, 2.5), 0.0, 4.0, false)
-	# Side control consoles standing against the cockpit side walls (more of them,
-	# flanking the pilot like the reference cockpit).
-	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(4.55, 0.0, -1.0), -PI * 0.5, 1.0, true)
-	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(4.55, 0.0, 0.6), -PI * 0.5, 1.0, true)
-	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(-4.55, 0.0, -1.8), PI * 0.5, 1.0, true)
-	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(-4.55, 0.0, 3.0), PI * 0.5, 1.0, true)
+	# Overhead ceiling struts spanning the cockpit (decor, never collides).
+	var s := _gen_prop_glb(STRUTS_GLB, Vector3(0.0, 3.55, -1.0), 0.0, 6.5, false, false)
+	if s:
+		s.add_to_group("gen_strut")
+	# Pipe runs ALONG the side walls (rotated to run in Z), flush to the wall, decor.
+	for spec in [[-4.82, 0.0, 4.6], [4.82, 1.6, 4.0]]:
+		var p := _gen_prop_glb(PIPE_GLB, Vector3(spec[0], 2.6, spec[1]), PI * 0.5, spec[2], false, false)
+		if p:
+			p.add_to_group("gen_pipe")
+	# Side control consoles, backs to the cockpit side walls, flanking the pilot.
+	for spec in [[4.7, -1.0, -PI * 0.5], [4.7, 0.9, -PI * 0.5], [-4.7, -1.8, PI * 0.5], [-4.7, 2.6, PI * 0.5]]:
+		var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(spec[0], 0.0, spec[1]), spec[2], 1.0, true)
+		if c:
+			c.add_to_group("gen_side_console")
 
 
 ## Instance a generated GLB, scale so its larger footprint axis is `target`, sit it
-## (base on the floor when `drop`), rotate to yaw, and add solid collision. Returns
-## the node or null if the asset is missing.
-func _gen_prop_glb(path: String, pos: Vector3, rot_y: float, target: float, drop: bool) -> Node3D:
+## (base on the floor when `drop`), rotate to yaw. Adds solid collision only when
+## `collide` (overhead/wall decor passes false so it never blocks the player).
+## Returns the node or null if the asset is missing.
+func _gen_prop_glb(path: String, pos: Vector3, rot_y: float, target: float, drop: bool, collide := true) -> Node3D:
 	var scene := load(path)
 	if scene == null or not (scene is PackedScene):
 		return null
@@ -141,7 +150,8 @@ func _gen_prop_glb(path: String, pos: Vector3, rot_y: float, target: float, drop
 	if drop:
 		a = _combined_aabb(m)
 		m.position.y += pos.y - a.position.y
-	_add_prop_collision(m)
+	if collide:
+		_add_prop_collision(m)
 	return m
 
 
@@ -174,8 +184,11 @@ func _build_vendor_stall() -> void:
 	# invisible full-height barrier below still seals the shop. If the asset is
 	# missing, fall back to the plain box counter so the stall is never open.
 	# -PI/2 turns the counter so its length spans left-right (facing the player); the
-	# model runs front-to-back at yaw 0, which read as a deep block.
-	var counter := _gen_prop_glb("res://assets/generated/interior/forge_counter.glb", Vector3(0.0, 0.0, 11.5), -PI * 0.5, 3.4, true)
+	# model runs front-to-back at yaw 0, which read as a deep block. Sized wide (most
+	# of the 8 m bay, still short of the walls) and tall for an imposing forge desk.
+	var counter := _gen_prop_glb("res://assets/generated/interior/forge_counter.glb", Vector3(0.0, 0.0, 11.5), -PI * 0.5, 6.4, true)
+	if counter:
+		counter.add_to_group("gen_counter")
 	if counter == null:
 		_box(Vector3(0, 0.55, 11.4), Vector3(8, 1.1, 0.7), counter_mat)
 		_box(Vector3(0, 1.15, 11.35), Vector3(8, 0.1, 0.95), top_mat)

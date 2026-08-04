@@ -40,9 +40,10 @@ const HOLO_TINT := Color(0.55, 0.85, 1.05)
 ## Label sits just above each floating planet (radius 0.35 at y = 2.2).
 const LABEL_HEIGHT := 0.6
 const LABEL_SIZE := 0.11
-## Table top surface height (Base is 0.85 tall) and each planet's world height.
-const TABLE_TOP_Y := 0.85
-const PLANET_Y := 1.95           # about eye level, sitting in the cone mouth
+## Table top surface height and each planet's world height. The holo-table asset is
+## scaled so its top lands at TABLE_TOP_Y; the worlds float well above it.
+const TABLE_TOP_Y := 0.95
+const PLANET_Y := 1.95           # about eye level, floating above the table
 const PLANET_RADIUS := 0.35
 
 var _materials: Dictionary = {}          # mission -> StandardMaterial3D (holo billboard)
@@ -143,13 +144,16 @@ func _build_projector(anchor: Node3D, tint: Color) -> StandardMaterial3D:
 	# little BELOW the planet's equator and is slightly narrower than the planet,
 	# so the sphere seats down into the cone like a ball in a cup - its widest
 	# point rests on the rim rather than the whole sphere perching on top.
-	var top_y := -PLANET_RADIUS * 0.3           # cone mouth just below the equator
+	# The worlds are now flat billboards (radius ~PLANET_RADIUS*1.2); the beam mouth
+	# reaches up to just below the disc and matches its width, so it reads as the
+	# projection of THAT planet rather than a thin thread beside it.
+	var top_y := -PLANET_RADIUS * 0.9           # cone mouth just under the disc
 	var bot_y := TABLE_TOP_Y - PLANET_Y         # beam base sits on the table top
 	var beam_h: float = top_y - bot_y
 
 	var cone := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
-	cm.top_radius = PLANET_RADIUS * 0.95        # a touch smaller so the ball seats in the cup
+	cm.top_radius = PLANET_RADIUS * 1.2         # match the billboard disc width
 	cm.bottom_radius = 0.05                     # narrow at the emitter
 	cm.height = beam_h
 	cm.radial_segments = 28
@@ -188,16 +192,21 @@ func _build_projector(anchor: Node3D, tint: Color) -> StandardMaterial3D:
 ## The spaceship operation table. Prefer the fal.ai holo-table asset (a real modelled
 ## command table); if it's missing, fall back to the procedural glowing ring + disc.
 func _build_console() -> void:
+	# Hide the old procedural cylinder base from the .tscn (the tall black cone that
+	# sat under the new table).
+	var old_base := get_node_or_null("Base") as Node3D
+	if old_base:
+		old_base.visible = false
+
 	var scene := load("res://assets/generated/interior/holo_table.glb")
 	if scene is PackedScene:
 		var t := (scene as PackedScene).instantiate() as Node3D
 		add_child(t)
-		# Scale so the table is ~2.9 m across and sits on the floor, its lit rim just
-		# under the floating planets.
+		# Scale by HEIGHT so the table top lands at TABLE_TOP_Y (a normal ~waist-high
+		# table), then rest its base on the floor - width follows.
 		var a := _asset_aabb(t)
-		var w: float = maxf(a.size.x, a.size.z)
-		if w > 0.01:
-			t.scale = Vector3.ONE * (2.9 / w)
+		if a.size.y > 0.01:
+			t.scale = Vector3.ONE * (TABLE_TOP_Y / a.size.y)
 		a = _asset_aabb(t)
 		t.position = Vector3(0.0, -a.position.y, 0.0)
 		return
