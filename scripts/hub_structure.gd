@@ -115,6 +115,15 @@ const SIDE_CONSOLE_GLB := "res://assets/generated/interior/side_console.glb"
 ## Cockpit walls are at x = +-5 (interior faces +-4.85). These are grouped so their
 ## transforms can be fine-tuned in play, then baked here.
 func _build_interior_details() -> void:
+	# Curved wraparound canopy frame around the window (Blender-modelled in cockpit
+	# coordinates, so it drops in at the origin unscaled). Decor - no collision.
+	var canopy := load("res://assets/generated/interior/cockpit_canopy.glb")
+	if canopy is PackedScene:
+		var cnp := (canopy as PackedScene).instantiate() as Node3D
+		add_child(cnp)
+		cnp.position = Vector3.ZERO
+		cnp.add_to_group("gen_canopy")
+
 	# Overhead ceiling struts spanning the cockpit (decor, never collides).
 	var s := _gen_prop_glb(STRUTS_GLB, Vector3(0.0, 3.55, -1.0), 0.0, 6.5, false, false)
 	if s:
