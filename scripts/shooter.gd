@@ -82,9 +82,18 @@ func _physics_process(delta: float) -> void:
 		State.COVER:
 			_halt_horizontal()
 			_face(_player.global_position)
-			_peek_timer += delta
-			if _peek_timer >= _peek_interval:
-				_begin_peek()
+			# Fire whenever the player is actually in view on the cooldown, not only
+			# during a timed peek - on open ground (e.g. the Venus cliff) the shooter
+			# already has line of sight from "cover", so gating fire behind the ~3 s
+			# peek made it shoot rarely or never. Peeking still handles the case where
+			# real cover blocks the shot.
+			if _has_los():
+				if _shoot_timer <= 0.0:
+					_shoot()
+			else:
+				_peek_timer += delta
+				if _peek_timer >= _peek_interval:
+					_begin_peek()
 		State.PEEK:
 			_peek_elapsed += delta
 			_face(_player.global_position)

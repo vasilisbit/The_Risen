@@ -7,5 +7,7 @@
 
 [node name="ShooterModel" type="Node3D"]
 
+; 180 deg about Y so the drone's eye faces the player: the model faces +Z but
+; EnemyBase._face look_at points -Z at the target (unflipped it aimed backwards).
 [node name="Model" parent="." instance=ExtResource("1_model")]
-transform = Transform3D(1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0, 0, 1.0, 0)
+transform = Transform3D(-1.0, 0, 0, 0, 1.0, 0, 0, 0, -1.0, 0, 1.0, 0)
