@@ -103,6 +103,42 @@ func _build_props() -> void:
 	_prop("Prop_Chest", Vector3(-3.2, 0, 7.8), PI * 0.5, 1.0)
 	_build_mirror()
 	_build_vendor_stall()
+	_build_interior_details()
+
+
+## fal.ai interior detail props (overhead struts, wall pipes, a side console) that
+## dress the cockpit like the reference. Each no-ops if its GLB isn't imported yet.
+## Transforms are first-pass; tune against screenshots.
+func _build_interior_details() -> void:
+	# Overhead ceiling struts spanning the cockpit (hung near the ceiling).
+	_gen_prop_glb("res://assets/generated/interior/overhead_struts.glb", Vector3(0.0, 3.5, -1.5), 0.0, 6.0, false)
+	# Pipe runs along the cockpit side walls.
+	_gen_prop_glb("res://assets/generated/interior/pipe_bundle.glb", Vector3(-4.6, 2.4, 0.5), 0.0, 5.0, false)
+	_gen_prop_glb("res://assets/generated/interior/pipe_bundle.glb", Vector3(4.6, 2.4, 2.5), 0.0, 4.0, false)
+	# A side control console standing against the right cockpit wall.
+	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(4.3, 0.0, -1.2), -PI * 0.5, 1.1, true)
+
+
+## Instance a generated GLB, scale so its larger footprint axis is `target`, sit it
+## (base on the floor when `drop`), rotate to yaw, and add solid collision. Returns
+## the node or null if the asset is missing.
+func _gen_prop_glb(path: String, pos: Vector3, rot_y: float, target: float, drop: bool) -> Node3D:
+	var scene := load(path)
+	if scene == null or not (scene is PackedScene):
+		return null
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	m.rotation.y = rot_y
+	m.position = pos
+	var a := _combined_aabb(m)
+	var w: float = maxf(a.size.x, a.size.z)
+	if w > 0.01:
+		m.scale = Vector3.ONE * (target / w)
+	if drop:
+		a = _combined_aabb(m)
+		m.position.y += pos.y - a.position.y
+	_add_prop_collision(m)
+	return m
 
 
 ## Full-length mirror on the weapon bay's left wall, facing across the room, so
@@ -134,10 +170,18 @@ func _build_vendor_stall() -> void:
 	# to the shop's back. A slim glowing top ledge reads as the trade surface.
 	_box(Vector3(0, 0.55, 11.4), Vector3(8, 1.1, 0.7), counter_mat)
 	_box(Vector3(0, 1.15, 11.35), Vector3(8, 0.1, 0.95), top_mat)
+	# fal.ai forge counter as the player-facing trade desk over the plain box (the box
+	# stays for the solid barrier). Falls back to just the box if the asset is missing.
+	_gen_prop_glb("res://assets/generated/interior/forge_counter.glb", Vector3(0.0, 0.0, 11.15), 0.0, 6.5, true)
 	# A back partition wall sealing the shop area (with a service gap the drone
-	# sits in), so there's a proper enclosed store behind the counter.
-	_box(Vector3(-3.0, 2.0, 12.9), Vector3(2, 4, 0.2), counter_mat)
-	_box(Vector3(3.0, 2.0, 12.9), Vector3(2, 4, 0.2), counter_mat)
+	# sits in), so there's a proper enclosed store behind the counter. Grungy hull
+	# panelling (matches the walls) instead of the flat counter colour, which read as
+	# untextured behind the shelves.
+	var shop_wall := _panel_mat()
+	if shop_wall == null:
+		shop_wall = counter_mat
+	_box(Vector3(-3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
+	_box(Vector3(3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
 
 	# Goods on shelves against the back wall, flush to it, no gaps at the ends.
 	_prop("Prop_Shelves_WideTall", Vector3(-3.4, 0, 12.5), PI, 1.0)
