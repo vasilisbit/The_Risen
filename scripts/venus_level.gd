@@ -139,6 +139,11 @@ func _build_ascent() -> void:
 
 	# Flat staging pad at the foot of the volcano (player spawns here).
 	_box(Vector3(0, -T * 0.5, 6), Vector3(ASCENT_WIDTH, T, 12), _rock)
+	# Gorge walls flank the flat staging pad too, seated at the pad level (y 0), so the
+	# cliffs are continuous from the spawn - no floating first wall / open gap at the foot.
+	for s in [-1.0, 1.0]:
+		_collision_box(Vector3(s * ASCENT_WIDTH * 0.5, 4.0, 6.0), Vector3(T, 10, 14))
+		_box(Vector3(s * (ASCENT_WIDTH * 0.5 + 3.0), 9.0, 6.0), Vector3(1.0, 22, 14), _rock_dark)
 
 	for i in ASCENT_SEGMENTS:
 		var cz := -(seg_len * float(i) + seg_len * 0.5)
@@ -176,11 +181,13 @@ func _build_ascent_cliffs() -> void:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 33771
-	var pieces := 6
+	var pieces := 7
 	for side in [-1.0, 1.0]:
 		var ex: float = side * (ASCENT_WIDTH * 0.5 + 0.5)
 		for i in pieces:
-			var z: float = -6.0 - (ASCENT_LENGTH + 8.0) / float(pieces) * float(i)
+			# Start over the staging pad (z +6) so the very first cliff is grounded there,
+			# then march up to the summit - no floating gap at the spawn.
+			var z: float = 6.0 - (ASCENT_LENGTH + 20.0) / float(pieces - 1) * float(i)
 			var y := slope_y(z)
 			# Rotate so the wall's long axis runs along the path (Z). Height-scaled so it
 			# towers ~18 m over the walkway regardless of the model's raw proportions.
@@ -250,22 +257,29 @@ func _build_descent() -> void:
 	var last_i := PLATFORM_COUNT - 1
 	var last_z := _platform_z(last_i)
 	var last_y := _platform_y(last_i)
+	var y_lava := last_y - 6.0                          # lava river below the lowest platform
 	_z_pool = last_z - 9.0                              # drop-through pool, past the last platform
-	_y_pool_floor = last_y - 2.0                        # pool-chamber floor (top of the shaft)
+	# Pool-chamber floor sits AT the lava-river level, so the platform holding the pit is
+	# flush with the jump-puzzle lava (no floating gap under it).
+	_y_pool_floor = y_lava
 	_arena_center = Vector3(0, ARENA_Y, _z_pool)        # boss arena sits DIRECTLY BELOW the pool
 
 	var field_start_z := _z_cavern_start - 20.0
 	var field_end_z := last_z - 4.0
-	var y_lava := last_y - 6.0                          # lava river below the lowest platform
 	var cav_far_z := _z_pool - 10.0
 	var cav_mid_z := (_z_cavern_start + cav_far_z) * 0.5
 	var cav_len := _z_cavern_start - cav_far_z
 
-	# Cavern shell: side walls + ceiling + far wall. The floor is the lava river.
-	_box(Vector3(-CAVERN_HALF_WIDTH, y_lava + 22.0, cav_mid_z), Vector3(T, 48, cav_len), _rock_dark)
-	_box(Vector3(CAVERN_HALF_WIDTH, y_lava + 22.0, cav_mid_z), Vector3(T, 48, cav_len), _rock_dark)
-	_box(Vector3(0, _y_summit + 6.0, cav_mid_z), Vector3(CAVERN_HALF_WIDTH * 2, T, cav_len), _rock_dark)
-	_box(Vector3(0, y_lava + 22.0, cav_far_z), Vector3(CAVERN_HALF_WIDTH * 2, 48, T), _rock_dark)
+	# Cavern shell: side walls + ceiling + far wall. The floor is the lava river. The
+	# ceiling is raised to ~18 m over the entrance so it flows seamlessly out of the tall
+	# arch/mountain mouth instead of dropping to a cramped 6 m tunnel.
+	var ceil_y: float = _y_summit + 18.0
+	var wall_h: float = (ceil_y - (y_lava - 2.0)) + 4.0
+	var wall_my: float = (ceil_y + (y_lava - 2.0)) * 0.5
+	_box(Vector3(-CAVERN_HALF_WIDTH, wall_my, cav_mid_z), Vector3(T, wall_h, cav_len), _rock_dark)
+	_box(Vector3(CAVERN_HALF_WIDTH, wall_my, cav_mid_z), Vector3(T, wall_h, cav_len), _rock_dark)
+	_box(Vector3(0, ceil_y, cav_mid_z), Vector3(CAVERN_HALF_WIDTH * 2, T, cav_len), _rock_dark)
+	_box(Vector3(0, wall_my, cav_far_z), Vector3(CAVERN_HALF_WIDTH * 2, wall_h, T), _rock_dark)
 
 	# Entrance ledge: solid ground just inside the cavern (rushers spawn here).
 	_box(Vector3(0, _y_summit - T * 0.5, _z_cavern_start - 10.0),
@@ -415,6 +429,7 @@ func _build_arena() -> void:
 	_build_arena_cave()
 	# Circular obsidian platform, sitting directly below the pool shaft.
 	_cylinder(_arena_center + Vector3(0, -T * 0.5, 0), ARENA_RADIUS, T, _obsidian)
+	_build_boss_barrier()
 
 	# You arrive by FALLING through the shaft onto the platform centre; the landing
 	# checkpoint sits a little off-centre so a boss death respawns you in the arena
@@ -435,6 +450,30 @@ func _build_arena() -> void:
 		_marker(_arena_center + off + Vector3(0, 0.1, 0), "eruption_point")
 
 	_arena_dressing()
+
+
+## An invisible barrier ring at the platform rim on the ENEMY physics layer, so the
+## boss (and adds) can't walk off the obsidian platform into the lava moat - the player
+## still passes through it (the player's mask doesn't include the enemy layer) and can
+## step onto the lava. Fixes the boss wandering into the lava.
+func _build_boss_barrier() -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1 << 4                      # EnemyBase.ENEMY_LAYER (blocks enemies)
+	body.collision_mask = 0
+	add_child(body)
+	var segs := 12
+	var r: float = ARENA_RADIUS - 0.3
+	var seg_w: float = 2.0 * r * tan(PI / float(segs)) + 2.0
+	var h := 8.0
+	for i in segs:
+		var a: float = TAU * float(i) / float(segs)
+		var col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(1.0, h, seg_w)
+		col.shape = box
+		col.position = _arena_center + Vector3(cos(a) * r, h * 0.5, sin(a) * r)
+		col.rotation = Vector3(0, -a, 0)
+		body.add_child(col)
 
 
 ## Enclose the boss arena in a CAVE (the mission descended underground): a ring wall +

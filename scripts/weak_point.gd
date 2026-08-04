@@ -92,16 +92,8 @@ func _build_visual() -> void:
 		_model.scale = Vector3.ONE * (CRYSTAL_HEIGHT / maxf(largest, 0.001))
 		var ab := _model_aabb(_model)
 		_model.position = Vector3(0, -ab.position.y, 0)      # seat its base on the floor
-		# Make the crystal GLOW: an emissive overlay tints its whole surface hot, added
-		# on top of the model's own PBR texture (overlay, so the detail shows through).
-		var glow_mat := StandardMaterial3D.new()
-		glow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		glow_mat.albedo_color = Color(CRYSTAL_COLOR.r, CRYSTAL_COLOR.g, CRYSTAL_COLOR.b, 0.35)
-		glow_mat.emission_enabled = true
-		glow_mat.emission = CRYSTAL_COLOR
-		glow_mat.emission_energy_multiplier = 2.6
-		for mi in _model.find_children("*", "MeshInstance3D", true, false):
-			(mi as MeshInstance3D).material_overlay = glow_mat
+		# The crystal keeps its own generated look (no tint overlay). Its glow comes from
+		# the pulsing light below, so it reads as a shoot-me target without a yellow wash.
 	else:
 		_mesh = MeshInstance3D.new()
 		var prism := CylinderMesh.new()          # tapered = crystal shard
@@ -127,13 +119,43 @@ func _build_visual() -> void:
 	_glow.light_energy = 3.2
 	add_child(_glow)
 
+	# Hitbox sized to the crystal's ACTUAL bounds so shots register where the crystal is
+	# (the old fixed cylinder was over-wide / mis-placed for the generated model).
 	var col := CollisionShape3D.new()
-	var shape := CylinderShape3D.new()
-	shape.radius = 0.55
-	shape.height = CRYSTAL_HEIGHT
-	col.shape = shape
-	col.position = Vector3(0, CRYSTAL_HEIGHT * 0.5, 0)
+	var box := BoxShape3D.new()
+	if _model != null:
+		var cb := _crystal_local_aabb()
+		box.size = cb.size if cb.size.length() > 0.05 else Vector3(0.9, CRYSTAL_HEIGHT, 0.9)
+		col.position = cb.position + cb.size * 0.5 if cb.size.length() > 0.05 else Vector3(0, CRYSTAL_HEIGHT * 0.5, 0)
+	else:
+		box.size = Vector3(0.9, 1.8, 0.9)
+		col.position = Vector3(0, 0.9, 0)
+	col.shape = box
 	add_child(col)
+
+
+## The crystal model's bounds in this node's local space, for an accurate hitbox.
+func _crystal_local_aabb() -> AABB:
+	var result := AABB()
+	var have := false
+	var inv := global_transform.affine_inverse()
+	for node in _model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var la := mi.get_aabb()
+		var xf := inv * mi.global_transform
+		for i in 8:
+			var corner := la.position + Vector3(
+				la.size.x if (i & 1) else 0.0,
+				la.size.y if (i & 2) else 0.0,
+				la.size.z if (i & 4) else 0.0)
+			var w: Vector3 = xf * corner
+			if not have:
+				result = AABB(w, Vector3.ZERO); have = true
+			else:
+				result = result.expand(w)
+	return result
 
 
 ## World-space AABB of every mesh under a node (for seating/scaling the shard model).
