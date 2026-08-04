@@ -28,7 +28,7 @@ const MISSION_SCENES := {
 const SEAT_ANCHOR := Vector3(0.0, 0.0, -3.0)
 const SEAT_EYE := Vector3(0.0, 1.55, -2.6)
 ## Base view frames the solar-system spread (near hero world + far background ones).
-const SEAT_LOOK := Vector3(0.0, 4.3, -40.0)
+const SEAT_LOOK := Vector3(0.0, 3.6, -45.0)
 const SIT_RANGE := 2.8
 
 ## How far the seated look can swing off the forward canopy view. Kept tight - just
@@ -60,10 +60,12 @@ const PLANET_TEX := {
 }
 const ORDER := ["Earth", "Mars", "Venus"]
 ## Slot 0 = the near/foreground hero world (last visited); slots 1-2 = far background.
+## Spread so the three discs never overlap on screen (the near hero world is
+## centre-low; the far two sit up in opposite corners), each clearly aim-able.
 const SLOTS := [
-	{"pos": Vector3(-2.5, 2.6, -30.0), "radius": 5.6, "near": true},
-	{"pos": Vector3(10.5, 7.5, -66.0), "radius": 3.2, "near": false},
-	{"pos": Vector3(-9.5, 6.0, -72.0), "radius": 2.9, "near": false},
+	{"pos": Vector3(0.5, 2.8, -32.0), "radius": 4.6, "near": true},
+	{"pos": Vector3(15.5, 8.5, -72.0), "radius": 3.0, "near": false},
+	{"pos": Vector3(-15.5, 7.5, -76.0), "radius": 2.8, "near": false},
 ]
 const WORLDS := [
 	{

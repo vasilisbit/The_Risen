@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dn5v0vksxwkqw"
-path.s3tc="res://.godot/imported/hero_ship2_ORM_d74e8abf-c074-4a43-a402-a701e3c8eeef.jpg-16ee56dd3a52683eaedfdf8e9d11d1b2.s3tc.ctex"
+uid="uid://37ygor31wonr"
+path.s3tc="res://.godot/imported/holo_table_ORM_ea8dec60-4511-4e71-a377-653fdeee8be1.jpg-6a31acfa3a43f10f6ce7a1feb2e3cb27.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "8cc478ccf01553f20da7fef1c8e49c1b"
+"md5": "c4fd65b591a07d26d31eeeae4436211e"
 }
 
 [deps]
 
-source_file="res://assets/generated/ship/hero_ship2_ORM_d74e8abf-c074-4a43-a402-a701e3c8eeef.jpg"
-dest_files=["res://.godot/imported/hero_ship2_ORM_d74e8abf-c074-4a43-a402-a701e3c8eeef.jpg-16ee56dd3a52683eaedfdf8e9d11d1b2.s3tc.ctex"]
+source_file="res://assets/generated/interior/holo_table_ORM_ea8dec60-4511-4e71-a377-653fdeee8be1.jpg"
+dest_files=["res://.godot/imported/holo_table_ORM_ea8dec60-4511-4e71-a377-653fdeee8be1.jpg-6a31acfa3a43f10f6ce7a1feb2e3cb27.s3tc.ctex"]
 
 [params]
 
