@@ -51,6 +51,7 @@ const PICK_RADIUS := 150.0
 ## they read as distant destinations you point the ship at. Locked worlds still
 ## show but can't be Folded to, mirroring the table.
 const PLANET_SHADER := "res://shaders/planet.gdshader"
+const SCREEN_SHADER := "res://shaders/cockpit_screen.gdshader"
 const WORLDS := [
 	{
 		"mission": "Earth", "tint": Color(0.55, 0.8, 1.0),
@@ -84,6 +85,14 @@ var _seat_cam: Camera3D
 var _labels: Dictionary = {}         # mission -> Label3D
 var _planets: Dictionary = {}        # mission -> planet-centre world position (aim point)
 
+# Deploying multi-screen console (rises + the wings fold open when you sit).
+var _console: Node3D
+var _screen_left: Node3D
+var _screen_right: Node3D
+var _console_tween: Tween
+const CONSOLE_STOW := Vector3(0.0, -0.75, 0.0)   # sunk into the dash + wings folded
+const CONSOLE_WING := deg_to_rad(34.0)           # how far each side screen swings open
+
 # HUD
 var _hud: CanvasLayer
 var _reticle: Label
@@ -101,6 +110,7 @@ func _ready() -> void:
 		hub_planet.visible = false
 	_build_seat_camera()
 	_build_worlds()
+	_build_console()
 	_build_hud()
 	set_process(true)
 
@@ -171,6 +181,106 @@ func _build_worlds() -> void:
 		add_child(label)                # in-tree before setting the world position
 		label.global_position = w["pos"] + Vector3(0.0, float(w["radius"]) + 1.8, 0.0)
 		_labels[mission] = label
+
+
+## The pilot's multi-screen console: a dark dashboard body with a wide central
+## readout and two angled wing screens. Built stowed + hidden; _deploy_console
+## rises it and folds the wings open when you take the helm (reference: the console
+## that opens as you sit). Cosmetic - the live state is on the HUD.
+func _build_console() -> void:
+	_console = Node3D.new()
+	_console.name = "Console"
+	add_child(_console)
+
+	# Dashboard body under the screens.
+	var body := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(2.7, 0.5, 0.7)
+	body.mesh = bm
+	var body_mat := StandardMaterial3D.new()
+	body_mat.albedo_color = Color(0.06, 0.07, 0.09)
+	body_mat.metallic = 0.7
+	body_mat.roughness = 0.4
+	body.material_override = body_mat
+	body.position = Vector3(0.0, 0.95, -3.95)
+	body.rotation.x = deg_to_rad(-12.0)
+	_console.add_child(body)
+
+	# Central screen + two wings. Wings pivot on their own nodes so they fold.
+	_add_screen(_console, Vector3(0.0, 1.34, -3.92), Vector3(deg_to_rad(-18.0), 0.0, 0.0), Vector2(1.55, 0.62))
+	_screen_left = _add_wing(_console, Vector3(-0.85, 1.28, -3.86), Vector2(0.82, 0.52))
+	_screen_right = _add_wing(_console, Vector3(0.85, 1.28, -3.86), Vector2(0.82, 0.52))
+
+	# Start stowed and hidden; taking the helm reveals + deploys it.
+	_console.position = CONSOLE_STOW
+	_screen_left.rotation.y = 0.0
+	_screen_right.rotation.y = 0.0
+	_console.visible = false
+
+
+## A pivot node carrying one angled wing screen, so _deploy can swing it open about
+## its inner edge. Returns the pivot (rotate its y to fold).
+func _add_wing(parent: Node3D, pos: Vector3, size: Vector2) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.position = pos
+	parent.add_child(pivot)
+	_add_screen(pivot, Vector3.ZERO, Vector3(deg_to_rad(-14.0), 0.0, 0.0), size)
+	return pivot
+
+
+## A single glowing screen panel (dark frame + the animated cockpit-screen shader).
+func _add_screen(parent: Node3D, pos: Vector3, rot: Vector3, size: Vector2) -> void:
+	var frame := MeshInstance3D.new()
+	var fbm := BoxMesh.new()
+	fbm.size = Vector3(size.x + 0.06, size.y + 0.06, 0.03)
+	frame.mesh = fbm
+	var fmat := StandardMaterial3D.new()
+	fmat.albedo_color = Color(0.03, 0.04, 0.05)
+	fmat.metallic = 0.6
+	fmat.roughness = 0.5
+	frame.material_override = fmat
+	frame.position = pos
+	frame.rotation = rot
+	parent.add_child(frame)
+
+	var screen := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = size
+	screen.mesh = qm
+	var shader := load(SCREEN_SHADER)
+	if shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		screen.material_override = mat
+	screen.position = pos + Vector3(0.0, 0.0, 0.02)
+	screen.rotation = rot
+	parent.add_child(screen)
+
+
+## Reveal and open the console: rise into place while the wings swing outward.
+func _deploy_console() -> void:
+	if _console == null:
+		return
+	_console.visible = true
+	if _console_tween and _console_tween.is_valid():
+		_console_tween.kill()
+	_console_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_console_tween.tween_property(_console, "position", Vector3.ZERO, 0.55)
+	_console_tween.tween_property(_screen_left, "rotation:y", CONSOLE_WING, 0.55)
+	_console_tween.tween_property(_screen_right, "rotation:y", -CONSOLE_WING, 0.55)
+
+
+## Fold the console away and hide it once stowed.
+func _retract_console() -> void:
+	if _console == null:
+		return
+	if _console_tween and _console_tween.is_valid():
+		_console_tween.kill()
+	_console_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_console_tween.tween_property(_console, "position", CONSOLE_STOW, 0.4)
+	_console_tween.tween_property(_screen_left, "rotation:y", 0.0, 0.4)
+	_console_tween.tween_property(_screen_right, "rotation:y", 0.0, 0.4)
+	_console_tween.chain().tween_callback(func() -> void: _console.visible = false)
 
 
 func _build_hud() -> void:
@@ -344,12 +454,14 @@ func _take_helm() -> void:
 	_hold = 0.0
 	_seated = true
 	_set_seated_hud(true)
+	_deploy_console()
 
 
 func _leave_helm() -> void:
 	_seated = false
 	_hold = 0.0
 	_set_seated_hud(false)
+	_retract_console()
 	if _player and is_instance_valid(_player):
 		_player.process_mode = Node.PROCESS_MODE_INHERIT
 		var crosshair := _player.get_node_or_null("DebugHUD") as CanvasLayer
