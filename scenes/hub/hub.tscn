@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/hub_planet.gd" id="7_planet"]
 [ext_resource type="Shader" path="res://shaders/space_sky.gdshader" id="8_sky"]
 [ext_resource type="Script" path="res://scripts/hub_notice.gd" id="9_notice"]
+[ext_resource type="Script" path="res://scripts/helm_station.gd" id="10_helm"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_space"]
 shader = ExtResource("8_sky")
@@ -96,6 +97,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10.5)
 
 [node name="HubPlanet" type="Node3D" parent="."]
 script = ExtResource("7_planet")
+
+[node name="Helm" type="Node3D" parent="."]
+script = ExtResource("10_helm")
 
 [node name="HubNotice" type="Control" parent="HubUI"]
 layout_mode = 3
