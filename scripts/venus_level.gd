@@ -48,8 +48,11 @@ const RIVER_DPS := 60.0                 # the jump-puzzle river: lethal to wade,
 # --- Section 3: Boss Arena (directly below the pool) ---
 const ARENA_RADIUS := 24.0              # 48 m diameter (enlarged boss arena)
 const ARENA_Y := -30.0                  # arena floor height - a DEEP drop below the pool
-const SHAFT_CLEAR := 22.0               # the lava shaft walls stop this far ABOVE the arena
-										# floor, so the arena is open (you're not boxed in)
+const SHAFT_CLEAR := 16.0               # the lava shaft ends at the cave ceiling (= this far
+										# above the arena floor); below is the open cave
+const CAVE_RADIUS := 46.0               # boss cave interior radius (encloses platform + moat)
+const CAVE_CEIL_Y := -14.0             # cave ceiling (ARENA_Y + SHAFT_CLEAR); shaft pierces it
+const CAVE_FLOOR_Y := -33.0             # solid lava floor (ARENA_Y - 3): step off = onto lava
 const WEAK_POINT_RADIUS := 9.0          # spread across the enlarged arena
 const ERUPTION_RADIUS := 17.0           # 8 possible eruption sites (T-0021 phase C)
 const POOL_RADIUS := 6.0                # the lava-pool hole you drop through (wide pit)
@@ -141,15 +144,22 @@ func _build_ascent() -> void:
 		var cz := -(seg_len * float(i) + seg_len * 0.5)
 		var cy := slope_y(cz) - sink
 		_box(Vector3(0, cy, cz), Vector3(ASCENT_WIDTH, T, slab), _rock, rot)
-		# Side containment: INVISIBLE collision walls (the real generated volcanic cliffs
-		# below do the looking). Keeps movement reliable while you ascend a real cliff
-		# gorge instead of two grey boxes.
+		# Side containment: an INVISIBLE collision wall at the path edge (reliable movement)
+		# PLUS a tall SOLID opaque backing wall further out - so the gaps BETWEEN the
+		# generated cliff pieces show dark rock, not see-through void (the "you can see
+		# through the walls" bug). The generated cliffs sit in front as the detail.
 		_collision_box(Vector3(-ASCENT_WIDTH * 0.5, cy + 4.0, cz), Vector3(T, 10, slab), rot)
 		_collision_box(Vector3(ASCENT_WIDTH * 0.5, cy + 4.0, cz), Vector3(T, 10, slab), rot)
+		_box(Vector3(-(ASCENT_WIDTH * 0.5 + 3.0), cy + 9.0, cz), Vector3(1.0, 22, slab), _rock_dark, rot)
+		_box(Vector3(ASCENT_WIDTH * 0.5 + 3.0, cy + 9.0, cz), Vector3(1.0, 22, slab), _rock_dark, rot)
 
 	# Flat summit pad, joining the ascent to the cavern mouth.
 	_box(Vector3(0, _y_summit - T * 0.5, _z_cavern_start + 6.0),
 		Vector3(ASCENT_WIDTH, T, 12), _rock)
+	# Seal the summit pad sides too, so the gorge is continuous up to the cavern mouth.
+	for s in [-1.0, 1.0]:
+		_collision_box(Vector3(s * ASCENT_WIDTH * 0.5, _y_summit + 4.0, _z_cavern_start + 6.0), Vector3(T, 10, 14))
+		_box(Vector3(s * (ASCENT_WIDTH * 0.5 + 3.0), _y_summit + 9.0, _z_cavern_start + 6.0), Vector3(1.0, 22, 16), _rock_dark)
 
 	_build_ascent_cliffs()
 	_build_ascent_props()
@@ -180,14 +190,15 @@ func _build_ascent_cliffs() -> void:
 
 ## Rock formations (cover) and lava vents (hazards) dotted up the slope.
 func _build_ascent_props() -> void:
-	var lanes := [-4.5, 4.5, -4.5, 4.5, -3.0, 3.0, -4.5, 4.5]
+	# Cover sits at the path EDGES (not the middle), so enemies pathing up the centre
+	# never climb onto it and get stranded. The rocks are VISUAL ONLY now (no collision)
+	# for the same reason - enemies were getting stuck on / stranded on top of them.
+	var lanes := [-6.5, 6.5, -6.5, 6.5, -6.0, 6.0, -6.5, 6.5]
 	for i in lanes.size():
 		var z := -22.0 - 22.0 * float(i)
 		var x: float = lanes[i]
 		var y := slope_y(z)
-		# ~1.8 m rock: blocks a standing sightline but stays under the 2 m jump
-		# apex, so the climb can never be walled off by its own cover.
-		_rock_prop(Vector3(x, y, z), i, Vector3(3, 1.8, 2))
+		_rock_prop(Vector3(x, y, z), i)
 		# Shooters take cover on the downhill side of each formation.
 		_marker(Vector3(x, y + 0.1, z + 2.0), "cover_point")
 
@@ -202,34 +213,27 @@ func _build_ascent_props() -> void:
 		_lava_area(Vector3(x, y + 0.7, z), Vector3(3, 1.4, 3.2), srot)
 
 
-## A detailed Tripo H3.1 volcanic rock (fal.ai) as cover, seated on the slope with a
-## collision box measured from its world AABB. The model is scaled to a fixed ~1.7 m
-## HEIGHT (not its raw size) so cover on the climb always stays under the ~2 m jump
-## apex and can never wall the player in. Falls back to a primitive if the GLB is
-## missing. `base` is the floor point the rock sits on.
-const COVER_HEIGHT := 1.7
+## A detailed Tripo H3.1 volcanic rock (fal.ai) as cover, TILTED to the slope angle so
+## it sits on the cliff at the same angle as the ground (not standing bolt upright), and
+## scaled to a fixed ~1.8 m height. VISUAL ONLY - no collision, because enemies were
+## getting stuck against these and stranded on top of them. `base` is the slope point it
+## sits on. Falls back to nothing if the GLB is missing.
+const COVER_HEIGHT := 1.8
 
-func _rock_prop(base: Vector3, idx: int, coll: Vector3) -> void:
+func _rock_prop(base: Vector3, idx: int) -> void:
 	var nm: String = COVER_KINDS[idx % COVER_KINDS.size()]
 	var scene := load(ROCK % nm)
-	if scene is PackedScene:
-		var m := (scene as PackedScene).instantiate() as Node3D
-		add_child(m)
-		m.rotation.y = float(idx) * 1.37
-		var raw := _world_aabb(m)
-		m.scale = Vector3.ONE * (COVER_HEIGHT / maxf(raw.size.y, 0.001))
-		var ab := _world_aabb(m)
-		m.position = Vector3(base.x, base.y - ab.position.y, base.z)
-		var world := _world_aabb(m)
-		if world.size.length() > 0.05:
-			var col := CollisionShape3D.new()
-			var box := BoxShape3D.new()
-			box.size = world.size
-			col.shape = box
-			col.position = world.position + world.size * 0.5
-			add_child(col)
-			return
-	_box(base + Vector3(0, coll.y * 0.5, 0), coll, _rock_dark)
+	if not (scene is PackedScene):
+		return
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	# Tilt about X to the slope angle so the rock lies on the cliff at the cliff's angle.
+	m.rotation = Vector3(deg_to_rad(SLOPE_DEG), float(idx) * 1.37, 0.0)
+	var raw := _world_aabb(m)
+	m.scale = Vector3.ONE * (COVER_HEIGHT / maxf(raw.size.y, 0.001))
+	var ab := _world_aabb(m)
+	# Seat its base on the slope, sunk ~0.3 m in so no gap shows under it.
+	m.position = Vector3(base.x, base.y - ab.position.y - 0.3, base.z)
 
 
 func _build_ascent_checkpoints() -> void:
@@ -357,13 +361,13 @@ func _build_pool_chamber(field_end_z: float, cav_far_z: float) -> void:
 	_box(Vector3(-(hz + (w - hz) * 0.5), fy - T * 0.5, _z_pool), Vector3(w - hz, T, hz * 2), _obsidian)
 	_box(Vector3(hz + (w - hz) * 0.5, fy - T * 0.5, _z_pool), Vector3(w - hz, T, hz * 2), _obsidian)
 
-	# A raised obsidian lip ringing the hole, so it reads as a deliberate lava WELL you
-	# dive into (not a bare square hole in the floor). Four low bars around the rim.
-	var lip_h := 0.7
-	var lip_t := 0.9
-	for s in [-1.0, 1.0]:
-		_box(Vector3(s * (hz + lip_t * 0.5), fy + lip_h * 0.5 - 0.1, _z_pool), Vector3(lip_t, lip_h, hz * 2 + lip_t * 2), _obsidian)
-		_box(Vector3(0, fy + lip_h * 0.5 - 0.1, _z_pool + s * (hz + lip_t * 0.5)), Vector3(hz * 2, lip_h, lip_t), _obsidian)
+	# A wide flowing-magma sheet UNDER the whole chamber floor, so the pit is lava seen
+	# through the hole and any gaps between the floor slabs / cavern walls show lava (not
+	# a black void). No isolated "circle" disc marking the pit any more - the glowing hole
+	# is obviously the way down on its own.
+	var chamber_len: float = absf(cav_far_z - field_end_z) + 8.0
+	var chamber_z: float = (field_end_z + cav_far_z) * 0.5
+	_panel(Vector3(0, fy - 1.1, chamber_z), Vector3(w * 2 + 4.0, 0.6, chamber_len), _lava)
 
 	# Lava shaft: four flowing-magma walls dropping from the pool floor, so you free-fall
 	# down a glowing lava pit. They STOP SHAFT_CLEAR metres above the arena floor, so the
@@ -377,14 +381,11 @@ func _build_pool_chamber(field_end_z: float, cav_far_z: float) -> void:
 		_box(Vector3(s * (hz + T * 0.5), shaft_my, _z_pool), Vector3(T, shaft_h, hz * 2 + T * 2), _lava)
 		_box(Vector3(0, shaft_my, _z_pool + s * (hz + T * 0.5)), Vector3(hz * 2, shaft_h, T), _lava)
 
-	# The pool surface: a flowing-magma disc recessed just inside the lip, VISUAL ONLY
-	# (no collision) so the player drops straight THROUGH it into the shaft - no teleport,
-	# you free-fall the deep lava pit to the arena (venus_mission). Recessed below the lip
-	# so it reads as lava down in the well and never z-fights the floor (the old artifact).
-	_disc(Vector3(0, fy - 0.5, _z_pool), POOL_RADIUS, 0.5, _pool_mat)
+	# The drop-through trigger + a subtle glow. No visible disc: the shaft lava below,
+	# framed by the hole, is the pit - the glow just makes it inviting.
 	var hole := _area(Vector3(0, fy - 0.5, _z_pool), Vector3(hz * 2, 2.5, hz * 2))
 	hole.add_to_group("lava_pool", true)
-	_omni(Vector3(0, fy + 1.5, _z_pool), 22.0, 3.2, Color(1.0, 0.6, 0.25))
+	_omni(Vector3(0, fy + 1.5, _z_pool), 20.0, 2.4, Color(1.0, 0.6, 0.25))
 	_marker(Vector3(0, fy, _z_pool), "lava_pool_marker")
 
 	# A floaty draft down almost the whole shaft so the long, deep drop lands softly +
@@ -411,11 +412,9 @@ func _on_shaft_exited(body: Node) -> void:
 # --- Section 3: Boss Arena -------------------------------------------------
 
 func _build_arena() -> void:
+	_build_arena_cave()
 	# Circular obsidian platform, sitting directly below the pool shaft.
 	_cylinder(_arena_center + Vector3(0, -T * 0.5, 0), ARENA_RADIUS, T, _obsidian)
-	# Surrounding lava moat: anything off the platform is flowing magma (DoT).
-	_panel(_arena_center + Vector3(0, -3.0, 0), Vector3(90, 1, 90), _lava)
-	_lava_area(_arena_center + Vector3(0, -2.5, 0), Vector3(90, 3, 90))
 
 	# You arrive by FALLING through the shaft onto the platform centre; the landing
 	# checkpoint sits a little off-centre so a boss death respawns you in the arena
@@ -438,17 +437,50 @@ func _build_arena() -> void:
 	_arena_dressing()
 
 
-## Jagged Tripo obsidian shards rising out of the lava moat around the arena, framing
-## the boss fight. Placed BEYOND the platform rim (in the moat) so they never block
-## movement or the boss - visual only. Falls back to nothing if the GLB is missing.
+## Enclose the boss arena in a CAVE (the mission descended underground): a ring wall +
+## a ceiling with a central hole the shaft pierces, so the outside environment is no
+## longer visible from the boss room. Keeps the floor lava - now a SOLID lava floor, so
+## stepping off the obsidian platform lands you on burning lava (DoT) bounded by the
+## cave rather than falling off the map. The horizon volcanoes stay visible from the
+## open-sky cliff ascent, just not from down in this cave.
+func _build_arena_cave() -> void:
+	var cx := _arena_center.x
+	var cz := _arena_center.z
+	# Solid lava floor across the whole cave (collision + DoT), 3 m below the platform,
+	# so walking off the platform lands on lava instead of the void.
+	_cylinder(Vector3(cx, CAVE_FLOOR_Y - 0.5, cz), CAVE_RADIUS, 1.0, _lava)
+	_lava_area(Vector3(cx, CAVE_FLOOR_Y + 1.2, cz), Vector3(CAVE_RADIUS * 2, 3.0, CAVE_RADIUS * 2))
+
+	# Ring wall (dodecagon of tall obsidian boxes) from the lava floor to the ceiling.
+	var wall_h: float = (CAVE_CEIL_Y - CAVE_FLOOR_Y) + 3.0
+	var wall_my: float = (CAVE_CEIL_Y + CAVE_FLOOR_Y) * 0.5
+	var segs := 12
+	var seg_w: float = 2.0 * CAVE_RADIUS * tan(PI / float(segs)) + 3.0   # generous overlap, no gaps
+	for i in segs:
+		var a: float = TAU * float(i) / float(segs)
+		var pos := Vector3(cx + cos(a) * CAVE_RADIUS, wall_my, cz + sin(a) * CAVE_RADIUS)
+		_box(pos, Vector3(1.5, wall_h, seg_w), _rock_dark, Vector3(0, -a, 0))
+
+	# Ceiling: a ring of 4 obsidian slabs around a central hole the shaft drops through.
+	var chz: float = POOL_RADIUS + 3.0
+	var arm: float = CAVE_RADIUS - chz
+	for s in [-1.0, 1.0]:
+		_box(Vector3(cx + s * (chz + arm * 0.5), CAVE_CEIL_Y, cz), Vector3(arm, T, CAVE_RADIUS * 2), _rock_dark)
+		_box(Vector3(cx, CAVE_CEIL_Y, cz + s * (chz + arm * 0.5)), Vector3(chz * 2, T, arm), _rock_dark)
+	_omni(Vector3(cx, CAVE_CEIL_Y - 4.0, cz), CAVE_RADIUS, 2.0, Color(1.0, 0.5, 0.2))
+
+
+## Jagged Tripo obsidian shards rising out of the lava floor around the arena, framing
+## the boss fight. Placed BEYOND the platform rim so they never block movement or the
+## boss - visual only. Falls back to nothing if the GLB is missing.
 func _arena_dressing() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20456
 	var count := 10
 	for i in count:
 		var a := TAU * float(i) / float(count) + rng.randf_range(-0.15, 0.15)
-		var rad := ARENA_RADIUS + rng.randf_range(3.0, 9.0)
-		var pos := _arena_center + Vector3(cos(a), -1.5, sin(a)) * Vector3(rad, 1, rad)
+		var rad := ARENA_RADIUS + rng.randf_range(4.0, 12.0)
+		var pos := _arena_center + Vector3(cos(a), -3.0, sin(a)) * Vector3(rad, 1, rad)
 		_place_rock("venus_shard", pos, rng.randf_range(0.0, TAU), rng.randf_range(6.0, 12.0))
 
 
@@ -645,14 +677,16 @@ func _build_environment() -> void:
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 51877
-	var count := 22
+	var count := 26
 	var kinds := ["venus_volcano", "venus_cliff", "venus_volcano", "venus_spire"]
 	for i in count:
 		var ang: float = TAU * float(i) / float(count) + rng.randf_range(-0.12, 0.12)
-		var rad: float = rng.randf_range(270.0, 380.0)
-		# seat a couple of metres INTO the plain so no gap shows under the base.
+		var rad: float = rng.randf_range(240.0, 360.0)
+		# seat a couple of metres INTO the plain so no gap shows under the base. Taller now
+		# so the peaks clearly rise ABOVE the ascent gorge walls on the horizon (they read
+		# from the open-sky cliff climb; the boss cave below no longer shows them at all).
 		var pos := Vector3(sin(ang) * rad, -42.0, -200.0 + cos(ang) * rad)
-		var size: float = rng.randf_range(90.0, 180.0)
+		var size: float = rng.randf_range(130.0, 240.0)
 		_place_rock(kinds[i % kinds.size()], pos, rng.randf_range(0.0, TAU), size)
 
 
@@ -678,7 +712,9 @@ func _build_volcano() -> void:
 	# legs + slope walls do the blocking). A hot glow at the crater sells it as ACTIVE.
 	var peak := "venus_crater" if ResourceLoader.exists(ROCK % "venus_crater") else "venus_volcano"
 	if ResourceLoader.exists(ROCK % peak):
-		_place_rock(peak, Vector3(0, _y_summit - 6.0, _z_cavern_start - 80.0), 0.0, 210.0)
+		# Seated well BEHIND the cavern mouth so the peak's base never pokes forward into
+		# the arch/cave entrance (it used to intrude). It looms up behind the gateway.
+		_place_rock(peak, Vector3(0, _y_summit - 6.0, _z_cavern_start - 150.0), 0.0, 200.0)
 	_omni(_crater_top + Vector3(0, 4, 0), 70.0, 3.0, Color(1.0, 0.45, 0.12))
 
 	var timer := Timer.new()
