@@ -13,10 +13,11 @@ const PULSE_PERIOD := 1.2         # s per glow + beep cycle
 const BASE_EMISSION := 1.6
 const PULSE_EMISSION := 4.5
 const CRYSTAL_COLOR := Color(1.0, 0.55, 0.10)
-## Generated obsidian shard (fal.ai Tripo H3.1) - the destructible crystal model,
-## replacing the old procedural cone. Falls back to a tapered prism if it's missing.
-const SHARD_MODEL := "res://assets/generated/venus/rocks/venus_shard.glb"
-const CRYSTAL_HEIGHT := 2.2
+## Generated glowing magma CRYSTAL (fal.ai Tripo H3.1) - the destructible weak point,
+## replacing the procedural cone. Falls back to the obsidian shard, then a tapered prism.
+const SHARD_MODEL := "res://assets/generated/venus/rocks/venus_crystal.glb"
+const SHARD_MODEL_ALT := "res://assets/generated/venus/rocks/venus_shard.glb"
+const CRYSTAL_HEIGHT := 2.4
 
 var health: float = MAX_HEALTH
 var _broken: bool = false
@@ -80,8 +81,9 @@ func _shatter() -> void:
 
 
 func _build_visual() -> void:
-	# Prefer the generated obsidian shard; fall back to a tapered prism if it's absent.
-	var scene := load(SHARD_MODEL) if ResourceLoader.exists(SHARD_MODEL) else null
+	# Prefer the generated magma crystal, then the obsidian shard, then a tapered prism.
+	var path := SHARD_MODEL if ResourceLoader.exists(SHARD_MODEL) else SHARD_MODEL_ALT
+	var scene := load(path) if ResourceLoader.exists(path) else null
 	if scene is PackedScene:
 		_model = (scene as PackedScene).instantiate() as Node3D
 		add_child(_model)
@@ -90,6 +92,16 @@ func _build_visual() -> void:
 		_model.scale = Vector3.ONE * (CRYSTAL_HEIGHT / maxf(largest, 0.001))
 		var ab := _model_aabb(_model)
 		_model.position = Vector3(0, -ab.position.y, 0)      # seat its base on the floor
+		# Make the crystal GLOW: an emissive overlay tints its whole surface hot, added
+		# on top of the model's own PBR texture (overlay, so the detail shows through).
+		var glow_mat := StandardMaterial3D.new()
+		glow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glow_mat.albedo_color = Color(CRYSTAL_COLOR.r, CRYSTAL_COLOR.g, CRYSTAL_COLOR.b, 0.35)
+		glow_mat.emission_enabled = true
+		glow_mat.emission = CRYSTAL_COLOR
+		glow_mat.emission_energy_multiplier = 2.6
+		for mi in _model.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).material_overlay = glow_mat
 	else:
 		_mesh = MeshInstance3D.new()
 		var prism := CylinderMesh.new()          # tapered = crystal shard
@@ -107,12 +119,12 @@ func _build_visual() -> void:
 		_mesh.material_override = _mat
 		add_child(_mesh)
 
-	# A hot pulsing glow reads as the shoot-me cue on either visual.
+	# A hot pulsing glow reads as the shoot-me cue and lights the crystal from within.
 	_glow = OmniLight3D.new()
 	_glow.position = Vector3(0, CRYSTAL_HEIGHT * 0.5, 0)
-	_glow.omni_range = 6.0
+	_glow.omni_range = 9.0
 	_glow.light_color = CRYSTAL_COLOR
-	_glow.light_energy = 2.0
+	_glow.light_energy = 3.2
 	add_child(_glow)
 
 	var col := CollisionShape3D.new()
