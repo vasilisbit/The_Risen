@@ -13,11 +13,17 @@ const PULSE_PERIOD := 1.2         # s per glow + beep cycle
 const BASE_EMISSION := 1.6
 const PULSE_EMISSION := 4.5
 const CRYSTAL_COLOR := Color(1.0, 0.55, 0.10)
+## Generated obsidian shard (fal.ai Tripo H3.1) - the destructible crystal model,
+## replacing the old procedural cone. Falls back to a tapered prism if it's missing.
+const SHARD_MODEL := "res://assets/generated/venus/rocks/venus_shard.glb"
+const CRYSTAL_HEIGHT := 2.2
 
 var health: float = MAX_HEALTH
 var _broken: bool = false
-var _mat: StandardMaterial3D
+var _mat: StandardMaterial3D     # only set on the primitive fallback (drives its glow)
 var _mesh: MeshInstance3D
+var _model: Node3D               # the generated shard instance, if loaded
+var _glow: OmniLight3D           # pulsing hot glow - the shoot-me cue for either visual
 var _beep: AudioStreamPlayer3D
 var _pulse_t: float = 0.0
 
@@ -33,7 +39,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _broken or _mat == null:
+	if _broken:
 		return
 	# Pulse the glow, and beep once at the top of each cycle.
 	var was := _pulse_t
@@ -41,9 +47,14 @@ func _process(delta: float) -> void:
 	if _pulse_t < was and _beep:
 		_beep.play()
 	var wave := 0.5 - 0.5 * cos(TAU * _pulse_t / PULSE_PERIOD)
-	_mat.emission_energy_multiplier = lerpf(BASE_EMISSION, PULSE_EMISSION, wave)
+	if _mat:                                   # primitive fallback pulses its emission
+		_mat.emission_energy_multiplier = lerpf(BASE_EMISSION, PULSE_EMISSION, wave)
+	if _glow:                                  # the model + fallback both pulse the light
+		_glow.light_energy = lerpf(1.4, 4.2, wave)
 	if _mesh:
 		_mesh.rotation.y += delta * 0.8
+	elif _model:
+		_model.rotation.y += delta * 0.6
 
 
 ## Hit by a player weapon (weapon.gd calls this on any collider that has it).
@@ -69,34 +80,78 @@ func _shatter() -> void:
 
 
 func _build_visual() -> void:
-	_mesh = MeshInstance3D.new()
-	var prism := CylinderMesh.new()          # tapered = crystal shard
-	prism.top_radius = 0.05
-	prism.bottom_radius = 0.45
-	prism.height = 1.8
-	prism.radial_segments = 6
-	_mesh.mesh = prism
-	_mesh.position = Vector3(0, 0.9, 0)
-	_mat = StandardMaterial3D.new()          # unique per instance so it can pulse
-	_mat.albedo_color = CRYSTAL_COLOR
-	_mat.emission_enabled = true
-	_mat.emission = CRYSTAL_COLOR
-	_mat.emission_energy_multiplier = BASE_EMISSION
-	_mesh.material_override = _mat
-	add_child(_mesh)
+	# Prefer the generated obsidian shard; fall back to a tapered prism if it's absent.
+	var scene := load(SHARD_MODEL) if ResourceLoader.exists(SHARD_MODEL) else null
+	if scene is PackedScene:
+		_model = (scene as PackedScene).instantiate() as Node3D
+		add_child(_model)
+		var raw := _model_aabb(_model)
+		var largest: float = maxf(raw.size.y, maxf(raw.size.x, raw.size.z))
+		_model.scale = Vector3.ONE * (CRYSTAL_HEIGHT / maxf(largest, 0.001))
+		var ab := _model_aabb(_model)
+		_model.position = Vector3(0, -ab.position.y, 0)      # seat its base on the floor
+	else:
+		_mesh = MeshInstance3D.new()
+		var prism := CylinderMesh.new()          # tapered = crystal shard
+		prism.top_radius = 0.05
+		prism.bottom_radius = 0.45
+		prism.height = 1.8
+		prism.radial_segments = 6
+		_mesh.mesh = prism
+		_mesh.position = Vector3(0, 0.9, 0)
+		_mat = StandardMaterial3D.new()          # unique per instance so it can pulse
+		_mat.albedo_color = CRYSTAL_COLOR
+		_mat.emission_enabled = true
+		_mat.emission = CRYSTAL_COLOR
+		_mat.emission_energy_multiplier = BASE_EMISSION
+		_mesh.material_override = _mat
+		add_child(_mesh)
+
+	# A hot pulsing glow reads as the shoot-me cue on either visual.
+	_glow = OmniLight3D.new()
+	_glow.position = Vector3(0, CRYSTAL_HEIGHT * 0.5, 0)
+	_glow.omni_range = 6.0
+	_glow.light_color = CRYSTAL_COLOR
+	_glow.light_energy = 2.0
+	add_child(_glow)
 
 	var col := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
-	shape.radius = 0.45
-	shape.height = 1.8
+	shape.radius = 0.55
+	shape.height = CRYSTAL_HEIGHT
 	col.shape = shape
-	col.position = Vector3(0, 0.9, 0)
+	col.position = Vector3(0, CRYSTAL_HEIGHT * 0.5, 0)
 	add_child(col)
+
+
+## World-space AABB of every mesh under a node (for seating/scaling the shard model).
+func _model_aabb(root: Node3D) -> AABB:
+	var result := AABB()
+	var have := false
+	for node in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var la := mi.get_aabb()
+		var xf := mi.transform
+		for i in 8:
+			var corner := la.position + Vector3(
+				la.size.x if (i & 1) else 0.0,
+				la.size.y if (i & 2) else 0.0,
+				la.size.z if (i & 4) else 0.0)
+			var w: Vector3 = xf * corner
+			if not have:
+				result = AABB(w, Vector3.ZERO); have = true
+			else:
+				result = result.expand(w)
+	return result
 
 
 func _flash() -> void:
 	if _mat:
 		_mat.emission_energy_multiplier = PULSE_EMISSION * 1.6
+	if _glow:
+		_glow.light_energy = 5.5
 
 
 func _shatter_vfx() -> void:
