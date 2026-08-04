@@ -1,8 +1,9 @@
 extends Node
 ## T-0020 Venus mission driver. Mirrors earth_mission.gd: enemies spawn per
 ## section as the player advances (not all 35 at once), and the ordered
-## objectives from GDD §3.4 are driven by section triggers plus the scripted
-## lava-pool dive that teleports the player into the boss arena.
+## objectives from GDD §3.4 are driven by section triggers plus the lava-pool
+## dive - the player free-falls down the lava shaft into the boss arena directly
+## below (no teleport; venus_level builds the shaft + a soft-landing draft).
 ##
 ## The Ember Tyrant itself is T-0021 - until that scene exists the final
 ## objective simply cannot complete, and the mission is a playable blockout.
@@ -105,26 +106,22 @@ func _on_enemy_killed(_where: Vector3) -> void:
 
 # --- scripted lava-pool dive ------------------------------------------------
 
-## GDD §3.4 objective 3: the player jumps into the pool and is carried through a
-## hidden passage to the boss chamber. This pool is deliberately NOT a lava
-## hazard - it is the way forward.
+## GDD §3.4 objective 3: the player drops into the pool and free-falls down the
+## lava shaft into the boss arena directly below (venus_level builds the open shaft
+## + a gravity-softening draft, so the player physically falls - no teleport). This
+## pool is deliberately NOT a lava hazard; it is the way forward. Entering the pool
+## trigger just marks the objective, sets the arena checkpoint, and spawns the boss.
 func _on_pool_entered(body: Node) -> void:
 	if _dived or not body.is_in_group("player"):
 		return
 	_dived = true
 	_obj.notify_flag("pool")
-	_teleport_to_arena(body as Node3D)
-	_spawn_boss()
-
-
-func _teleport_to_arena(player: Node3D) -> void:
+	# Move the respawn point to the arena so a boss death doesn't drop you back at the
+	# top of the shaft (the player keeps falling under their own physics - not moved).
 	var entry := get_tree().get_first_node_in_group("arena_entry")
-	if entry == null:
-		return
-	player.global_position = (entry as Node3D).global_position
-	player.velocity = Vector3.ZERO
-	if player.has_method("set_checkpoint"):
-		player.set_checkpoint((entry as Node3D).global_position)
+	if entry != null and body.has_method("set_checkpoint"):
+		body.set_checkpoint((entry as Node3D).global_position)
+	_spawn_boss()
 
 
 func _spawn_boss() -> void:

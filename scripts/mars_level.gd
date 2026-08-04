@@ -282,7 +282,11 @@ func _grand_gate(z: float) -> void:
 		# Seated on the hall floor, framing the DOOR opening. Rotated 90 deg so the arch
 		# is WIDE across the doorway with its opening facing the passage (the raw model
 		# faces along x). ~20 m wide -> ~8 m central opening, matching DOOR_W.
-		_place_struct("mars_arch", Vector3(0, Y_ROOM, z + 0.5), PI * 0.5, 20.0, false)
+		var arch := _place_struct("mars_arch", Vector3(0, Y_ROOM, z + 0.5), PI * 0.5, 20.0, false)
+		# Solid side legs (the doorway stays clear) so you can't walk through the rock -
+		# fixes the "arch has no collision" bug without walling off the passage.
+		if arch != null:
+			_arch_collision(arch, DOOR_W)
 		# a little cyan glow at the threshold to keep the sci-fi read
 		_panel(Vector3(0, Y_ROOM + 0.15, z + 2.6), Vector3(DOOR_W, 0.3, 0.4), _portal)
 		return
@@ -431,10 +435,10 @@ func _place_rock(nm: String, pos: Vector3, rot_y: float, target_size: float) -> 
 ## Place a generated Mars structure GLB (mining base / mountain): scale so its largest
 ## dimension = target_size, rotate, seat its base at pos.y. If `solid`, add a box
 ## collider from the seated world AABB so the player can't walk through it.
-func _place_struct(nm: String, pos: Vector3, rot_y: float, target_size: float, solid: bool) -> void:
+func _place_struct(nm: String, pos: Vector3, rot_y: float, target_size: float, solid: bool) -> Node3D:
 	var scene := load(STRUCT % nm)
 	if scene == null:
-		return
+		return null
 	var m := (scene as PackedScene).instantiate() as Node3D
 	add_child(m)
 	m.rotation.y = rot_y
@@ -444,12 +448,35 @@ func _place_struct(nm: String, pos: Vector3, rot_y: float, target_size: float, s
 	if solid:
 		var world := _world_aabb(m)
 		if world.size.length() < 0.05:
-			return
+			return m
 		var col := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = world.size
 		col.shape = box
 		col.position = world.position + world.size * 0.5
+		add_child(col)
+	return m
+
+
+## Give an arch model solid side pillars without walling the doorway: measure its world
+## AABB and drop a box collider over the LEFT and RIGHT thirds (the rock legs), leaving
+## the central `opening_w` metres clear so the player passes through the opening.
+func _arch_collision(node: Node3D, opening_w: float) -> void:
+	var w := _world_aabb(node)
+	if w.size.length() < 0.05:
+		return
+	var half_open: float = clampf(opening_w * 0.5, 0.5, w.size.x * 0.5 - 0.2)
+	var leg_w: float = w.size.x * 0.5 - half_open
+	if leg_w <= 0.1:
+		return
+	var cy := w.position.y + w.size.y * 0.5
+	var cz := w.position.z + w.size.z * 0.5
+	for cx in [w.position.x + leg_w * 0.5, w.position.x + w.size.x - leg_w * 0.5]:
+		var col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(leg_w, w.size.y, w.size.z)
+		col.shape = box
+		col.position = Vector3(cx, cy, cz)
 		add_child(col)
 
 

@@ -85,6 +85,15 @@ var _air_speed: float = WALK_SPEED     # horizontal speed locked in at take-off
 var _knockback: Vector3 = Vector3.ZERO
 var _push_velocity: Vector3 = Vector3.ZERO
 var _push_time_left: float = 0.0
+## Venus headwind (T-0020): a constant world-space drift added only while the
+## player is actively moving or airborne, so the climb is a slog to walk up but a
+## player who stands still is never shoved. Set/cleared by the ascent wind zone.
+var wind_vel: Vector3 = Vector3.ZERO
+## Venus lava slow (T-0020): while > 0 the player's move speed is cut. Refreshed
+## every physics frame the player stands in lava (see lava_burn), so it clears a
+## fraction of a second after they jump out.
+const LAVA_SLOW := 0.5           # move-speed multiplier while burning in lava
+var _lava_slow_left: float = 0.0
 var _step_accum: float = 0.0
 var _last_damage_source: String = "Unknown"
 var _time_since_damage: float = SHIELD_RECHARGE_DELAY
@@ -241,6 +250,10 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor():
 		_air_speed = ground_speed
 	var speed := ground_speed if is_on_floor() else _air_speed
+	# Venus lava wades slow you while you burn (refreshed each frame in lava).
+	if _lava_slow_left > 0.0:
+		speed *= LAVA_SLOW
+		_lava_slow_left = maxf(0.0, _lava_slow_left - delta)
 
 	if direction != Vector3.ZERO:
 		velocity.x = direction.x * speed
@@ -248,6 +261,13 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, speed)
 		velocity.z = move_toward(velocity.z, 0.0, speed)
+
+	# Venus headwind: a constant downhill drift, added only while the player is
+	# moving or airborne. Standing still on the ground leaves velocity at 0, so the
+	# wind never shoves an idle player - it just makes the climb a slog to fight up.
+	if wind_vel != Vector3.ZERO and (direction != Vector3.ZERO or not is_on_floor()):
+		velocity.x += wind_vel.x
+		velocity.z += wind_vel.z
 
 	# Add any active knockback on top of movement, then let it decay.
 	velocity.x += _knockback.x
@@ -539,6 +559,33 @@ func hazard_respawn(damage: float) -> void:
 	velocity = Vector3.ZERO
 	_knockback = Vector3.ZERO
 	_push_time_left = 0.0
+
+
+## Continuous environmental burn (Venus lava, T-0020). Standing in lava drains HP
+## gradually - call this every physics frame with `dps * delta` while the player
+## overlaps a lava volume. Drains health DIRECTLY (bypasses shield + armour, like the
+## old instant hazard, so a recharging shield can't make the lava free), and only a
+## real 0-HP death sends you back to the last checkpoint - otherwise you just jump
+## out to stop it. Juggernaut Charge negates the burn.
+func lava_burn(amount: float) -> void:
+	if is_dead or invulnerable or amount <= 0.0:
+		return
+	# Wading in lava also slows you to a crawl, so the pits read as sticky molten
+	# rock you want OUT of, not a puddle you stroll through. Refreshed each frame
+	# in lava; LAVA_SLOW * a little more than a physics tick, so it lingers briefly
+	# after you jump clear rather than snapping back to full speed mid-hop.
+	_lava_slow_left = 0.2
+	_last_damage_source = "the lava"
+	_time_since_damage = 0.0
+	health = maxf(0.0, health - amount)
+	health_changed.emit(health, max_hp())
+	if health <= 0.0 and not is_dead:
+		_on_death()
+
+
+## Set (or clear, with Vector3.ZERO) the constant Venus headwind. See wind_vel.
+func set_wind(v: Vector3) -> void:
+	wind_vel = v
 
 
 func _on_death() -> void:
