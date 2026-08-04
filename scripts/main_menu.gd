@@ -24,15 +24,16 @@ const STAR_DRIFT := 0.10
 ## menu backdrop should loop, not go anywhere.
 const MENU_PLANETS := [
 	{"pos": Vector2(0.78, 0.34), "radius": 120.0,
-		"spin": 0.05, "orbit": 0.045, "sway": Vector2(0.030, 0.016),
-		"base": Color(0.16, 0.30, 0.55), "band": Color(0.35, 0.62, 0.85)},
+		"orbit": 0.045, "sway": Vector2(0.030, 0.016),
+		"tex": "res://assets/generated/interior/planet_earth.png"},
 	{"pos": Vector2(0.58, 0.80), "radius": 46.0,
-		"spin": 0.09, "orbit": 0.062, "sway": Vector2(0.045, 0.022),
-		"base": Color(0.42, 0.18, 0.12), "band": Color(0.72, 0.36, 0.20)},
+		"orbit": 0.062, "sway": Vector2(0.045, 0.022),
+		"tex": "res://assets/generated/interior/planet_mars.png"},
 	{"pos": Vector2(0.93, 0.70), "radius": 28.0,
-		"spin": 0.13, "orbit": 0.085, "sway": Vector2(0.028, 0.034),
-		"base": Color(0.45, 0.34, 0.14), "band": Color(0.78, 0.62, 0.28)},
+		"orbit": 0.085, "sway": Vector2(0.028, 0.034),
+		"tex": "res://assets/generated/interior/planet_venus.png"},
 ]
+var _planet_tex: Array = []
 
 var _entries: Array[Dictionary] = []
 var _hovered: int = -1
@@ -50,6 +51,8 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().paused = false
 	_seed_stars()
+	for info in MENU_PLANETS:
+		_planet_tex.append(load(info["tex"]) as Texture2D)
 	_build_ui()
 
 
@@ -69,16 +72,18 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var vp := size
-	draw_rect(Rect2(Vector2.ZERO, vp), Color(0.03, 0.04, 0.06))
+	# Pure black so the planet renders' black backdrops blend seamlessly.
+	draw_rect(Rect2(Vector2.ZERO, vp), Color(0, 0, 0))
+	# Planets first, then stars over them, so the images' black corners don't punch
+	# a starless square out of the field.
+	for i in MENU_PLANETS.size():
+		_draw_menu_planet(MENU_PLANETS[i], vp, _planet_tex[i] if i < _planet_tex.size() else null)
 	for s in _stars:
 		var p := Vector2(s.x * vp.x, s.y * vp.y)
 		var a: float = 0.25 + 0.55 * s.z
 		# Twinkle, keyed off each star's own speed so they don't pulse in sync.
 		a *= 0.75 + 0.25 * sin(_time * (1.0 + s.z * 3.0) + s.y * 20.0)
 		draw_circle(p, 0.6 + s.z * 1.4, Color(0.75, 0.85, 1.0, a))
-
-	for info in MENU_PLANETS:
-		_draw_menu_planet(info, vp)
 
 	# Angled gold band behind the title, echoing the HUD's super bar.
 	var band_y := vp.y * 0.22
@@ -109,7 +114,7 @@ func _draw() -> void:
 
 ## A banded disc with a crescent of night, drifting slowly with the starfield.
 ## Drawn with arcs rather than a texture, like the rest of the game's art.
-func _draw_menu_planet(info: Dictionary, vp: Vector2) -> void:
+func _draw_menu_planet(info: Dictionary, vp: Vector2, tex: Texture2D) -> void:
 	var frac: Vector2 = info["pos"]
 	var r: float = info["radius"]
 	# Periodic drift: a slow Lissajous around the anchor point, so each planet
@@ -122,36 +127,12 @@ func _draw_menu_planet(info: Dictionary, vp: Vector2) -> void:
 	var c := (frac + offset) * vp
 	if c.x < -r * 2.0 or c.x > vp.x + r * 2.0:
 		return
-	# Surface rotation: the band pattern scrolls through its own phase.
-	var spin: float = _time * float(info["spin"])
-
-	var base: Color = info["base"]
-	var band: Color = info["band"]
-	draw_circle(c, r, base)
-
-	# Latitude bands: horizontal chords. Each is sized to the NARROWER of its
-	# two edges so it stays inside the disc - using the centre width let the
-	# corners poke past the limb and the planet came out visibly stepped.
-	var rows := int(r / 3.0)
-	for i in rows:
-		var t0 := (float(i) / float(rows)) * 2.0 - 1.0        # -1..1 across the disc
-		var t1 := (float(i + 1) / float(rows)) * 2.0 - 1.0
-		var outer := maxf(absf(t0), absf(t1))
-		var half := sqrt(maxf(0.0, 1.0 - outer * outer)) * r
-		if half <= 0.5:
-			continue
-		var shade := 0.5 + 0.5 * sin(t0 * 7.0 + frac.x * 12.0 + spin * TAU)
-		var col := base.lerp(band, shade * 0.55)
-		draw_rect(Rect2(Vector2(c.x - half, c.y + t0 * r),
-			Vector2(half * 2.0, (t1 - t0) * r + 0.5)), col)
-
-	# Night side: a crescent, drawn as offset discs fading to the background.
-	for i in 7:
-		var k := float(i) / 6.0
-		draw_circle(c + Vector2(r * 0.55 * k, r * 0.18 * k),
-			r * (1.0 - 0.06 * k), Color(0.02, 0.03, 0.05, 0.16))
-	# Thin lit limb on the sunward side.
-	draw_arc(c, r - 1.0, PI * 0.55, PI * 1.45, 32, Color(band, 0.5), 2.0, true)
+	if tex == null:
+		return
+	# The realistic full-disc render (disc fills ~0.9 of the square); its black
+	# background reads as space over the star field.
+	var box := r / 0.9
+	draw_texture_rect(tex, Rect2(c - Vector2(box, box), Vector2(box * 2.0, box * 2.0)), false)
 
 
 func _gui_input(event: InputEvent) -> void:
