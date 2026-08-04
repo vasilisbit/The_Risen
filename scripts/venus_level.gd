@@ -47,10 +47,12 @@ const RIVER_DPS := 60.0                 # the jump-puzzle river: lethal to wade,
 
 # --- Section 3: Boss Arena (directly below the pool) ---
 const ARENA_RADIUS := 24.0              # 48 m diameter (enlarged boss arena)
-const ARENA_Y := 0.0                    # arena floor height (well below the pool + shaft)
+const ARENA_Y := -30.0                  # arena floor height - a DEEP drop below the pool
+const SHAFT_CLEAR := 22.0               # the lava shaft walls stop this far ABOVE the arena
+										# floor, so the arena is open (you're not boxed in)
 const WEAK_POINT_RADIUS := 9.0          # spread across the enlarged arena
 const ERUPTION_RADIUS := 17.0           # 8 possible eruption sites (T-0021 phase C)
-const POOL_RADIUS := 4.0                # the lava-pool hole you drop through
+const POOL_RADIUS := 6.0                # the lava-pool hole you drop through (wide pit)
 
 var _y_summit: float = 0.0
 var _z_cavern_start: float = 0.0
@@ -108,7 +110,7 @@ func _ready() -> void:
 ## lava) is an outright death + checkpoint respawn. The designed lava hazards sit
 ## far above this and still catch normal mistakes non-lethally (GDD -50% HP).
 func _build_kill_plane() -> void:
-	var a := _area(Vector3(0, -20, -200), Vector3(120, 4, 500))
+	var a := _area(Vector3(0, -55, -200), Vector3(220, 4, 700))
 	a.body_entered.connect(_on_void)
 
 
@@ -318,40 +320,55 @@ func _build_pool_chamber(field_end_z: float, cav_far_z: float) -> void:
 	var fy := _y_pool_floor
 	var hz := POOL_RADIUS + 0.5                         # half-size of the square hole
 	var w := CAVERN_HALF_WIDTH
-	# Floor ring (4 boxes) around the hole centred on (0, fy, _z_pool).
+	# Chamber floor ring (4 boxes) around the hole - OBSIDIAN, so the lava well reads
+	# as part of the same volcanic-glass cavern as the platforms/arena (the old rock
+	# floor looked out of place - "not consistent with the environment").
 	var front_len: float = (_z_pool + hz) - field_end_z
 	var back_len: float = cav_far_z - (_z_pool - hz)
 	if front_len > 0.1:
-		_box(Vector3(0, fy - T * 0.5, (field_end_z + _z_pool + hz) * 0.5), Vector3(w * 2, T, front_len), _rock)
+		_box(Vector3(0, fy - T * 0.5, (field_end_z + _z_pool + hz) * 0.5), Vector3(w * 2, T, front_len), _obsidian)
 	if back_len > 0.1:
-		_box(Vector3(0, fy - T * 0.5, (cav_far_z + _z_pool - hz) * 0.5), Vector3(w * 2, T, back_len), _rock)
-	_box(Vector3(-(hz + (w - hz) * 0.5), fy - T * 0.5, _z_pool), Vector3(w - hz, T, hz * 2), _rock)
-	_box(Vector3(hz + (w - hz) * 0.5, fy - T * 0.5, _z_pool), Vector3(w - hz, T, hz * 2), _rock)
+		_box(Vector3(0, fy - T * 0.5, (cav_far_z + _z_pool - hz) * 0.5), Vector3(w * 2, T, back_len), _obsidian)
+	_box(Vector3(-(hz + (w - hz) * 0.5), fy - T * 0.5, _z_pool), Vector3(w - hz, T, hz * 2), _obsidian)
+	_box(Vector3(hz + (w - hz) * 0.5, fy - T * 0.5, _z_pool), Vector3(w - hz, T, hz * 2), _obsidian)
 
-	# Lava shaft: four flowing-magma walls dropping from the pool floor to the arena, so
-	# you fall down a glowing lava pit. Solid (keeps the fall centred) but NOT a DoT
-	# volume - the pool is the way forward, not a hazard.
-	var shaft_h: float = fy - ARENA_Y
-	var shaft_my: float = (fy + ARENA_Y) * 0.5
+	# A raised obsidian lip ringing the hole, so it reads as a deliberate lava WELL you
+	# dive into (not a bare square hole in the floor). Four low bars around the rim.
+	var lip_h := 0.7
+	var lip_t := 0.9
+	for s in [-1.0, 1.0]:
+		_box(Vector3(s * (hz + lip_t * 0.5), fy + lip_h * 0.5 - 0.1, _z_pool), Vector3(lip_t, lip_h, hz * 2 + lip_t * 2), _obsidian)
+		_box(Vector3(0, fy + lip_h * 0.5 - 0.1, _z_pool + s * (hz + lip_t * 0.5)), Vector3(hz * 2, lip_h, lip_t), _obsidian)
+
+	# Lava shaft: four flowing-magma walls dropping from the pool floor, so you free-fall
+	# down a glowing lava pit. They STOP SHAFT_CLEAR metres above the arena floor, so the
+	# shaft never becomes a box around the landing - the arena below is fully open to roam
+	# (the old walls reached the floor and trapped the player in a 9 m cell). Solid (keeps
+	# the fall centred) but NOT a DoT volume - the pool is the way forward, not a hazard.
+	var shaft_bottom: float = ARENA_Y + SHAFT_CLEAR
+	var shaft_h: float = fy - shaft_bottom
+	var shaft_my: float = (fy + shaft_bottom) * 0.5
 	for s in [-1.0, 1.0]:
 		_box(Vector3(s * (hz + T * 0.5), shaft_my, _z_pool), Vector3(T, shaft_h, hz * 2 + T * 2), _lava)
 		_box(Vector3(0, shaft_my, _z_pool + s * (hz + T * 0.5)), Vector3(hz * 2, shaft_h, T), _lava)
 
-	# The pool surface: a flowing-magma disc set just below the floor lip, VISUAL ONLY
-	# (no collision) so the player drops straight THROUGH it into the shaft - there is
-	# no teleport any more, you free-fall down the lava pit to the arena (venus_mission).
-	# Sat a little below the lip so it never z-fights the floor ring (the old artifact).
-	_disc(Vector3(0, fy - 0.6, _z_pool), POOL_RADIUS, 0.4, _pool_mat)
+	# The pool surface: a flowing-magma disc recessed just inside the lip, VISUAL ONLY
+	# (no collision) so the player drops straight THROUGH it into the shaft - no teleport,
+	# you free-fall the deep lava pit to the arena (venus_mission). Recessed below the lip
+	# so it reads as lava down in the well and never z-fights the floor (the old artifact).
+	_disc(Vector3(0, fy - 0.5, _z_pool), POOL_RADIUS, 0.5, _pool_mat)
 	var hole := _area(Vector3(0, fy - 0.5, _z_pool), Vector3(hz * 2, 2.5, hz * 2))
 	hole.add_to_group("lava_pool", true)
-	_omni(Vector3(0, fy + 1.0, _z_pool), 16.0, 3.0, Color(1.0, 0.7, 0.3))
+	_omni(Vector3(0, fy + 1.5, _z_pool), 22.0, 3.2, Color(1.0, 0.6, 0.25))
 	_marker(Vector3(0, fy, _z_pool), "lava_pool_marker")
 
-	# A floaty draft down the shaft so the long drop lands softly + dramatically. It
-	# stops ~4 m above the arena floor, so the last stretch is normal gravity (a gentle
-	# touchdown from the already-slow fall) and the boss arena itself is NOT low-grav.
-	var draft_h: float = maxf(shaft_h - 8.0, 4.0)
-	var draft := _area(Vector3(0, ARENA_Y + 4.0 + draft_h * 0.5, _z_pool), Vector3(hz * 2, draft_h, hz * 2))
+	# A floaty draft down almost the whole shaft so the long, deep drop lands softly +
+	# dramatically. It stops ~6 m above the arena floor, so the last stretch is normal
+	# gravity (a gentle touchdown from the already-slow fall) and the arena is NOT low-grav.
+	var draft_top: float = fy
+	var draft_bottom: float = ARENA_Y + 6.0
+	var draft_h: float = maxf(draft_top - draft_bottom, 4.0)
+	var draft := _area(Vector3(0, (draft_top + draft_bottom) * 0.5, _z_pool), Vector3(hz * 2, draft_h, hz * 2))
 	draft.body_entered.connect(_on_shaft_entered)
 	draft.body_exited.connect(_on_shaft_exited)
 
