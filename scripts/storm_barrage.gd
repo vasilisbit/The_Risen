@@ -28,8 +28,11 @@ func _execute() -> void:
 	for i in ROCKET_COUNT:
 		# Re-filter to living targets each rocket: earlier rockets in the salvo
 		# kill enemies during the awaits, and indexing a freed instance into a
-		# typed Node3D throws "assign previously freed instance".
-		var live := targets.filter(func(t: Node) -> bool: return is_instance_valid(t))
+		# typed Node3D throws "assign previously freed instance". The lambda param is
+		# UNTYPED on purpose: a freed enemy is a bare Object, so a `Node`-typed param
+		# would throw "Cannot convert argument 1 from Object to Object" before the
+		# is_instance_valid check could reject it.
+		var live := targets.filter(func(t): return is_instance_valid(t))
 		# Round-robin so every enemy in range is engaged before any gets a second.
 		var target: Node3D = live[i % live.size()] if not live.is_empty() else null
 		_launch(origin, i, target)
