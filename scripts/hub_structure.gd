@@ -79,7 +79,9 @@ func _build_props() -> void:
 	# Cockpit: two lit sci-fi control terminals flanking the window (angled toward
 	# the pilot seat), with the chair between them. The desks used to be plain boxes.
 	_console(Vector3(-3.3, 0, -4.2), 0.42)
-	_prop("Prop_Chair", Vector3(-3.4, 0, -3.1), 0.0, 1.0)
+	# Pilot seat centred in the canopy, between the two flanking consoles - this is
+	# the helm you take (scripts/helm_station.gd) to point the ship at a world.
+	_prop("Prop_Chair", Vector3(0.0, 0, -3.1), 0.0, 1.0)
 	_console(Vector3(3.3, 0, -4.2), -0.42)
 	_prop("Prop_Locker", Vector3(-4.5, 0, 1.6), -PI * 0.5, 1.0)
 	_prop("Prop_Locker", Vector3(-4.5, 0, 0.3), -PI * 0.5, 1.0)
