@@ -52,12 +52,18 @@ const PICK_RADIUS := 150.0
 ## a flat row. The colour block feeds the shader. Locked worlds show but can't Fold.
 const PLANET_SHADER := "res://shaders/planet.gdshader"
 const SCREEN_SHADER := "res://shaders/cockpit_screen.gdshader"
+## Realistic full-disc planet renders (fal.ai) shown as billboards out the canopy.
+const PLANET_TEX := {
+	"Earth": "res://assets/generated/interior/planet_earth.png",
+	"Mars": "res://assets/generated/interior/planet_mars.png",
+	"Venus": "res://assets/generated/interior/planet_venus.png",
+}
 const ORDER := ["Earth", "Mars", "Venus"]
 ## Slot 0 = the near/foreground hero world (last visited); slots 1-2 = far background.
 const SLOTS := [
-	{"pos": Vector3(-3.0, 3.2, -28.0), "radius": 6.2, "near": true},
-	{"pos": Vector3(16.0, 10.0, -86.0), "radius": 3.3, "near": false},
-	{"pos": Vector3(-14.5, 8.0, -98.0), "radius": 2.8, "near": false},
+	{"pos": Vector3(-2.5, 2.6, -30.0), "radius": 5.6, "near": true},
+	{"pos": Vector3(10.5, 7.5, -66.0), "radius": 3.2, "near": false},
+	{"pos": Vector3(-9.5, 6.0, -72.0), "radius": 2.9, "near": false},
 ]
 const WORLDS := [
 	{
@@ -88,6 +94,7 @@ var _player_cam: Camera3D
 var _seat_cam: Camera3D
 var _labels: Dictionary = {}         # mission -> Label3D
 var _planets: Dictionary = {}        # mission -> planet-centre world position (aim point)
+var _planet_radius: Dictionary = {}  # mission -> world radius (for crosshair hit-testing)
 
 # Cockpit console that rises when you sit, and the seat that swivels to the window.
 var _console: Node3D
@@ -140,7 +147,6 @@ func _build_seat_camera() -> void:
 ## hull - and is fixed_size so it stays readable however far the planet sits.
 func _build_worlds() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
-	var shader := load(PLANET_SHADER)
 	# Assign slots: the last-visited world takes the near/foreground slot, the others
 	# the far background slots (in ORDER) - so the canopy reads as a solar system.
 	var cfg := {}
@@ -165,28 +171,29 @@ func _build_worlds() -> void:
 
 		var planet := MeshInstance3D.new()
 		planet.name = "%sPlanet" % mission
-		var sphere := SphereMesh.new()
-		sphere.radius = radius
-		sphere.height = radius * 2.0
-		sphere.radial_segments = 48
-		sphere.rings = 24
-		planet.mesh = sphere
-		# Sits outside the room, so it must not be culled by the interior geometry.
-		planet.extra_cull_margin = radius * 3.0
-		if shader:
-			var mat := ShaderMaterial.new()
-			mat.shader = shader
-			mat.set_shader_parameter("rot_speed", 1.0 / 60.0)
-			mat.set_shader_parameter("ocean_color", w["ocean"])
-			mat.set_shader_parameter("land_color", w["land"])
-			mat.set_shader_parameter("atmo_color", w["atmo"])
-			mat.set_shader_parameter("land_threshold", w["threshold"])
-			mat.set_shader_parameter("band_strength", w["bands"])
-			mat.set_shader_parameter("cloud_amount", w["clouds"])
-			planet.material_override = mat
+		# Realistic planet as a camera-facing billboard (the fal.ai full-disc render),
+		# additively blended so the image's black background reads as empty space and
+		# never draws a black square over a farther world behind it.
+		var quad := QuadMesh.new()
+		var qs := radius * 2.0 / 0.9      # the disc fills ~0.9 of the square image
+		quad.size = Vector2(qs, qs)
+		planet.mesh = quad
+		planet.extra_cull_margin = qs
+		var pm := StandardMaterial3D.new()
+		pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		pm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		pm.billboard_keep_scale = true
+		pm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		pm.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var tex := load(String(PLANET_TEX.get(mission, ""))) as Texture2D
+		if tex:
+			pm.albedo_texture = tex
+		pm.albedo_color = Color(0.95, 0.95, 0.95) if unlocked else Color(0.45, 0.45, 0.45)
+		planet.material_override = pm
 		add_child(planet)
 		planet.global_position = pos
 		_planets[mission] = pos          # aim at the planet itself, not its label
+		_planet_radius[mission] = radius
 
 		var label := Label3D.new()
 		label.name = "%sMarker" % mission
@@ -228,8 +235,10 @@ const CONSOLE_POS := Vector3(0.0, 1.12, -3.62)
 const CONSOLE_YAW := -90.0
 const CONSOLE_SCALE := 2.65
 const SCREEN_SLOTS := [
-	Vector3(-0.52, 1.25, -3.46), Vector3(0.0, 1.25, -3.46), Vector3(0.52, 1.25, -3.46),
+	Vector3(-0.52, 1.28, -3.52), Vector3(0.0, 1.28, -3.52), Vector3(0.52, 1.28, -3.52),
 ]
+const SCREEN_SIZE := Vector2(0.42, 0.20)
+const SCREEN_TILT := -46.0    # deg: the recessed screens face up toward the pilot
 
 func _build_console() -> void:
 	_console = Node3D.new()
@@ -261,7 +270,7 @@ func _build_console() -> void:
 	for slot in SCREEN_SLOTS:
 		var scr := MeshInstance3D.new()
 		var qm := QuadMesh.new()
-		qm.size = Vector2(0.42, 0.30)
+		qm.size = SCREEN_SIZE
 		scr.mesh = qm
 		if shader:
 			var mat := ShaderMaterial.new()
@@ -269,7 +278,7 @@ func _build_console() -> void:
 			scr.material_override = mat
 		_console.add_child(scr)
 		scr.position = slot
-		scr.rotation.x = deg_to_rad(-90.0)     # lie flat, facing up out of the console
+		scr.rotation.x = deg_to_rad(SCREEN_TILT)   # tilt into the recessed screen
 
 	# Start stowed and hidden; taking the helm reveals + rises it.
 	_console.position = CONSOLE_STOW
@@ -423,7 +432,9 @@ func _update_seated(delta: float) -> void:
 		_hold = 0.0
 
 	_fold_bar.value = _hold / HOLD_TIME
-	_fold_bar.visible = _target != "" and not locked
+	# The hold meter only shows while you are actually holding Fold - otherwise it
+	# sat as a stray empty bar under the crosshair.
+	_fold_bar.visible = _hold > 0.0
 	if _target == "":
 		_target_label.text = "AIM AT A WORLD"
 	elif locked:
@@ -432,21 +443,35 @@ func _update_seated(delta: float) -> void:
 		_target_label.text = "%s  -  HOLD [F] TO FOLD" % _target.to_upper()
 
 
-## The world whose planet is nearest the screen centre within PICK_RADIUS, or "".
+## The world the crosshair is actually on. First preference: a planet whose
+## on-screen disc contains the crosshair (nearest such planet wins, so the big near
+## world takes priority over a far one behind it) - this stops the readout naming a
+## different planet than the one under the reticle. Otherwise the nearest disc edge
+## within PICK_RADIUS, so you can still lock a tiny far world by pointing near it.
 func _pick_target() -> String:
 	var centre := get_viewport().get_visible_rect().size * 0.5
-	var best := ""
-	var best_d := PICK_RADIUS
+	var inside := ""
+	var inside_z := INF
+	var edge := ""
+	var edge_d := PICK_RADIUS
 	for mission in _planets:
 		var pos: Vector3 = _planets[mission]
 		if _seat_cam.is_position_behind(pos):
 			continue
 		var screen := _seat_cam.unproject_position(pos)
 		var d := screen.distance_to(centre)
-		if d < best_d:
-			best_d = d
-			best = mission
-	return best
+		# Projected on-screen radius: unproject a point one world-radius to the side.
+		var radius: float = _planet_radius.get(mission, 3.0)
+		var edge_world: Vector3 = pos + _seat_cam.global_transform.basis.x * radius
+		var r_px := _seat_cam.unproject_position(edge_world).distance_to(screen)
+		var depth := _seat_cam.global_position.distance_to(pos)
+		if d <= r_px and depth < inside_z:      # crosshair sits on this disc
+			inside_z = depth
+			inside = mission
+		if d - r_px < edge_d:                    # distance from the disc edge
+			edge_d = d - r_px
+			edge = mission
+	return inside if inside != "" else edge
 
 
 func _unhandled_input(event: InputEvent) -> void:
