@@ -141,16 +141,41 @@ func _build_ascent() -> void:
 		var cz := -(seg_len * float(i) + seg_len * 0.5)
 		var cy := slope_y(cz) - sink
 		_box(Vector3(0, cy, cz), Vector3(ASCENT_WIDTH, T, slab), _rock, rot)
-		# Side walls keep the player on the path (open sky above).
-		_box(Vector3(-ASCENT_WIDTH * 0.5, cy + 3.0, cz), Vector3(T, 6, slab), _rock_dark, rot)
-		_box(Vector3(ASCENT_WIDTH * 0.5, cy + 3.0, cz), Vector3(T, 6, slab), _rock_dark, rot)
+		# Side containment: INVISIBLE collision walls (the real generated volcanic cliffs
+		# below do the looking). Keeps movement reliable while you ascend a real cliff
+		# gorge instead of two grey boxes.
+		_collision_box(Vector3(-ASCENT_WIDTH * 0.5, cy + 4.0, cz), Vector3(T, 10, slab), rot)
+		_collision_box(Vector3(ASCENT_WIDTH * 0.5, cy + 4.0, cz), Vector3(T, 10, slab), rot)
 
 	# Flat summit pad, joining the ascent to the cavern mouth.
 	_box(Vector3(0, _y_summit - T * 0.5, _z_cavern_start + 6.0),
 		Vector3(ASCENT_WIDTH, T, 12), _rock)
 
+	_build_ascent_cliffs()
 	_build_ascent_props()
 	_build_ascent_checkpoints()
+
+
+## Line both sides of the ascent with generated fal.ai volcanic cliff walls, so the
+## climb reads as a real volcanic gorge (not the old grey box walls). The invisible
+## collision walls above still contain the player; these are visual, seated on the
+## slope at the path edge, tall and overlapping so they form a continuous rampart.
+## Falls back to nothing (bare invisible walls) if the model is missing.
+func _build_ascent_cliffs() -> void:
+	if not ResourceLoader.exists(ROCK % "venus_cliff_wall"):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 33771
+	var pieces := 6
+	for side in [-1.0, 1.0]:
+		var ex: float = side * (ASCENT_WIDTH * 0.5 + 0.5)
+		for i in pieces:
+			var z: float = -6.0 - (ASCENT_LENGTH + 8.0) / float(pieces) * float(i)
+			var y := slope_y(z)
+			# Rotate so the wall's long axis runs along the path (Z). Height-scaled so it
+			# towers ~18 m over the walkway regardless of the model's raw proportions.
+			var yaw: float = (PI * 0.5) * side + rng.randf_range(-0.12, 0.12)
+			_place_wall("venus_cliff_wall", Vector3(ex, y - 2.5, z), yaw, 18.0 + rng.randf_range(-2.0, 3.0))
 
 
 ## Rock formations (cover) and lava vents (hazards) dotted up the slope.
@@ -648,10 +673,12 @@ func _build_volcano() -> void:
 	# climb toward the player (the eruption is ahead-and-above as you ascend).
 	_crater_top = Vector3(0, _y_summit + 55.0, _z_cavern_start + 8.0)
 	# The volcano peak itself: a towering Tripo cone rising behind the cavern mouth, so
-	# the arch reads as the cave set into its base. Visual only (the arch legs + slope
-	# walls do the blocking). A hot glow at the crater sells it as ACTIVE.
-	if ResourceLoader.exists(ROCK % "venus_volcano"):
-		_place_rock("venus_volcano", Vector3(0, _y_summit - 6.0, _z_cavern_start - 80.0), 0.0, 210.0)
+	# the arch reads as the cave set into its base. Prefers the dedicated active-crater-
+	# with-cave hero (venus_crater) over the plain distant cone. Visual only (the arch
+	# legs + slope walls do the blocking). A hot glow at the crater sells it as ACTIVE.
+	var peak := "venus_crater" if ResourceLoader.exists(ROCK % "venus_crater") else "venus_volcano"
+	if ResourceLoader.exists(ROCK % peak):
+		_place_rock(peak, Vector3(0, _y_summit - 6.0, _z_cavern_start - 80.0), 0.0, 210.0)
 	_omni(_crater_top + Vector3(0, 4, 0), 70.0, 3.0, Color(1.0, 0.45, 0.12))
 
 	var timer := Timer.new()
@@ -777,6 +804,24 @@ func _place_rock(nm: String, pos: Vector3, rot_y: float, target_size: float) -> 
 	return m
 
 
+## Place a generated cliff WALL: scale by HEIGHT (not largest dim) so it towers
+## target_height metres over the walkway regardless of the model's raw proportions,
+## rotate, then seat its base at base.y. Visual only (the invisible collision walls
+## contain the player) - used to line the ascent gorge.
+func _place_wall(nm: String, base: Vector3, rot_y: float, target_height: float) -> Node3D:
+	var scene := load(ROCK % nm)
+	if scene == null:
+		return null
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	m.rotation.y = rot_y
+	var raw := _world_aabb(m)
+	m.scale = Vector3.ONE * (target_height / maxf(raw.size.y, 0.01))
+	var ab := _world_aabb(m)
+	m.position = Vector3(base.x, base.y - ab.position.y, base.z)
+	return m
+
+
 func _world_aabb(root: Node3D) -> AABB:
 	var result := AABB()
 	var have := false
@@ -861,6 +906,18 @@ func _box(center: Vector3, size: Vector3, mat: Material, rot := Vector3.ZERO) ->
 	col.rotation = rot
 	add_child(col)
 	return mesh
+
+
+## Collision-only box (no mesh) - invisible containment, e.g. the ascent gorge walls
+## behind the generated cliffs.
+func _collision_box(center: Vector3, size: Vector3, rot := Vector3.ZERO) -> void:
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	col.shape = shape
+	col.position = center
+	col.rotation = rot
+	add_child(col)
 
 
 func _cylinder(center: Vector3, radius: float, height: float, mat: Material) -> void:
