@@ -27,13 +27,16 @@ const MISSION_SCENES := {
 ## seat looks out through it, slightly up, toward the worlds.
 const SEAT_ANCHOR := Vector3(0.0, 0.0, -3.0)
 const SEAT_EYE := Vector3(0.0, 1.55, -2.6)
-const SEAT_LOOK := Vector3(0.0, 2.4, -18.0)
+## Base view is aimed at the planet row so the reticle starts among the worlds.
+const SEAT_LOOK := Vector3(0.5, 5.5, -49.0)
 const SIT_RANGE := 2.8
 
-## How far the seated look can swing off the forward canopy view, so you always
-## stay looking out the window and can't spin round to the back of the room.
-const YAW_LIMIT := deg_to_rad(40.0)
-const PITCH_LIMIT := deg_to_rad(26.0)
+## How far the seated look can swing off the forward canopy view. Kept tight - just
+## enough to put the reticle on the outermost world (~16 deg) - so the view stays
+## framed on the window and never swings into the cramped, hard-edged interior
+## corners behind the seat, which was the source of the look-around visual glitches.
+const YAW_LIMIT := deg_to_rad(22.0)
+const PITCH_LIMIT := deg_to_rad(15.0)
 const LOOK_SENS := 0.0022
 
 ## Hold [F] this long, with a world under the reticle, to Fold to it. The reticle
@@ -41,13 +44,32 @@ const LOOK_SENS := 0.0022
 const HOLD_TIME := 1.2
 const PICK_RADIUS := 150.0
 
-## The worlds drawn out the canopy. `pos` is a world-space point in "space" beyond
-## the window (in front of the HubPlanet backdrop at z=-24), `tint` colours its
-## label. Locked worlds render dim and can't be Folded to, mirroring the table.
+## The worlds are real planets floating far out the canopy (each a sphere on the
+## project's planet shader, per-world tinted like hub_planet.gd), with a name
+## marker pinned just above it. `pos` is the planet centre in "space"; `radius`
+## its size; the colour block feeds the shader. They sit well beyond the window so
+## they read as distant destinations you point the ship at. Locked worlds still
+## show but can't be Folded to, mirroring the table.
+const PLANET_SHADER := "res://shaders/planet.gdshader"
 const WORLDS := [
-	{"mission": "Earth", "pos": Vector3(-4.2, 4.2, -15.0), "tint": Color(0.45, 0.75, 1.0)},
-	{"mission": "Mars", "pos": Vector3(0.2, 5.2, -16.0), "tint": Color(1.0, 0.45, 0.32)},
-	{"mission": "Venus", "pos": Vector3(4.2, 3.7, -15.0), "tint": Color(1.0, 0.85, 0.45)},
+	{
+		"mission": "Earth", "tint": Color(0.55, 0.8, 1.0),
+		"pos": Vector3(-12.0, 5.0, -46.0), "radius": 4.0,
+		"ocean": Color(0.05, 0.22, 0.55), "land": Color(0.16, 0.42, 0.18),
+		"atmo": Color(0.40, 0.65, 1.00), "threshold": 0.52, "bands": 0.05, "clouds": 0.42,
+	},
+	{
+		"mission": "Mars", "tint": Color(1.0, 0.5, 0.36),
+		"pos": Vector3(1.5, 8.0, -54.0), "radius": 3.4,
+		"ocean": Color(0.42, 0.16, 0.09), "land": Color(0.66, 0.34, 0.17),
+		"atmo": Color(1.00, 0.52, 0.30), "threshold": 0.46, "bands": 0.28, "clouds": 0.08,
+	},
+	{
+		"mission": "Venus", "tint": Color(1.0, 0.85, 0.5),
+		"pos": Vector3(13.0, 5.0, -47.0), "radius": 4.0,
+		"ocean": Color(0.62, 0.36, 0.12), "land": Color(0.94, 0.72, 0.32),
+		"atmo": Color(1.00, 0.74, 0.34), "threshold": 0.40, "bands": 0.55, "clouds": 0.70,
+	},
 ]
 
 var _seated: bool = false
@@ -60,6 +82,7 @@ var _player: Node3D
 var _player_cam: Camera3D
 var _seat_cam: Camera3D
 var _labels: Dictionary = {}         # mission -> Label3D
+var _planets: Dictionary = {}        # mission -> planet-centre world position (aim point)
 
 # HUD
 var _hud: CanvasLayer
@@ -71,8 +94,13 @@ var _sit_prompt: Label
 
 
 func _ready() -> void:
+	# The single big "last-deployed" planet is replaced here by the three distant
+	# selectable worlds, so hide it to avoid a giant sphere dominating the canopy.
+	var hub_planet := get_parent().get_node_or_null("HubPlanet") as Node3D
+	if hub_planet:
+		hub_planet.visible = false
 	_build_seat_camera()
-	_build_markers()
+	_build_worlds()
 	_build_hud()
 	set_process(true)
 
@@ -87,31 +115,61 @@ func _build_seat_camera() -> void:
 	_seat_cam.look_at(SEAT_LOOK, Vector3.UP)
 
 
-## One billboarded label per world, floating out the canopy. no_depth_test so it
-## reads over the planet backdrop; dimmed and marked when locked.
-func _build_markers() -> void:
+## Per world: a distant planet sphere on the planet shader, plus a name marker
+## pinned just above it. The marker respects depth (no_depth_test off) so the ship
+## walls occlude it as you swing the view away - no labels bleeding through the
+## hull - and is fixed_size so it stays readable however far the planet sits.
+func _build_worlds() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
+	var shader := load(PLANET_SHADER)
 	for w in WORLDS:
 		var mission: String = w["mission"]
 		var unlocked := true
 		if sm and sm.has_method("is_mission_unlocked"):
 			unlocked = sm.is_mission_unlocked(mission)
+
+		var planet := MeshInstance3D.new()
+		planet.name = "%sPlanet" % mission
+		var sphere := SphereMesh.new()
+		sphere.radius = w["radius"]
+		sphere.height = float(w["radius"]) * 2.0
+		sphere.radial_segments = 48
+		sphere.rings = 24
+		planet.mesh = sphere
+		# Sits outside the room, so it must not be culled by the interior geometry.
+		planet.extra_cull_margin = float(w["radius"]) * 3.0
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			mat.set_shader_parameter("rot_speed", 1.0 / 60.0)
+			mat.set_shader_parameter("ocean_color", w["ocean"])
+			mat.set_shader_parameter("land_color", w["land"])
+			mat.set_shader_parameter("atmo_color", w["atmo"])
+			mat.set_shader_parameter("land_threshold", w["threshold"])
+			mat.set_shader_parameter("band_strength", w["bands"])
+			mat.set_shader_parameter("cloud_amount", w["clouds"])
+			planet.material_override = mat
+		add_child(planet)
+		planet.global_position = w["pos"]
+		_planets[mission] = w["pos"]     # aim at the planet itself, not its label
+
 		var label := Label3D.new()
 		label.name = "%sMarker" % mission
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.no_depth_test = true
+		label.fixed_size = true
+		label.no_depth_test = false
 		label.shaded = false
 		label.double_sided = true
-		label.pixel_size = 0.01
-		label.font_size = 48
-		label.outline_size = 12
-		label.outline_modulate = Color(0, 0, 0, 0.8)
+		label.pixel_size = 0.0007
+		label.font_size = 64
+		label.outline_size = 16
+		label.outline_modulate = Color(0, 0, 0, 0.85)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		var tint: Color = w["tint"]
-		label.modulate = tint if unlocked else tint.darkened(0.55)
+		label.modulate = tint if unlocked else tint.darkened(0.5)
 		label.text = ("◈ %s" % mission.to_upper()) if unlocked else "◈ %s\nLOCKED" % mission.to_upper()
 		add_child(label)                # in-tree before setting the world position
-		label.global_position = w["pos"]
+		label.global_position = w["pos"] + Vector3(0.0, float(w["radius"]) + 1.8, 0.0)
 		_labels[mission] = label
 
 
@@ -146,7 +204,7 @@ func _build_hud() -> void:
 	_fold_bar.add_theme_stylebox_override("fill", fg)
 	_hud.add_child(_fold_bar)
 
-	_hint = _mk_label("[E] leave helm      hold [F] to Fold", 18, HORIZONTAL_ALIGNMENT_CENTER)
+	_hint = _mk_label("[E] Leave Helm", 18, HORIZONTAL_ALIGNMENT_CENTER)
 	_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
@@ -154,7 +212,7 @@ func _build_hud() -> void:
 	_hint.custom_minimum_size = Vector2(440, 0)
 	_hud.add_child(_hint)
 
-	_sit_prompt = _mk_label("[E]  Take the helm", 22, HORIZONTAL_ALIGNMENT_CENTER)
+	_sit_prompt = _mk_label("[E]  Take the Helm", 22, HORIZONTAL_ALIGNMENT_CENTER)
 	_sit_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_sit_prompt.anchor_left = 0.5
 	_sit_prompt.anchor_right = 0.5
@@ -198,11 +256,14 @@ func _find_player() -> Node3D:
 
 
 func _update_seated(delta: float) -> void:
-	# Re-aim the seat camera from the base canopy view by the accumulated look.
+	# Re-aim the seat camera from the base canopy view by the accumulated look. Yaw
+	# is applied about WORLD up (a level pan) and pitch about the camera's own right,
+	# so panning left/right doesn't dip the aim - the earlier local-up yaw did, which
+	# dragged the reticle below the worlds as you looked across them.
 	_seat_cam.global_position = SEAT_EYE
 	_seat_cam.look_at(SEAT_LOOK, Vector3.UP)
-	_seat_cam.rotate_object_local(Vector3.UP, _yaw)
-	_seat_cam.rotate_object_local(Vector3.RIGHT, _pitch)
+	var base := _seat_cam.global_transform.basis
+	_seat_cam.global_transform.basis = Basis(Vector3.UP, _yaw) * base * Basis(Vector3.RIGHT, _pitch)
 
 	_target = _pick_target()
 	var sm := get_node_or_null("/root/SaveManager")
@@ -224,18 +285,18 @@ func _update_seated(delta: float) -> void:
 	if _target == "":
 		_target_label.text = "AIM AT A WORLD"
 	elif locked:
-		_target_label.text = "%s  —  LOCKED" % _target.to_upper()
+		_target_label.text = "%s  -  LOCKED" % _target.to_upper()
 	else:
-		_target_label.text = "%s  —  HOLD [F] TO FOLD" % _target.to_upper()
+		_target_label.text = "%s  -  HOLD [F] TO FOLD" % _target.to_upper()
 
 
-## The world nearest the screen centre within PICK_RADIUS, or "".
+## The world whose planet is nearest the screen centre within PICK_RADIUS, or "".
 func _pick_target() -> String:
 	var centre := get_viewport().get_visible_rect().size * 0.5
 	var best := ""
 	var best_d := PICK_RADIUS
-	for mission in _labels:
-		var pos: Vector3 = (_labels[mission] as Label3D).global_position
+	for mission in _planets:
+		var pos: Vector3 = _planets[mission]
 		if _seat_cam.is_position_behind(pos):
 			continue
 		var screen := _seat_cam.unproject_position(pos)
