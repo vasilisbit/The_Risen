@@ -87,7 +87,9 @@ func _build_props() -> void:
 	# the helm you take (scripts/helm_station.gd) to point the ship at a world. The
 	# fal.ai hero seat replaces the old kit chair; falls back to it if the GLB is
 	# missing (e.g. before the first asset scan).
-	if not _gen_seat(Vector3(0.0, 0, -3.1), PI):
+	# Rest yaw is turned slightly off the window; helm_station swivels it to face the
+	# canopy when you take the helm. (PI*0.5 faces the window for this seat model.)
+	if not _gen_seat(Vector3(0.0, 0, -3.1), PI * 0.5 + 0.5):
 		_prop("Prop_Chair", Vector3(0.0, 0, -3.1), 0.0, 1.0)
 	_console(Vector3(3.3, 0, -4.2), -0.42)
 	_prop("Prop_Locker", Vector3(-4.5, 0, 1.6), -PI * 0.5, 1.0)
@@ -242,6 +244,7 @@ func _gen_seat(pos: Vector3, rot_y: float, target_h: float = 1.35) -> bool:
 		return false
 	var m := (scene as PackedScene).instantiate() as Node3D
 	add_child(m)
+	m.add_to_group("pilot_seat")
 	m.rotation.y = rot_y
 	m.position = pos
 	var aabb := _combined_aabb(m)

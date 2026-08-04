@@ -27,8 +27,8 @@ const MISSION_SCENES := {
 ## seat looks out through it, slightly up, toward the worlds.
 const SEAT_ANCHOR := Vector3(0.0, 0.0, -3.0)
 const SEAT_EYE := Vector3(0.0, 1.55, -2.6)
-## Base view is aimed at the planet row so the reticle starts among the worlds.
-const SEAT_LOOK := Vector3(0.5, 5.5, -49.0)
+## Base view frames the solar-system spread (near hero world + far background ones).
+const SEAT_LOOK := Vector3(0.0, 4.3, -40.0)
 const SIT_RANGE := 2.8
 
 ## How far the seated look can swing off the forward canopy view. Kept tight - just
@@ -44,30 +44,34 @@ const LOOK_SENS := 0.0022
 const HOLD_TIME := 1.2
 const PICK_RADIUS := 150.0
 
-## The worlds are real planets floating far out the canopy (each a sphere on the
-## project's planet shader, per-world tinted like hub_planet.gd), with a name
-## marker pinned just above it. `pos` is the planet centre in "space"; `radius`
-## its size; the colour block feeds the shader. They sit well beyond the window so
-## they read as distant destinations you point the ship at. Locked worlds still
-## show but can't be Folded to, mirroring the table.
+## The worlds are real planets out the canopy (each a sphere on the project's planet
+## shader, per-world tinted like hub_planet.gd) with a name marker pinned above it.
+## Positions aren't fixed per planet - they're assigned to SLOTS at build time so the
+## LAST-VISITED world sits close + large in the foreground and the rest hang far in
+## the background at different heights/depths, reading as a solar system rather than
+## a flat row. The colour block feeds the shader. Locked worlds show but can't Fold.
 const PLANET_SHADER := "res://shaders/planet.gdshader"
 const SCREEN_SHADER := "res://shaders/cockpit_screen.gdshader"
+const ORDER := ["Earth", "Mars", "Venus"]
+## Slot 0 = the near/foreground hero world (last visited); slots 1-2 = far background.
+const SLOTS := [
+	{"pos": Vector3(-3.0, 3.2, -28.0), "radius": 6.2, "near": true},
+	{"pos": Vector3(16.0, 10.0, -86.0), "radius": 3.3, "near": false},
+	{"pos": Vector3(-14.5, 8.0, -98.0), "radius": 2.8, "near": false},
+]
 const WORLDS := [
 	{
 		"mission": "Earth", "tint": Color(0.55, 0.8, 1.0),
-		"pos": Vector3(-12.0, 5.0, -46.0), "radius": 4.0,
 		"ocean": Color(0.05, 0.22, 0.55), "land": Color(0.16, 0.42, 0.18),
 		"atmo": Color(0.40, 0.65, 1.00), "threshold": 0.52, "bands": 0.05, "clouds": 0.42,
 	},
 	{
 		"mission": "Mars", "tint": Color(1.0, 0.5, 0.36),
-		"pos": Vector3(1.5, 8.0, -54.0), "radius": 3.4,
 		"ocean": Color(0.42, 0.16, 0.09), "land": Color(0.66, 0.34, 0.17),
 		"atmo": Color(1.00, 0.52, 0.30), "threshold": 0.46, "bands": 0.28, "clouds": 0.08,
 	},
 	{
 		"mission": "Venus", "tint": Color(1.0, 0.85, 0.5),
-		"pos": Vector3(13.0, 5.0, -47.0), "radius": 4.0,
 		"ocean": Color(0.62, 0.36, 0.12), "land": Color(0.94, 0.72, 0.32),
 		"atmo": Color(1.00, 0.74, 0.34), "threshold": 0.40, "bands": 0.55, "clouds": 0.70,
 	},
@@ -85,13 +89,18 @@ var _seat_cam: Camera3D
 var _labels: Dictionary = {}         # mission -> Label3D
 var _planets: Dictionary = {}        # mission -> planet-centre world position (aim point)
 
-# Deploying multi-screen console (rises + the wings fold open when you sit).
+# Cockpit console that rises when you sit, and the seat that swivels to the window.
 var _console: Node3D
-var _screen_left: Node3D
-var _screen_right: Node3D
 var _console_tween: Tween
-const CONSOLE_STOW := Vector3(0.0, -0.75, 0.0)   # sunk into the dash + wings folded
-const CONSOLE_WING := deg_to_rad(34.0)           # how far each side screen swings open
+const CONSOLE_STOW := Vector3(0.0, -0.75, 0.0)   # sunk into the dash when stowed
+
+var _seat: Node3D
+var _seat_rest_yaw: float = 0.0
+var _seat_known: bool = false
+var _seat_tween: Tween
+## The pilot seat is placed at its rest yaw by hub_structure; on sit it swivels to
+## face the canopy, on leave it swivels back (reference: the chair turns to the window).
+const SEAT_FACE_YAW := PI * 0.5
 
 # HUD
 var _hud: CanvasLayer
@@ -132,8 +141,24 @@ func _build_seat_camera() -> void:
 func _build_worlds() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	var shader := load(PLANET_SHADER)
+	# Assign slots: the last-visited world takes the near/foreground slot, the others
+	# the far background slots (in ORDER) - so the canopy reads as a solar system.
+	var cfg := {}
 	for w in WORLDS:
-		var mission: String = w["mission"]
+		cfg[w["mission"]] = w
+	var last := _last_visited()
+	var seq := [last]
+	for m in ORDER:
+		if m != last:
+			seq.append(m)
+
+	for i in seq.size():
+		var mission: String = seq[i]
+		var w: Dictionary = cfg[mission]
+		var slot: Dictionary = SLOTS[mini(i, SLOTS.size() - 1)]
+		var pos: Vector3 = slot["pos"]
+		var radius: float = slot["radius"]
+		var near: bool = slot["near"]
 		var unlocked := true
 		if sm and sm.has_method("is_mission_unlocked"):
 			unlocked = sm.is_mission_unlocked(mission)
@@ -141,13 +166,13 @@ func _build_worlds() -> void:
 		var planet := MeshInstance3D.new()
 		planet.name = "%sPlanet" % mission
 		var sphere := SphereMesh.new()
-		sphere.radius = w["radius"]
-		sphere.height = float(w["radius"]) * 2.0
+		sphere.radius = radius
+		sphere.height = radius * 2.0
 		sphere.radial_segments = 48
 		sphere.rings = 24
 		planet.mesh = sphere
 		# Sits outside the room, so it must not be culled by the interior geometry.
-		planet.extra_cull_margin = float(w["radius"]) * 3.0
+		planet.extra_cull_margin = radius * 3.0
 		if shader:
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
@@ -160,8 +185,8 @@ func _build_worlds() -> void:
 			mat.set_shader_parameter("cloud_amount", w["clouds"])
 			planet.material_override = mat
 		add_child(planet)
-		planet.global_position = w["pos"]
-		_planets[mission] = w["pos"]     # aim at the planet itself, not its label
+		planet.global_position = pos
+		_planets[mission] = pos          # aim at the planet itself, not its label
 
 		var label := Label3D.new()
 		label.name = "%sMarker" % mission
@@ -170,7 +195,8 @@ func _build_worlds() -> void:
 		label.no_depth_test = false
 		label.shaded = false
 		label.double_sided = true
-		label.pixel_size = 0.0007
+		# The near/current world's marker reads a little larger.
+		label.pixel_size = 0.0009 if near else 0.00055
 		label.font_size = 64
 		label.outline_size = 16
 		label.outline_modulate = Color(0, 0, 0, 0.85)
@@ -179,107 +205,113 @@ func _build_worlds() -> void:
 		label.modulate = tint if unlocked else tint.darkened(0.5)
 		label.text = ("◈ %s" % mission.to_upper()) if unlocked else "◈ %s\nLOCKED" % mission.to_upper()
 		add_child(label)                # in-tree before setting the world position
-		label.global_position = w["pos"] + Vector3(0.0, float(w["radius"]) + 1.8, 0.0)
+		label.global_position = pos + Vector3(0.0, radius + 1.5, 0.0)
 		_labels[mission] = label
 
 
-## The pilot's multi-screen console: a dark dashboard body with a wide central
-## readout and two angled wing screens. Built stowed + hidden; _deploy_console
-## rises it and folds the wings open when you take the helm (reference: the console
-## that opens as you sit). Cosmetic - the live state is on the HUD.
+## The mission most recently deployed to (the near/foreground world). Default Earth.
+func _last_visited() -> String:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and "data" in sm:
+		var last := String(sm.data.get("last_mission", "Earth"))
+		if ORDER.has(last):
+			return last
+	return "Earth"
+
+
+## The pilot's console: the fal.ai cockpit console asset with subtle live readouts
+## laid into its recessed screens, seated in front of the chair. Built stowed +
+## hidden; _deploy_console rises it when you take the helm, _retract hides it. Falls
+## back to a plain dark box if the asset is missing. Transforms were tuned in-engine.
+const CONSOLE_GLB := "res://assets/generated/interior/cockpit_console.glb"
+const CONSOLE_POS := Vector3(0.0, 1.12, -3.62)
+const CONSOLE_YAW := -90.0
+const CONSOLE_SCALE := 2.65
+const SCREEN_SLOTS := [
+	Vector3(-0.52, 1.25, -3.46), Vector3(0.0, 1.25, -3.46), Vector3(0.52, 1.25, -3.46),
+]
+
 func _build_console() -> void:
 	_console = Node3D.new()
 	_console.name = "Console"
 	add_child(_console)
 
-	# Dashboard body under the screens.
-	var body := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(2.7, 0.5, 0.7)
-	body.mesh = bm
-	var body_mat := StandardMaterial3D.new()
-	body_mat.albedo_color = Color(0.06, 0.07, 0.09)
-	body_mat.metallic = 0.7
-	body_mat.roughness = 0.4
-	body.material_override = body_mat
-	body.position = Vector3(0.0, 0.95, -3.95)
-	body.rotation.x = deg_to_rad(-12.0)
-	_console.add_child(body)
+	var glb := load(CONSOLE_GLB)
+	if glb is PackedScene:
+		var body := (glb as PackedScene).instantiate() as Node3D
+		_console.add_child(body)
+		body.position = CONSOLE_POS
+		body.rotation.y = deg_to_rad(CONSOLE_YAW)
+		body.scale = Vector3.ONE * CONSOLE_SCALE
+	else:
+		var box := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(2.6, 0.5, 0.7)
+		box.mesh = bm
+		var bmat := StandardMaterial3D.new()
+		bmat.albedo_color = Color(0.06, 0.07, 0.09)
+		bmat.metallic = 0.7
+		bmat.roughness = 0.4
+		box.material_override = bmat
+		box.position = Vector3(0.0, 1.0, -3.7)
+		_console.add_child(box)
 
-	# Central screen + two wings. Wings pivot on their own nodes so they fold.
-	_add_screen(_console, Vector3(0.0, 1.34, -3.92), Vector3(deg_to_rad(-18.0), 0.0, 0.0), Vector2(1.55, 0.62))
-	_screen_left = _add_wing(_console, Vector3(-0.85, 1.28, -3.86), Vector2(0.82, 0.52))
-	_screen_right = _add_wing(_console, Vector3(0.85, 1.28, -3.86), Vector2(0.82, 0.52))
+	# Subtle live readouts lying flat in the console's recessed screens.
+	var shader := load(SCREEN_SHADER)
+	for slot in SCREEN_SLOTS:
+		var scr := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(0.42, 0.30)
+		scr.mesh = qm
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			scr.material_override = mat
+		_console.add_child(scr)
+		scr.position = slot
+		scr.rotation.x = deg_to_rad(-90.0)     # lie flat, facing up out of the console
 
-	# Start stowed and hidden; taking the helm reveals + deploys it.
+	# Start stowed and hidden; taking the helm reveals + rises it.
 	_console.position = CONSOLE_STOW
-	_screen_left.rotation.y = 0.0
-	_screen_right.rotation.y = 0.0
 	_console.visible = false
 
 
-## A pivot node carrying one angled wing screen, so _deploy can swing it open about
-## its inner edge. Returns the pivot (rotate its y to fold).
-func _add_wing(parent: Node3D, pos: Vector3, size: Vector2) -> Node3D:
-	var pivot := Node3D.new()
-	pivot.position = pos
-	parent.add_child(pivot)
-	_add_screen(pivot, Vector3.ZERO, Vector3(deg_to_rad(-14.0), 0.0, 0.0), size)
-	return pivot
+## Swivel the pilot seat: to the canopy when you sit, back to its rest angle when
+## you leave. The rest angle is whatever hub_structure placed it at (read once).
+func _swivel_seat(to_window: bool) -> void:
+	if _seat == null or not is_instance_valid(_seat):
+		_seat = get_tree().get_first_node_in_group("pilot_seat") as Node3D
+	if _seat == null:
+		return
+	if not _seat_known:
+		_seat_rest_yaw = _seat.rotation.y
+		_seat_known = true
+	var target := SEAT_FACE_YAW if to_window else _seat_rest_yaw
+	if _seat_tween and _seat_tween.is_valid():
+		_seat_tween.kill()
+	_seat_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_seat_tween.tween_property(_seat, "rotation:y", target, 0.5)
 
 
-## A single glowing screen panel (dark frame + the animated cockpit-screen shader).
-func _add_screen(parent: Node3D, pos: Vector3, rot: Vector3, size: Vector2) -> void:
-	var frame := MeshInstance3D.new()
-	var fbm := BoxMesh.new()
-	fbm.size = Vector3(size.x + 0.06, size.y + 0.06, 0.03)
-	frame.mesh = fbm
-	var fmat := StandardMaterial3D.new()
-	fmat.albedo_color = Color(0.03, 0.04, 0.05)
-	fmat.metallic = 0.6
-	fmat.roughness = 0.5
-	frame.material_override = fmat
-	frame.position = pos
-	frame.rotation = rot
-	parent.add_child(frame)
-
-	var screen := MeshInstance3D.new()
-	var qm := QuadMesh.new()
-	qm.size = size
-	screen.mesh = qm
-	var shader := load(SCREEN_SHADER)
-	if shader:
-		var mat := ShaderMaterial.new()
-		mat.shader = shader
-		screen.material_override = mat
-	screen.position = pos + Vector3(0.0, 0.0, 0.02)
-	screen.rotation = rot
-	parent.add_child(screen)
-
-
-## Reveal and open the console: rise into place while the wings swing outward.
+## Reveal and rise the console into place.
 func _deploy_console() -> void:
 	if _console == null:
 		return
 	_console.visible = true
 	if _console_tween and _console_tween.is_valid():
 		_console_tween.kill()
-	_console_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_console_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_console_tween.tween_property(_console, "position", Vector3.ZERO, 0.55)
-	_console_tween.tween_property(_screen_left, "rotation:y", CONSOLE_WING, 0.55)
-	_console_tween.tween_property(_screen_right, "rotation:y", -CONSOLE_WING, 0.55)
 
 
-## Fold the console away and hide it once stowed.
+## Sink the console away and hide it once stowed.
 func _retract_console() -> void:
 	if _console == null:
 		return
 	if _console_tween and _console_tween.is_valid():
 		_console_tween.kill()
-	_console_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_console_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	_console_tween.tween_property(_console, "position", CONSOLE_STOW, 0.4)
-	_console_tween.tween_property(_screen_left, "rotation:y", 0.0, 0.4)
-	_console_tween.tween_property(_screen_right, "rotation:y", 0.0, 0.4)
 	_console_tween.chain().tween_callback(func() -> void: _console.visible = false)
 
 
@@ -455,6 +487,7 @@ func _take_helm() -> void:
 	_seated = true
 	_set_seated_hud(true)
 	_deploy_console()
+	_swivel_seat(true)
 
 
 func _leave_helm() -> void:
@@ -462,6 +495,7 @@ func _leave_helm() -> void:
 	_hold = 0.0
 	_set_seated_hud(false)
 	_retract_console()
+	_swivel_seat(false)
 	if _player and is_instance_valid(_player):
 		_player.process_mode = Node.PROCESS_MODE_INHERIT
 		var crosshair := _player.get_node_or_null("DebugHUD") as CanvasLayer
