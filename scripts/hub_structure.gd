@@ -10,7 +10,11 @@ const T := 0.3      # wall / slab thickness
 
 
 func _ready() -> void:
-	var wall := _mat(Color(0.20, 0.22, 0.28), 0.0, 0.85)
+	# Grungy fal.ai metal panelling on the walls/ceiling (falls back to flat grey
+	# before the texture is imported).
+	var wall := _panel_mat()
+	if wall == null:
+		wall = _mat(Color(0.20, 0.22, 0.28), 0.0, 0.85)
 	var floor_mat := _mat(Color(0.13, 0.14, 0.17), 0.1, 0.7)
 	# Near-clear, faintly cool glass. Earlier passes tinted and lit it enough
 	# that space read as bright blue through the window instead of black; the
@@ -80,8 +84,11 @@ func _build_props() -> void:
 	# the pilot seat), with the chair between them. The desks used to be plain boxes.
 	_console(Vector3(-3.3, 0, -4.2), 0.42)
 	# Pilot seat centred in the canopy, between the two flanking consoles - this is
-	# the helm you take (scripts/helm_station.gd) to point the ship at a world.
-	_prop("Prop_Chair", Vector3(0.0, 0, -3.1), 0.0, 1.0)
+	# the helm you take (scripts/helm_station.gd) to point the ship at a world. The
+	# fal.ai hero seat replaces the old kit chair; falls back to it if the GLB is
+	# missing (e.g. before the first asset scan).
+	if not _gen_seat(Vector3(0.0, 0, -3.1), PI):
+		_prop("Prop_Chair", Vector3(0.0, 0, -3.1), 0.0, 1.0)
 	_console(Vector3(3.3, 0, -4.2), -0.42)
 	_prop("Prop_Locker", Vector3(-4.5, 0, 1.6), -PI * 0.5, 1.0)
 	_prop("Prop_Locker", Vector3(-4.5, 0, 0.3), -PI * 0.5, 1.0)
@@ -226,6 +233,41 @@ func _add_prop_collision(m: Node3D) -> void:
 	add_child(col)
 
 
+## Load a fal.ai-generated interior GLB, scale it to a target height, rest its base
+## on the floor at `pos` facing yaw `rot_y`, and give it solid collision. Returns
+## false if the GLB is not imported yet, so the caller can fall back to a kit prop.
+func _gen_seat(pos: Vector3, rot_y: float, target_h: float = 1.35) -> bool:
+	var scene := load("res://assets/generated/interior/pilot_seat.glb")
+	if scene == null or not (scene is PackedScene):
+		return false
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	m.rotation.y = rot_y
+	m.position = pos
+	var aabb := _combined_aabb(m)
+	if aabb.size.y > 0.01:
+		m.scale = Vector3.ONE * (target_h / aabb.size.y)
+	# Re-measure after scaling and drop the base onto the floor at pos.y.
+	aabb = _combined_aabb(m)
+	m.position.y += pos.y - aabb.position.y
+	_add_prop_collision(m)
+	return true
+
+
+## Global-space AABB enclosing every visual in `node` (empty AABB if none).
+func _combined_aabb(node: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	for vi in node.find_children("*", "VisualInstance3D", true, false):
+		var a: AABB = (vi as VisualInstance3D).global_transform * (vi as VisualInstance3D).get_aabb()
+		if first:
+			out = a
+			first = false
+		else:
+			out = out.merge(a)
+	return out
+
+
 func _cover(pos: Vector3) -> void:
 	var m := Marker3D.new()
 	m.position = pos
@@ -257,6 +299,31 @@ func _omni(pos: Vector3, range_m: float, energy: float, color: Color) -> void:
 	light.light_energy = energy
 	light.light_color = color
 	add_child(light)
+
+
+## Grungy sci-fi wall panelling from the fal.ai texture set (albedo + patina normal
+## /roughness), world-triplanar so it tiles consistently across the blockout boxes
+## whatever their size. Returns null if the albedo isn't imported yet.
+func _panel_mat() -> StandardMaterial3D:
+	var albedo := load("res://assets/generated/interior/wall_panel_albedo.png") as Texture2D
+	if albedo == null:
+		return null
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = albedo
+	m.metallic = 0.5
+	m.roughness = 1.0
+	var nrm := load("res://assets/generated/interior/wall_panel_normal.png") as Texture2D
+	if nrm:
+		m.normal_enabled = true
+		m.normal_texture = nrm
+	var rgh := load("res://assets/generated/interior/wall_panel_roughness.png") as Texture2D
+	if rgh:
+		m.roughness_texture = rgh
+		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GRAYSCALE
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * 0.35        # ~ one panel tile per ~2.8 m
+	return m
 
 
 func _mat(color: Color, metallic: float, roughness: float, emission := false, em := Color.BLACK, em_energy := 0.0) -> StandardMaterial3D:
