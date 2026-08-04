@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0xrmqd4k0kei"
-path.s3tc="res://.godot/imported/hero_ship2_Color_d74e8abf-c074-4a43-a402-a701e3c8eeef.jpg-7db9a45ce4d742e27091fcedb511d7e4.s3tc.ctex"
+uid="uid://bc2w8nqqdra8s"
+path.s3tc="res://.godot/imported/holo_table_NormalGL_ea8dec60-4511-4e71-a377-653fdeee8be1.jpg-26b33834d35fb2dde6bcea39d0cc4a9e.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "4e0ee95557b95087702b50b5e2583d5d"
+"md5": "be67f4643d87a4353ab608ac8cb988a9"
 }
 
 [deps]
 
-source_file="res://assets/generated/ship/hero_ship2_Color_d74e8abf-c074-4a43-a402-a701e3c8eeef.jpg"
-dest_files=["res://.godot/imported/hero_ship2_Color_d74e8abf-c074-4a43-a402-a701e3c8eeef.jpg-7db9a45ce4d742e27091fcedb511d7e4.s3tc.ctex"]
+source_file="res://assets/generated/interior/holo_table_NormalGL_ea8dec60-4511-4e71-a377-653fdeee8be1.jpg"
+dest_files=["res://.godot/imported/holo_table_NormalGL_ea8dec60-4511-4e71-a377-653fdeee8be1.jpg-26b33834d35fb2dde6bcea39d0cc4a9e.s3tc.ctex"]
 
 [params]
 
@@ -25,12 +25,12 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
-roughness/mode=0
-roughness/src_normal=""
+roughness/mode=1
+roughness/src_normal="res://assets/generated/interior/holo_table_NormalGL_ea8dec60-4511-4e71-a377-653fdeee8be1.jpg"
 process/channel_remap/red=0
 process/channel_remap/green=1
 process/channel_remap/blue=2

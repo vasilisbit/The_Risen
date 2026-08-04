@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://2e3sfxsfe3m6"
-path="res://.godot/imported/hero_ship2.glb-088e3a6c3be19defae32998ed955422e.scn"
+uid="uid://bq5l220g5a5la"
+path="res://.godot/imported/holo_table.glb-d144a55ca78865e41b011d9076989428.scn"
 
 [deps]
 
-source_file="res://assets/generated/ship/hero_ship2.glb"
-dest_files=["res://.godot/imported/hero_ship2.glb-088e3a6c3be19defae32998ed955422e.scn"]
+source_file="res://assets/generated/interior/holo_table.glb"
+dest_files=["res://.godot/imported/holo_table.glb-d144a55ca78865e41b011d9076989428.scn"]
 
 [params]
 

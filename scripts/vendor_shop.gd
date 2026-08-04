@@ -539,8 +539,20 @@ func _build_backdrop() -> Control:
 	# Stall geometry (a recreation of the bay corner the vendor stands in).
 	_stage_box(vp, Vector3(0, -0.05, -1.5), Vector3(16, 0.1, 9), Color(0.13, 0.14, 0.17), 0.6)
 	_stage_box(vp, Vector3(0, 2.4, -4.2), Vector3(16, 7, 0.3), Color(0.19, 0.21, 0.27), 0.9)
-	_stage_box(vp, Vector3(1.6, 0.55, -0.2), Vector3(11, 1.1, 0.7), Color(0.15, 0.16, 0.20), 0.5)
-	_stage_box(vp, Vector3(1.6, 1.15, -0.15), Vector3(11, 0.1, 0.95), Color(0.85, 0.62, 0.30), 0.3)
+	# The fal.ai forge counter as the trade desk in the staged shot (replaces the
+	# plain box; falls back to it if the asset is missing).
+	var fc_scene: Resource = load("res://assets/generated/interior/forge_counter.glb")
+	if fc_scene is PackedScene:
+		var fc := (fc_scene as PackedScene).instantiate() as Node3D
+		vp.add_child(fc)
+		# Fixed transform (the SubViewport isn't in the tree here, so a global-AABB
+		# fit would read identity). -PI/2 spans it left-right; scale 4.0 -> ~1.3 m tall.
+		fc.rotation.y = -PI * 0.5
+		fc.scale = Vector3.ONE * 4.0
+		fc.position = Vector3(0.4, 0.6, -0.5)
+	else:
+		_stage_box(vp, Vector3(1.6, 0.55, -0.2), Vector3(11, 1.1, 0.7), Color(0.15, 0.16, 0.20), 0.5)
+		_stage_box(vp, Vector3(1.6, 1.15, -0.15), Vector3(11, 0.1, 0.95), Color(0.85, 0.62, 0.30), 0.3)
 	_stage_box(vp, Vector3(4.6, 2.7, -3.9), Vector3(3.2, 0.1, 0.8), Color(0.10, 0.11, 0.14), 0.7)
 	_stage_box(vp, Vector3(4.6, 1.9, -3.9), Vector3(3.2, 0.1, 0.8), Color(0.10, 0.11, 0.14), 0.7)
 
@@ -595,6 +607,20 @@ func _stage_box(vp: SubViewport, center: Vector3, size: Vector3, color: Color, r
 	mi.material_override = mat
 	mi.position = center
 	vp.add_child(mi)
+
+
+## Global-space AABB enclosing a staged node's visuals (for scaling/seating a GLB).
+func _stage_aabb(node: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	for vi in node.find_children("*", "VisualInstance3D", true, false):
+		var a: AABB = (vi as VisualInstance3D).global_transform * (vi as VisualInstance3D).get_aabb()
+		if first:
+			out = a
+			first = false
+		else:
+			out = out.merge(a)
+	return out
 
 
 ## A weapon tile for the buy grid: rarity-bordered card with icon, name, stats

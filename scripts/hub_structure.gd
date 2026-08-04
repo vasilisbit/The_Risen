@@ -115,8 +115,12 @@ func _build_interior_details() -> void:
 	# Pipe runs along the cockpit side walls.
 	_gen_prop_glb("res://assets/generated/interior/pipe_bundle.glb", Vector3(-4.6, 2.4, 0.5), 0.0, 5.0, false)
 	_gen_prop_glb("res://assets/generated/interior/pipe_bundle.glb", Vector3(4.6, 2.4, 2.5), 0.0, 4.0, false)
-	# A side control console standing against the right cockpit wall.
-	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(4.3, 0.0, -1.2), -PI * 0.5, 1.1, true)
+	# Side control consoles standing against the cockpit side walls (more of them,
+	# flanking the pilot like the reference cockpit).
+	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(4.55, 0.0, -1.0), -PI * 0.5, 1.0, true)
+	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(4.55, 0.0, 0.6), -PI * 0.5, 1.0, true)
+	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(-4.55, 0.0, -1.8), PI * 0.5, 1.0, true)
+	_gen_prop_glb("res://assets/generated/interior/side_console.glb", Vector3(-4.55, 0.0, 3.0), PI * 0.5, 1.0, true)
 
 
 ## Instance a generated GLB, scale so its larger footprint axis is `target`, sit it
@@ -166,13 +170,15 @@ func _build_vendor_stall() -> void:
 
 	var counter_mat := _mat(Color(0.15, 0.16, 0.20), 0.6, 0.45)
 	var top_mat := _mat(Color(0.85, 0.62, 0.30), 0.7, 0.3, true, Color(0.6, 0.4, 0.15), 0.4)
-	# Wall-to-wall counter (X[-4,4]) - solid, so you trade over it and can't get
-	# to the shop's back. A slim glowing top ledge reads as the trade surface.
-	_box(Vector3(0, 0.55, 11.4), Vector3(8, 1.1, 0.7), counter_mat)
-	_box(Vector3(0, 1.15, 11.35), Vector3(8, 0.1, 0.95), top_mat)
-	# fal.ai forge counter as the player-facing trade desk over the plain box (the box
-	# stays for the solid barrier). Falls back to just the box if the asset is missing.
-	_gen_prop_glb("res://assets/generated/interior/forge_counter.glb", Vector3(0.0, 0.0, 11.15), 0.0, 6.5, true)
+	# The fal.ai forge counter IS the trade desk now (the old plain box is gone). An
+	# invisible full-height barrier below still seals the shop. If the asset is
+	# missing, fall back to the plain box counter so the stall is never open.
+	# -PI/2 turns the counter so its length spans left-right (facing the player); the
+	# model runs front-to-back at yaw 0, which read as a deep block.
+	var counter := _gen_prop_glb("res://assets/generated/interior/forge_counter.glb", Vector3(0.0, 0.0, 11.5), -PI * 0.5, 3.4, true)
+	if counter == null:
+		_box(Vector3(0, 0.55, 11.4), Vector3(8, 1.1, 0.7), counter_mat)
+		_box(Vector3(0, 1.15, 11.35), Vector3(8, 0.1, 0.95), top_mat)
 	# A back partition wall sealing the shop area (with a service gap the drone
 	# sits in), so there's a proper enclosed store behind the counter. Grungy hull
 	# panelling (matches the walls) instead of the flat counter colour, which read as

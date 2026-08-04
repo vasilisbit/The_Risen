@@ -29,6 +29,14 @@ const PLANETS := {
 const LOCKED_BRIGHTNESS := 0.35
 const UNLOCKED_BRIGHTNESS := 1.0
 
+## Realistic planet renders (fal.ai) projected as teal-tinted holograms over the table.
+const PLANET_TEX := {
+	"Earth": "res://assets/generated/interior/planet_earth.png",
+	"Mars": "res://assets/generated/interior/planet_mars.png",
+	"Venus": "res://assets/generated/interior/planet_venus.png",
+}
+const HOLO_TINT := Color(0.55, 0.85, 1.05)
+
 ## Label sits just above each floating planet (radius 0.35 at y = 2.2).
 const LABEL_HEIGHT := 0.6
 const LABEL_SIZE := 0.11
@@ -37,7 +45,8 @@ const TABLE_TOP_Y := 0.85
 const PLANET_Y := 1.95           # about eye level, sitting in the cone mouth
 const PLANET_RADIUS := 0.35
 
-var _materials: Dictionary = {}          # mission -> ShaderMaterial
+var _materials: Dictionary = {}          # mission -> StandardMaterial3D (holo billboard)
+var _tints: Dictionary = {}              # mission -> base tint (for locked dimming)
 var _labels: Dictionary = {}             # mission -> Label3D
 var _projectors: Dictionary = {}         # mission -> StandardMaterial3D (beam)
 var _flicker: float = 0.0
@@ -76,9 +85,9 @@ func refresh() -> void:
 		var unlocked := true
 		if sm and sm.has_method("is_mission_unlocked"):
 			unlocked = sm.is_mission_unlocked(mission)
-		var mat: ShaderMaterial = _materials[mission]
-		mat.set_shader_parameter("brightness",
-			UNLOCKED_BRIGHTNESS if unlocked else LOCKED_BRIGHTNESS)
+		var mat: StandardMaterial3D = _materials[mission]
+		var tint: Color = _tints.get(mission, HOLO_TINT)
+		mat.albedo_color = tint * (UNLOCKED_BRIGHTNESS if unlocked else LOCKED_BRIGHTNESS)
 		if _labels.has(mission):
 			var label: Label3D = _labels[mission]
 			# A locked world still names itself, but says so. The suffix goes on
@@ -92,27 +101,34 @@ func refresh() -> void:
 
 
 func _build() -> void:
-	var shader := load(SHADER)
-	if shader == null:
-		push_warning("HologramTable: %s missing" % SHADER)
-		return
 	_build_console()
 	for mission in PLANETS:
 		var info: Dictionary = PLANETS[mission]
 		var mesh := get_node_or_null("%s/Mesh" % info["node"]) as MeshInstance3D
 		if mesh == null:
 			continue
-		var mat := ShaderMaterial.new()
-		mat.shader = shader
-		mat.set_shader_parameter("base_color", info["base"])
-		mat.set_shader_parameter("land_color", info["land"])
-		mat.set_shader_parameter("land_threshold", info["threshold"])
-		mat.set_shader_parameter("band_strength", info["bands"])
-		# Each planet turns at its own rate so the table doesn't look synced.
-		mat.set_shader_parameter("rot_speed", 0.045 + 0.015 * float(_materials.size()))
-		mesh.material_override = mat
-		_materials[mission] = mat
+		# Hide the old stylised fbm sphere; project the realistic planet render as a
+		# teal-tinted holographic billboard instead (blend-add so black reads as clear).
+		mesh.visible = false
 		var anchor := mesh.get_parent() as Node3D
+		var bb := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(PLANET_RADIUS * 2.4, PLANET_RADIUS * 2.4)
+		bb.mesh = qm
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		mat.billboard_keep_scale = true
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var tex := load(String(PLANET_TEX.get(mission, ""))) as Texture2D
+		if tex:
+			mat.albedo_texture = tex
+		mat.albedo_color = HOLO_TINT
+		bb.material_override = mat
+		anchor.add_child(bb)
+		_materials[mission] = mat
+		_tints[mission] = HOLO_TINT
 		_labels[mission] = _build_label(anchor, info["base"])
 		_projectors[mission] = _build_projector(anchor, BEAM_TINTS.get(mission, BEAM_TINT))
 
@@ -169,9 +185,40 @@ func _build_projector(anchor: Node3D, tint: Color) -> StandardMaterial3D:
 	return mat
 
 
-## The spaceship operation table: a glowing ring around the console top and a
-## faint holographic display surface, so it reads as a command table.
+## The spaceship operation table. Prefer the fal.ai holo-table asset (a real modelled
+## command table); if it's missing, fall back to the procedural glowing ring + disc.
 func _build_console() -> void:
+	var scene := load("res://assets/generated/interior/holo_table.glb")
+	if scene is PackedScene:
+		var t := (scene as PackedScene).instantiate() as Node3D
+		add_child(t)
+		# Scale so the table is ~2.9 m across and sits on the floor, its lit rim just
+		# under the floating planets.
+		var a := _asset_aabb(t)
+		var w: float = maxf(a.size.x, a.size.z)
+		if w > 0.01:
+			t.scale = Vector3.ONE * (2.9 / w)
+		a = _asset_aabb(t)
+		t.position = Vector3(0.0, -a.position.y, 0.0)
+		return
+	_build_console_procedural()
+
+
+## Global-space AABB of a node's visuals.
+func _asset_aabb(node: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	for vi in node.find_children("*", "VisualInstance3D", true, false):
+		var a: AABB = (vi as VisualInstance3D).global_transform * (vi as VisualInstance3D).get_aabb()
+		if first:
+			out = a
+			first = false
+		else:
+			out = out.merge(a)
+	return out
+
+
+func _build_console_procedural() -> void:
 	var ring := MeshInstance3D.new()
 	var tm := TorusMesh.new()
 	tm.inner_radius = 1.32
