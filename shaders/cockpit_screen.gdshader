@@ -1,38 +1,29 @@
 shader_type spatial;
-// Cockpit console screen: an unshaded, self-lit readout that reads as a live panel
-// out of the corner of the eye - a dark glass with an animated bar-graph band, a
-// header strip and rolling scanlines. Purely cosmetic (the helm's real state is on
-// the HUD); this just makes the deploying console feel alive.
+// Cockpit console screen: a SUBTLE self-lit readout - a dim dark-glass panel with a
+// soft moving telemetry waveform, a couple of quiet readout lines and gentle
+// scanlines. Deliberately understated (the loud full-panel equaliser it replaced
+// read as "horrible"); this just gives the console a hint of life. Purely cosmetic.
 render_mode unshaded, cull_disabled;
 
-uniform vec3 tint : source_color = vec3(0.30, 0.80, 1.00);
-uniform float bars = 9.0;        // number of equaliser columns
-uniform float brightness = 1.6;  // >1 so the panel blooms
-
-// cheap per-column hash so each bar has its own height + rhythm
-float hash(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+uniform vec3 tint : source_color = vec3(0.35, 0.78, 0.95);
+uniform float brightness = 0.9;
 
 void fragment() {
 	vec2 uv = UV;
-	vec3 col = tint * 0.05;                       // dark glass base
+	vec3 col = tint * 0.03;                        // near-black glass
 
-	// header strip along the top
-	if (uv.y > 0.86) {
-		col = tint * (uv.x < 0.55 ? 1.3 : 0.25);
-	} else {
-		// equaliser band in the lower ~70%
-		float region = clamp((0.78 - uv.y) / 0.78, 0.0, 1.0);
-		float bx = floor(uv.x * bars);
-		float gap = fract(uv.x * bars);
-		float h = 0.25 + 0.7 * hash(bx);
-		h *= 0.6 + 0.4 * sin(TIME * 2.2 + bx * 1.7);   // pulse
-		if (region < h && gap > 0.16 && gap < 0.84) {
-			col = tint * brightness;
-		}
-	}
+	// soft central waveform line
+	float wave = 0.5 + 0.10 * sin(uv.x * 22.0 + TIME * 2.5) + 0.05 * sin(uv.x * 7.0 - TIME);
+	float d = abs(uv.y - wave);
+	col += tint * brightness * smoothstep(0.05, 0.0, d) * 0.7;
 
-	// rolling scanlines over everything
-	col *= 0.82 + 0.18 * sin(uv.y * 140.0 - TIME * 4.0);
+	// two quiet readout ticks that drift
+	float ticks = step(0.86, fract(uv.x * 6.0 - TIME * 0.15)) * step(0.12, uv.y) * step(uv.y, 0.28);
+	col += tint * brightness * ticks * 0.35;
+
+	// faint scanlines + a slow brightness breathe
+	col *= 0.9 + 0.1 * sin(uv.y * 90.0 - TIME * 3.0);
+	col *= 0.75 + 0.25 * sin(TIME * 0.8);
 	ALBEDO = col;
 	EMISSION = col;
 }
