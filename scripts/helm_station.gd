@@ -236,10 +236,14 @@ const CONSOLE_POS := Vector3(0.0, 1.12, -3.62)
 const CONSOLE_YAW := -90.0
 const CONSOLE_SCALE := 2.65
 const SCREEN_SLOTS := [
-	Vector3(-0.52, 1.31, -3.55), Vector3(0.0, 1.31, -3.55), Vector3(0.52, 1.31, -3.55),
+	Vector3(-0.75, 1.31, -3.55), Vector3(0.0, 1.36, -3.55), Vector3(0.75, 1.31, -3.55),
 ]
-const SCREEN_SIZE := Vector2(0.47, 0.32)
-const SCREEN_TILT := -58.0    # deg: matches the recessed screen glass so it lies flush
+const SCREEN_SIZE := Vector2(0.45, 0.28)
+const SCREEN_TILT := -40.0    # deg: x-tilt of the recessed screen glass (center screen)
+## The console is curved, so the side screens also roll about z (and turn about y) to
+## sit flush on their angled panels. Left rolls +, right rolls - (mirror).
+const SCREEN_SIDE_ROLL := 18.0
+const SCREEN_SIDE_YAW := 12.0
 
 func _build_console() -> void:
 	_console = Node3D.new()
@@ -269,7 +273,7 @@ func _build_console() -> void:
 	# Subtle live readouts lying flat in the console's recessed screens - stored so
 	# they can be switched on only while you're seated.
 	var shader := load(SCREEN_SHADER)
-	for slot in SCREEN_SLOTS:
+	for i in SCREEN_SLOTS.size():
 		var scr := MeshInstance3D.new()
 		var qm := QuadMesh.new()
 		qm.size = SCREEN_SIZE
@@ -279,8 +283,18 @@ func _build_console() -> void:
 			mat.shader = shader
 			scr.material_override = mat
 		_console.add_child(scr)
-		scr.position = slot
-		scr.rotation.x = deg_to_rad(SCREEN_TILT)   # tilt into the recessed screen
+		scr.position = SCREEN_SLOTS[i]
+		# Center screen: pure x-tilt. Side screens also roll/turn onto their angled
+		# panels (left +, right - mirror).
+		var roll := 0.0
+		var yaw := 0.0
+		if i == 0:
+			roll = SCREEN_SIDE_ROLL
+			yaw = SCREEN_SIDE_YAW
+		elif i == SCREEN_SLOTS.size() - 1:
+			roll = -SCREEN_SIDE_ROLL
+			yaw = -SCREEN_SIDE_YAW
+		scr.rotation = Vector3(deg_to_rad(SCREEN_TILT), deg_to_rad(yaw), deg_to_rad(roll))
 		_screens.append(scr)
 
 	# The console is a permanent fixture of the cockpit; only its screens turn on
