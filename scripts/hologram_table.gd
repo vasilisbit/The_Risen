@@ -144,16 +144,13 @@ func _build_projector(anchor: Node3D, tint: Color) -> StandardMaterial3D:
 	# little BELOW the planet's equator and is slightly narrower than the planet,
 	# so the sphere seats down into the cone like a ball in a cup - its widest
 	# point rests on the rim rather than the whole sphere perching on top.
-	# The worlds are now flat billboards (radius ~PLANET_RADIUS*1.2); the beam mouth
-	# reaches up to just below the disc and matches its width, so it reads as the
-	# projection of THAT planet rather than a thin thread beside it.
-	var top_y := -PLANET_RADIUS * 0.9           # cone mouth just under the disc
+	var top_y := -PLANET_RADIUS * 0.3           # cone mouth just below the planet equator
 	var bot_y := TABLE_TOP_Y - PLANET_Y         # beam base sits on the table top
 	var beam_h: float = top_y - bot_y
 
 	var cone := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
-	cm.top_radius = PLANET_RADIUS * 1.2         # match the billboard disc width
+	cm.top_radius = PLANET_RADIUS * 0.95        # a touch narrower so the planet seats in the cup
 	cm.bottom_radius = 0.05                     # narrow at the emitter
 	cm.height = beam_h
 	cm.radial_segments = 28

@@ -112,6 +112,9 @@ func _build_props() -> void:
 const STRUTS_GLB := "res://assets/generated/interior/overhead_struts.glb"
 const PIPE_GLB := "res://assets/generated/interior/pipe_bundle.glb"
 const SIDE_CONSOLE_GLB := "res://assets/generated/interior/side_console.glb"
+## Yaw so the console screen faces the room (not the window/wall). Tuned in-engine.
+const SIDE_CONSOLE_RROT := -PI * 0.5     # right wall (x+): face -X into the room
+const SIDE_CONSOLE_LROT := PI * 0.5      # left wall  (x-): face +X into the room
 ## Cockpit walls are at x = +-5 (interior faces +-4.85). These are grouped so their
 ## transforms can be fine-tuned in play, then baked here.
 func _build_interior_details() -> void:
@@ -124,19 +127,19 @@ func _build_interior_details() -> void:
 		cnp.position = Vector3.ZERO
 		cnp.add_to_group("gen_canopy")
 
-	# Overhead ceiling struts spanning the cockpit (decor, never collides).
-	var s := _gen_prop_glb(STRUTS_GLB, Vector3(0.0, 3.55, -1.0), 0.0, 6.5, false, false)
+	# Overhead ceiling struts spanning the cockpit (has collision now like the rest).
+	var s := _gen_prop_glb(STRUTS_GLB, Vector3(0.0, 3.55, -1.0), 0.0, 6.5, false, true)
 	if s:
 		s.add_to_group("gen_strut")
-	# Pipe runs high ALONG the side walls (rotated to run in Z, -PI/2 so the tubes
-	# face the room not the wall), clear of the consoles below. Decor, no collision.
-	for spec in [[-4.84, 3.0, 4.6], [4.84, 3.0, 4.0]]:
-		var p := _gen_prop_glb(PIPE_GLB, Vector3(spec[0], spec[1], 0.5), -PI * 0.5, spec[2], false, false)
+	# Pipe runs high ALONG the side walls (tubes face the room). Left wall runs at
+	# -PI/2, right wall is the MIRROR (+PI/2) so it doesn't show its back.
+	for spec in [[-4.84, -PI * 0.5, 4.6], [4.84, PI * 0.5, 4.0]]:
+		var p := _gen_prop_glb(PIPE_GLB, Vector3(spec[0], 3.0, 0.5), spec[1], spec[2], false, true)
 		if p:
 			p.add_to_group("gen_pipe")
-	# Side control consoles, backs flush to the side walls (screens facing the room),
-	# flanking the pilot. Right wall faces +PI/2 into the room; left faces -PI/2.
-	for spec in [[4.84, -1.0, PI * 0.5], [4.84, 0.9, PI * 0.5], [-4.84, -1.8, -PI * 0.5], [-4.84, 2.6, -PI * 0.5]]:
+	# Side control consoles standing IN FRONT of the side walls (not embedded),
+	# screens facing the room. Right-wall rot / left-wall rot tuned in-engine.
+	for spec in [[4.35, -1.0, SIDE_CONSOLE_RROT], [4.35, 0.9, SIDE_CONSOLE_RROT], [-4.35, -1.8, SIDE_CONSOLE_LROT], [-4.35, 2.6, SIDE_CONSOLE_LROT]]:
 		var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(spec[0], 0.0, spec[1]), spec[2], 1.0, true)
 		if c:
 			c.add_to_group("gen_side_console")
@@ -222,11 +225,10 @@ func _build_vendor_stall() -> void:
 	_box(Vector3(-3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
 	_box(Vector3(3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
 
-	# Goods on shelves against the back wall, flush to it, no gaps at the ends.
+	# Goods on shelves against the back wall, flush to it, no gaps at the ends. (The two
+	# central crates were removed - they poked up behind the counter as stray "boxes".)
 	_prop("Prop_Shelves_WideTall", Vector3(-3.4, 0, 12.5), PI, 1.0)
 	_prop("Prop_Shelves_WideTall", Vector3(3.4, 0, 12.5), PI, 1.0)
-	_prop("Prop_Crate", Vector3(-1.6, 0, 12.4), PI, 1.0)
-	_prop("Prop_Crate", Vector3(1.6, 0, 12.4), PI, 1.0)
 
 	# The Forge Master himself: the Fab "skm_robot3" mech behind the counter, with
 	# his name over his head, facing the player.
