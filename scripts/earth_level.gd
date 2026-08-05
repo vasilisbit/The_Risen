@@ -250,7 +250,7 @@ func _build_atmosphere() -> void:
 	env.fog_enabled = false
 	env.volumetric_fog_enabled = true
 	env.volumetric_fog_density = 0.0016            # faint global depth only; the street-
-	                                               # level wall is the FogVolume ring below
+												   # level wall is the FogVolume ring below
 	env.volumetric_fog_albedo = Color(0.87, 0.83, 0.75)
 	env.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
 	env.volumetric_fog_length = 400.0
