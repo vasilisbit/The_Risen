@@ -29,3 +29,7 @@ assets/thirdparty/Universal Animation Library 2\[Standard\]
 assets/thirdparty/Universal Base Characters\[Standard\]
 assets/thirdparty/voxel-mechas
 assets/thirdparty/voxelspacecolony
+
+# Python bytecode cache (tools/)
+__pycache__/
+*.pyc

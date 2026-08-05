@@ -26,6 +26,16 @@ const EDITOR_NOT_READY := "EDITOR_NOT_READY"
 const UNKNOWN_COMMAND := "UNKNOWN_COMMAND"
 const INTERNAL_ERROR := "INTERNAL_ERROR"
 const DEFERRED_TIMEOUT := "DEFERRED_TIMEOUT"
+## Python-originated attach bridge codes. GDScript has no emit path, but the
+## public registry intentionally mirrors protocol/errors.py.
+const TRANSPORT_OUTCOME_UNKNOWN := "TRANSPORT_OUTCOME_UNKNOWN"
+const NEW_CLIENT_SESSION_REQUIRED := "NEW_CLIENT_SESSION_REQUIRED"
+const ATTACH_LOCK_TIMEOUT := "ATTACH_LOCK_TIMEOUT"
+const ATTACH_LOCK_ERROR := "ATTACH_LOCK_ERROR"
+const ATTACH_RUNTIME_DIR_ERROR := "ATTACH_RUNTIME_DIR_ERROR"
+const PORT_OCCUPIED := "PORT_OCCUPIED"
+const BACKEND_START_FAILED := "BACKEND_START_FAILED"
+const BACKEND_START_TIMEOUT := "BACKEND_START_TIMEOUT"
 # game_eval failure codes (#490) — keep in sync with protocol/errors.py
 const EVAL_COMPILE_ERROR := "EVAL_COMPILE_ERROR"
 const EVAL_RUNTIME_ERROR := "EVAL_RUNTIME_ERROR"
@@ -51,6 +61,16 @@ const EVAL_HUNG := "EVAL_HUNG"
 ## to the 10s backstop as a phantom "hang". Failing fast game-side with the
 ## real byte count makes the failure actionable (return a smaller slice).
 const EVAL_RESULT_TOO_LARGE := "EVAL_RESULT_TOO_LARGE"
+## #777: a game-side request (currently editor_screenshot source="game")
+## reached a live, registered game helper but no reply came back before the
+## editor-side timer fired. Every editor gate already passed
+## (is_playing_scene, helper hello) so this is a TOP-LEVEL code, not an
+## EDITOR_NOT_READY sub-code: the game process itself failed to respond —
+## backgrounded with a frozen main loop and nothing rendered to fall back
+## on, main thread blocked, or the helper died mid-run. Carved out of
+## INTERNAL_ERROR (the largest opaque timeout bucket fleet-wide) so the
+## residual timeout is attributable and actionable.
+const GAME_HELPER_TIMEOUT := "GAME_HELPER_TIMEOUT"
 ## audit-v2 #21 (issue #365): finer-grained codes carved out of the 471
 ## INVALID_PARAMS sites so agents can distinguish recoverable input
 ## errors from structural ones. INVALID_PARAMS stays for genuinely
@@ -95,6 +115,16 @@ const SUB_EDITOR_VIEWPORT_UNAVAILABLE := "EDITOR_VIEWPORT_UNAVAILABLE"
 const SUB_EDITOR_VIEWPORT_NOT_3D := "EDITOR_VIEWPORT_NOT_3D"
 const SUB_EDITOR_VIEWPORT_EMPTY := "EDITOR_VIEWPORT_EMPTY"
 const SUB_EDITOR_UNAVAILABLE := "EDITOR_UNAVAILABLE"
+## Emitted only by the exclusive-run transport servicing path: a command
+## arrived while a synchronous test run holds the main thread, and was
+## rejected (not buffered) so it can't replay stale after its server-side
+## future expires. See connection.gd::service_transport_during_exclusive_run.
+const SUB_EDITOR_TEST_RUNNING := "EDITOR_TEST_RUNNING"
+
+## Terminal code for a test run that hit its between-test abort ceiling
+## before finishing. error.data carries the partial summary; full partial
+## results stay retrievable via get_test_results.
+const TEST_RUN_TIMEOUT := "TEST_RUN_TIMEOUT"
 
 
 ## Build a standard error response dictionary.
