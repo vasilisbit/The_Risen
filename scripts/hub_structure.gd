@@ -128,13 +128,15 @@ func _build_interior_details() -> void:
 	var s := _gen_prop_glb(STRUTS_GLB, Vector3(0.0, 3.55, -1.0), 0.0, 6.5, false, false)
 	if s:
 		s.add_to_group("gen_strut")
-	# Pipe runs ALONG the side walls (rotated to run in Z), flush to the wall, decor.
-	for spec in [[-4.82, 0.0, 4.6], [4.82, 1.6, 4.0]]:
-		var p := _gen_prop_glb(PIPE_GLB, Vector3(spec[0], 2.6, spec[1]), PI * 0.5, spec[2], false, false)
+	# Pipe runs high ALONG the side walls (rotated to run in Z, -PI/2 so the tubes
+	# face the room not the wall), clear of the consoles below. Decor, no collision.
+	for spec in [[-4.84, 3.0, 4.6], [4.84, 3.0, 4.0]]:
+		var p := _gen_prop_glb(PIPE_GLB, Vector3(spec[0], spec[1], 0.5), -PI * 0.5, spec[2], false, false)
 		if p:
 			p.add_to_group("gen_pipe")
-	# Side control consoles, backs to the cockpit side walls, flanking the pilot.
-	for spec in [[4.7, -1.0, -PI * 0.5], [4.7, 0.9, -PI * 0.5], [-4.7, -1.8, PI * 0.5], [-4.7, 2.6, PI * 0.5]]:
+	# Side control consoles, backs flush to the side walls (screens facing the room),
+	# flanking the pilot. Right wall faces +PI/2 into the room; left faces -PI/2.
+	for spec in [[4.84, -1.0, PI * 0.5], [4.84, 0.9, PI * 0.5], [-4.84, -1.8, -PI * 0.5], [-4.84, 2.6, -PI * 0.5]]:
 		var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(spec[0], 0.0, spec[1]), spec[2], 1.0, true)
 		if c:
 			c.add_to_group("gen_side_console")
@@ -192,11 +194,20 @@ func _build_vendor_stall() -> void:
 	# The fal.ai forge counter IS the trade desk now (the old plain box is gone). An
 	# invisible full-height barrier below still seals the shop. If the asset is
 	# missing, fall back to the plain box counter so the stall is never open.
-	# -PI/2 turns the counter so its length spans left-right (facing the player); the
-	# model runs front-to-back at yaw 0, which read as a deep block. Sized wide (most
-	# of the 8 m bay, still short of the walls) and tall for an imposing forge desk.
-	var counter := _gen_prop_glb("res://assets/generated/interior/forge_counter.glb", Vector3(0.0, 0.0, 11.5), -PI * 0.5, 6.4, true)
-	if counter:
+	# -PI/2 turns the counter so its length spans left-right (facing the player).
+	# NON-uniform scale keeps it wide (most of the bay) but SHORT so you can see the
+	# Forge Master over it. Native ~(x0.36, y0.33, z0.98); after the -90 yaw the local
+	# Z (length) becomes world width, local Y stays the (short) height.
+	var counter: Node3D = null
+	var cscene := load("res://assets/generated/interior/forge_counter.glb")
+	if cscene is PackedScene:
+		counter = (cscene as PackedScene).instantiate() as Node3D
+		add_child(counter)
+		counter.rotation.y = -PI * 0.5
+		counter.scale = Vector3(4.4, 3.7, 6.2)     # world -> depth ~1.6, height ~1.2, width ~6.1
+		var ca := _combined_aabb(counter)
+		counter.position = Vector3(0.0, -ca.position.y, 11.5)
+		_add_prop_collision(counter)
 		counter.add_to_group("gen_counter")
 	if counter == null:
 		_box(Vector3(0, 0.55, 11.4), Vector3(8, 1.1, 0.7), counter_mat)

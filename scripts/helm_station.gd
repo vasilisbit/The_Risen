@@ -239,7 +239,7 @@ const SCREEN_SLOTS := [
 	Vector3(-0.52, 1.31, -3.55), Vector3(0.0, 1.31, -3.55), Vector3(0.52, 1.31, -3.55),
 ]
 const SCREEN_SIZE := Vector2(0.47, 0.32)
-const SCREEN_TILT := -46.0    # deg: the recessed screens face up toward the pilot
+const SCREEN_TILT := -58.0    # deg: matches the recessed screen glass so it lies flush
 
 func _build_console() -> void:
 	_console = Node3D.new()
@@ -284,8 +284,9 @@ func _build_console() -> void:
 		_screens.append(scr)
 
 	# The console is a permanent fixture of the cockpit; only its screens turn on
-	# when you take the helm.
-	_console.position = Vector3.ZERO
+	# when you take the helm. Offset grounds it on the floor and pushes it to the
+	# front bulkhead under the window (was floating over the chair).
+	_console.position = Vector3(0.0, -0.72, -0.85)
 	_console.visible = true
 	_set_screens(false)
 

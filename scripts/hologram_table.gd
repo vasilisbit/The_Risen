@@ -159,10 +159,10 @@ func _build_projector(anchor: Node3D, tint: Color) -> StandardMaterial3D:
 	cm.radial_segments = 28
 	cone.mesh = cm
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(tint.r, tint.g, tint.b, 0.09)
+	mat.albedo_color = Color(tint.r, tint.g, tint.b, 0.05)
 	mat.emission_enabled = true
 	mat.emission = tint
-	mat.emission_energy_multiplier = 1.4
+	mat.emission_energy_multiplier = 0.6
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -202,11 +202,11 @@ func _build_console() -> void:
 	if scene is PackedScene:
 		var t := (scene as PackedScene).instantiate() as Node3D
 		add_child(t)
-		# Scale by HEIGHT so the table top lands at TABLE_TOP_Y (a normal ~waist-high
-		# table), then rest its base on the floor - width follows.
+		# Non-uniform: WIDE enough that the three projector beams land on the surface,
+		# but SHORT (top at TABLE_TOP_Y) so the planets float clearly above it.
 		var a := _asset_aabb(t)
-		if a.size.y > 0.01:
-			t.scale = Vector3.ONE * (TABLE_TOP_Y / a.size.y)
+		if a.size.x > 0.01 and a.size.y > 0.01 and a.size.z > 0.01:
+			t.scale = Vector3(3.0 / a.size.x, TABLE_TOP_Y / a.size.y, 3.0 / a.size.z)
 		a = _asset_aabb(t)
 		t.position = Vector3(0.0, -a.position.y, 0.0)
 		return
