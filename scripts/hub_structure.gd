@@ -118,14 +118,8 @@ const SIDE_CONSOLE_LROT := PI * 0.5      # left wall  (x-): face +X into the roo
 ## Cockpit walls are at x = +-5 (interior faces +-4.85). These are grouped so their
 ## transforms can be fine-tuned in play, then baked here.
 func _build_interior_details() -> void:
-	# Curved wraparound canopy frame around the window (Blender-modelled in cockpit
-	# coordinates, so it drops in at the origin unscaled). Decor - no collision.
-	var canopy := load("res://assets/generated/interior/cockpit_canopy.glb")
-	if canopy is PackedScene:
-		var cnp := (canopy as PackedScene).instantiate() as Node3D
-		add_child(cnp)
-		cnp.position = Vector3.ZERO
-		cnp.add_to_group("gen_canopy")
+	# (Canopy removed - the whole ship interior is being rebuilt in Blender; see the
+	# planning docs. The old cockpit_canopy.glb frame is no longer instanced.)
 
 	# Overhead ceiling struts spanning the cockpit (has collision now like the rest).
 	var s := _gen_prop_glb(STRUTS_GLB, Vector3(0.0, 3.55, -1.0), 0.0, 6.5, false, true)
@@ -259,7 +253,7 @@ func _build_vendor_stall() -> void:
 	var nameplate := Label3D.new()
 	nameplate.text = "FORGE MASTER"
 	nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	nameplate.no_depth_test = true
+	nameplate.no_depth_test = false   # respect depth so the name doesn't show through walls
 	nameplate.pixel_size = 0.006
 	nameplate.modulate = Color(0.95, 0.78, 0.32)   # gold, matching the UI
 	nameplate.outline_modulate = Color(0, 0, 0, 0.85)
