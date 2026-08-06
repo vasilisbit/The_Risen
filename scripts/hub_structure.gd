@@ -35,6 +35,22 @@ func _ready() -> void:
 	if region is NavigationRegion3D and region.navigation_mesh != null:
 		region.bake_navigation_mesh(false)
 
+	# The shared 2 m combat jump (for Mars/Venus platforming) feels far too floaty
+	# just walking around the hub, so give the hub player a lower, snappier hop.
+	call_deferred("_tune_hub_jump")
+
+
+## Lower + snappier jump for the hub only (a ~0.8 m hop, ~0.6 s air) — heavier
+## gravity + a smaller take-off than the mission platforming jump.
+func _tune_hub_jump() -> void:
+	var p := get_tree().get_first_node_in_group("player")
+	if p == null:
+		return
+	if "gravity_scale" in p:
+		p.gravity_scale = 1.6
+	if "jump_scale" in p:
+		p.jump_scale = 0.8
+
 
 ## ------------------------------------------------------------- the shell
 ## Instance the Blender-modelled interior and skin each named part. Returns false
@@ -239,7 +255,7 @@ func _flank_console(x: float, z: float, left: bool) -> void:
 	c.add_to_group("gen_side_console")
 	var scr := MeshInstance3D.new()
 	var qm := QuadMesh.new()
-	qm.size = Vector2(0.30, 0.17)            # console-local; inherits the console scale
+	qm.size = Vector2(0.45, 0.25)            # console-local; inherits the console scale
 	scr.mesh = qm
 	var shader := load(SCREEN_SHADER)
 	if shader:
@@ -249,8 +265,9 @@ func _flank_console(x: float, z: float, left: bool) -> void:
 	else:
 		scr.material_override = _mat(Color(0.1, 0.5, 0.6), 0.0, 0.3, true, Color(0.2, 0.8, 1.0), 1.6)
 	c.add_child(scr)
-	scr.position = Vector3(0.215, 0.27, 0.0)  # on the +X screen face, over the monitor
+	scr.position = Vector3(0.03, 0.27, 0.05)  # on the +X screen face, over the monitor
 	scr.rotation.y = PI * 0.5                 # QuadMesh (+Z default) -> face local +X
+	scr.rotation.x = -(PI * 0.08)
 
 
 ## Instance a generated GLB, scale so its larger footprint axis is `target`, sit
