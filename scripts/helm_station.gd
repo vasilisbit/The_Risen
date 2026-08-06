@@ -298,9 +298,10 @@ func _build_console() -> void:
 		_screens.append(scr)
 
 	# The console is a permanent fixture of the cockpit; only its screens turn on
-	# when you take the helm. Offset grounds it on the floor and pushes it to the
-	# front bulkhead under the window (was floating over the chair).
-	_console.position = Vector3(0.0, -0.72, -0.85)
+	# when you take the helm. Offset sits it ON the console table (top ~y0.5, built
+	# by hub_structure._build_console_table) in front of the seated pilot, clear of
+	# the front bulkhead (was on the floor and buried in the wall).
+	_console.position = Vector3(0.0, -0.22, -0.35)
 	_console.visible = true
 	_set_screens(false)
 

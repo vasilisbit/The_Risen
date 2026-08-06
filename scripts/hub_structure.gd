@@ -25,7 +25,10 @@ func _ready() -> void:
 		_build_fallback()
 	_build_collision()
 	_build_lighting()
+	_build_console_table()
+	_build_glass()
 	_place_seat()
+	_dress_props()
 	_build_mirror()
 	_build_vendor_stall()
 
@@ -101,13 +104,18 @@ const REAR_Z := 13.8
 func _build_collision() -> void:
 	var mid := (FRONT_Z + REAR_Z) * 0.5
 	var length := REAR_Z - FRONT_Z + 0.6
-	_col(Vector3(0, -0.15, mid), Vector3(11.0, 0.3, length))          # floor
-	_col(Vector3(0, H * 0.5, FRONT_Z - 0.25), Vector3(11.0, H, 0.4))  # front bulkhead
-	_col(Vector3(0, H * 0.5, REAR_Z + 0.15), Vector3(9.0, H, 0.4))    # rear bulkhead
-	_col(Vector3(-5.15, H * 0.5, 0.5), Vector3(0.4, H, 10.8))         # left cockpit wall
-	_col(Vector3(5.15, H * 0.5, 0.5), Vector3(0.4, H, 10.8))          # right cockpit wall
-	_col(Vector3(-4.35, H * 0.5, 9.7), Vector3(0.4, H, 8.6))          # left bay wall
-	_col(Vector3(4.35, H * 0.5, 9.7), Vector3(0.4, H, 8.6))           # right bay wall
+	# Walls are thick (0.8) and sit so their INNER face is just inside the visual
+	# hull, so the player stops before the wall and the camera can never poke
+	# through it. A full CEILING collider caps the vault so a jump can't leave the
+	# ship. Floor + these are the navmesh source geometry.
+	_col(Vector3(0, -0.15, mid), Vector3(11.4, 0.3, length))          # floor
+	_col(Vector3(0, 4.35, mid), Vector3(11.4, 0.5, length))           # ceiling cap
+	_col(Vector3(0, H * 0.5, FRONT_Z - 0.35), Vector3(11.4, H + 0.6, 0.8))  # front bulkhead
+	_col(Vector3(0, H * 0.5, REAR_Z + 0.25), Vector3(9.4, H + 0.6, 0.8))    # rear bulkhead
+	_col(Vector3(-5.3, H * 0.5, 0.5), Vector3(0.8, H + 0.6, 11.2))    # left cockpit wall
+	_col(Vector3(5.3, H * 0.5, 0.5), Vector3(0.8, H + 0.6, 11.2))     # right cockpit wall
+	_col(Vector3(-4.5, H * 0.5, 9.7), Vector3(0.8, H + 0.6, 9.0))     # left bay wall
+	_col(Vector3(4.5, H * 0.5, 9.7), Vector3(0.8, H + 0.6, 9.0))      # right bay wall
 
 
 func _col(center: Vector3, size: Vector3) -> void:
@@ -131,14 +139,104 @@ func _build_lighting() -> void:
 ## The fal.ai pilot seat at the helm anchor; helm_station.gd finds it by the
 ## "pilot_seat" group and swivels it to the canopy on sit. Rest yaw is turned
 ## slightly off the window (helm swivels it square). Kit-chair fallback.
+const SEAT_POS := Vector3(0.0, 0, -2.9)
+
 func _place_seat() -> void:
-	if not _gen_seat(Vector3(0.0, 0, -3.1), PI * 0.5 + 0.5):
+	if not _gen_seat(SEAT_POS, PI * 0.5 + 0.5):
 		var scene := load("res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Prop_Chair.gltf")
 		if scene:
 			var m := scene.instantiate() as Node3D
 			add_child(m)
-			m.position = Vector3(0.0, 0, -3.1)
+			m.position = SEAT_POS
 			m.add_to_group("pilot_seat")
+
+
+## A grungy panel-textured console table (desk) the cockpit console sits on, in
+## front of the seated pilot and clear of the front bulkhead. Solid so the player
+## can lean on / stand on it but not walk through.
+func _build_console_table() -> void:
+	var top := _panel_mat(Color(0.7, 0.72, 0.78))
+	if top == null:
+		top = _mat(Color(0.16, 0.17, 0.21), 0.5, 0.5)
+	top.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var m := _box(Vector3(0.0, 0.26, -3.97), Vector3(2.9, 0.52, 1.42), top)
+	# a slim gunmetal lip around the top edge for a finished desk read
+	var lip := _mat(Color(0.19, 0.20, 0.23), 0.85, 0.35)
+	_box(Vector3(0.0, 0.53, -3.97), Vector3(3.02, 0.06, 1.54), lip)
+	var col := CollisionShape3D.new()
+	var b := BoxShape3D.new()
+	b.size = Vector3(2.9, 0.52, 1.42)
+	col.shape = b
+	col.position = Vector3(0.0, 0.26, -3.97)
+	add_child(col)
+
+
+## Glass in the canopy so the windshield reads as real windows. Near-clear blue
+## panes filling the opening (x[-3.2,3.2] y[1.1,3.8]) split by the two frame
+## mullions, low-alpha + smooth so the helm's planet billboards still show
+## through. Visual only — the front bulkhead collider already seals the front.
+func _build_glass() -> void:
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.42, 0.56, 0.72, 0.14)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	glass.metallic = 0.0
+	glass.roughness = 0.05
+	glass.rim_enabled = true
+	glass.rim = 0.6
+	glass.rim_tint = 0.5
+	# three panes matching the mullions at x = ±3.2/3
+	var edges := [-3.2, -3.2 / 3.0, 3.2 / 3.0, 3.2]
+	for i in range(edges.size() - 1):
+		var x0: float = edges[i]
+		var x1: float = edges[i + 1]
+		var pane := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(x1 - x0 - 0.12, 2.7)
+		pane.mesh = qm
+		pane.material_override = glass
+		pane.position = Vector3((x0 + x1) * 0.5, (1.1 + 3.8) * 0.5, -4.62)
+		add_child(pane)
+
+
+## Dress the room with our own props, backs to the walls / facing inward: fal.ai
+## side-control consoles down the cockpit flanks, and kit cargo (lockers, crates,
+## a barrel, a chest) in the vendor bay. Each no-ops if its asset is missing.
+const SIDE_CONSOLE_GLB := "res://assets/generated/interior/side_console.glb"
+
+func _dress_props() -> void:
+	# Cockpit flank control consoles (screens facing the room; backs to the walls).
+	for spec in [[-4.55, -1.2, PI * 0.5], [-4.55, 1.4, PI * 0.5], [4.55, -1.2, -PI * 0.5], [4.55, 1.4, -PI * 0.5]]:
+		var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(spec[0], 0.0, spec[1]), spec[2], 1.1, true)
+		if c:
+			c.add_to_group("gen_side_console")
+	# Vendor-bay cargo along the side walls.
+	_prop("Prop_Locker", Vector3(-3.85, 0, 6.6), PI * 0.5, 1.0)
+	_prop("Prop_Locker", Vector3(-3.85, 0, 7.8), PI * 0.5, 1.0)
+	_prop("Prop_Crate", Vector3(3.7, 0, 6.6), -0.3, 1.0)
+	_prop("Prop_Barrel1", Vector3(3.8, 0, 7.6), 0.0, 1.0)
+	_prop("Prop_Chest", Vector3(-3.6, 0, 8.9), PI * 0.5, 1.0)
+
+
+## Instance a generated GLB, scale so its larger footprint axis is `target`, sit
+## its base on the floor at `pos`, rotate to yaw, optional solid collision.
+func _gen_prop_glb(path: String, pos: Vector3, rot_y: float, target: float, collide := true) -> Node3D:
+	var scene := load(path)
+	if scene == null or not (scene is PackedScene):
+		return null
+	var m := (scene as PackedScene).instantiate() as Node3D
+	add_child(m)
+	m.rotation.y = rot_y
+	m.position = pos
+	var a := _combined_aabb(m)
+	var w: float = maxf(a.size.x, a.size.z)
+	if w > 0.01:
+		m.scale = Vector3.ONE * (target / w)
+	a = _combined_aabb(m)
+	m.position.y += pos.y - a.position.y
+	if collide:
+		_add_prop_collision(m)
+	return m
 
 
 ## Full-length mirror on the bay's left wall, glass facing +X into the bay. The
@@ -186,8 +284,10 @@ func _build_vendor_stall() -> void:
 	_box(Vector3(-3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
 	_box(Vector3(3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
 
-	_prop("Prop_Shelves_WideTall", Vector3(-3.4, 0, 12.5), PI, 1.0)
-	_prop("Prop_Shelves_WideTall", Vector3(3.4, 0, 12.5), PI, 1.0)
+	# Flanking the clerk, backs to the partition, pulled in off the side walls
+	# (they were clipping into them at x±3.4).
+	_prop("Prop_Shelves_WideTall", Vector3(-2.35, 0, 12.55), PI, 0.95)
+	_prop("Prop_Shelves_WideTall", Vector3(2.35, 0, 12.55), PI, 0.95)
 
 	var clerk_scene := load("res://assets/thirdparty/fab/skm_robot/skm_robot3_full.fbx")
 	if clerk_scene is PackedScene:
