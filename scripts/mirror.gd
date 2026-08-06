@@ -91,10 +91,12 @@ shader_type spatial;
 render_mode unshaded, cull_disabled;
 uniform sampler2D reflection : filter_linear;
 void fragment() {
-	// The reflection viewport stores a display-referred (sRGB-encoded) image, but
-	// ALBEDO is treated as linear and the main pass tonemaps it AGAIN - which made
-	// the mirror brighter than the room. Decode sRGB->linear here so the colour is
-	// tonemapped exactly once, matching the rest of the scene.
+	// The reflection camera shares the scene's ACES environment, so its texture is
+	// the finished, sRGB-encoded display image. This unshaded material skips the
+	// tonemapper but STILL applies the sRGB OETF on output, so feeding the texture
+	// raw double-encodes it (washed out). Decode sRGB->linear here; the output
+	// re-encode then lands the reflection at exactly the room's brightness.
+	// (The dark-reflection bug was separately fixed by making the hull single-sided.)
 	vec3 c = texture(reflection, SCREEN_UV).rgb;
 	ALBEDO = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
 }
@@ -116,7 +118,6 @@ func _process(_delta: float) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	if _viewport.size != Vector2i(vp):
 		_viewport.size = Vector2i(vp)
-	_match_exposure()
 
 	# Reflect the player camera across the mirror plane (origin = this node,
 	# normal = its +Z, the way the glass faces). Reflecting position AND each
@@ -137,20 +138,6 @@ func _process(_delta: float) -> void:
 	# them. That holds at any distance and angle, where a distance-based near plane
 	# blacked the whole reflection out when the mirror was viewed from across the
 	# room (near grew with the perpendicular distance and clipped everything).
-
-
-## Match the main view's exposure/tonemap so the reflection is not double-
-## tonemapped. The world Environment (shared by the SubViewport) tonemaps the
-## scene into the reflection texture; the main pass then tonemaps the mirror quad
-## again, washing it out. Giving the reflection camera its own copy of that
-## Environment with LINEAR tonemapping means the texture stays scene-linear and is
-## tonemapped exactly once, by the main pass - so the mirror matches the room.
-func _match_exposure() -> void:
-	if _camera.environment != null:
-		return
-	var env: Environment = get_viewport().world_3d.environment
-	if env == null:
-		return
-	var e: Environment = env.duplicate()
-	e.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	_camera.environment = e
+	# The reflection camera keeps the shared ACES environment (no exposure override):
+	# its texture is the finished display image, and the glass shader sRGB-decodes it
+	# so the unshaded re-encode reproduces the room's brightness exactly.

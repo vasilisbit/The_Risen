@@ -50,16 +50,18 @@ func _build_shell() -> bool:
 	# Grungy hull panelling (world-triplanar) on the walls/ceiling; a slightly
 	# darker instance of the same set on the deck so the floor reads distinct but
 	# coherent. Gunmetal on the ribs + canopy frame; emissive teal + warm strips.
+	# Single-sided (default CULL_BACK): the hull loft normals face inward/up, so the
+	# room renders correctly AND the planar mirror lights it right — double-sided
+	# (CULL_DISABLED) walls flipped their normals under the mirror's mirrored camera
+	# and rendered the reflection near-black. Only the transparent glass stays
+	# double-sided.
 	var hull := _panel_mat()
 	if hull == null:
 		hull = _mat(Color(0.20, 0.22, 0.28), 0.4, 0.85)
-	hull.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var deck := _panel_mat(Color(0.55, 0.55, 0.6))
 	if deck == null:
 		deck = _mat(Color(0.11, 0.12, 0.15), 0.35, 0.7)
-	deck.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var metal := _mat(Color(0.19, 0.20, 0.23), 0.85, 0.4)
-	metal.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var teal := _mat(Color(0.15, 0.55, 0.72), 0.6, 0.3, true, Color(0.15, 0.55, 0.72), 1.6)
 	var warm := _mat(Color(1.0, 0.86, 0.62), 0.2, 0.4, true, Color(1.0, 0.8, 0.5), 2.4)
 	# Near-clear blue canopy glass — low alpha + smooth so the helm's planet
@@ -189,7 +191,6 @@ func _build_console_table() -> void:
 	var top := _panel_mat(Color(0.7, 0.72, 0.78))
 	if top == null:
 		top = _mat(Color(0.16, 0.17, 0.21), 0.5, 0.5)
-	top.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var m := _box(Vector3(0.0, 0.26, -3.97), Vector3(2.9, 0.52, 1.42), top)
 	# a slim gunmetal lip around the top edge for a finished desk read
 	var lip := _mat(Color(0.19, 0.20, 0.23), 0.85, 0.35)
@@ -224,20 +225,21 @@ func _dress_props() -> void:
 	_prop("Prop_Crate", Vector3(3.5, 0, 8.4), 0.4, 1.0)
 
 
-## One flank control console against a side wall. The console's broad vented face
-## is local +Z, which — with these mirrored yaws (left wall +90°, right wall -90°) —
-## points into the room on BOTH walls, so all four face the player. The live
-## waveform panel is PARENTED to the console on that +Z face so it always sits
-## square on the front (upper-middle), never floating beside it.
+## One flank control console against a side wall. The real SCREEN is on the model's
+## broad local +X face (upper area); the local ±Z faces are the side vents. So the
+## console is turned to point +X into the room: yaw 0 on the LEFT wall (room = +X),
+## yaw PI on the RIGHT wall (room = -X). The live waveform panel is PARENTED to the
+## console and laid ON the screen (local +X face, at the monitor), facing +X, so all
+## four consoles face the player with the waveform square on the actual screen.
 func _flank_console(x: float, z: float, left: bool) -> void:
-	var yaw := (PI * 0.5) if left else (-PI * 0.5)
+	var yaw := 0.0 if left else PI
 	var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(x, 0.0, z), yaw, 1.1, true)
 	if c == null:
 		return
 	c.add_to_group("gen_side_console")
 	var scr := MeshInstance3D.new()
 	var qm := QuadMesh.new()
-	qm.size = Vector2(0.26, 0.17)            # console-local; inherits the console scale
+	qm.size = Vector2(0.30, 0.17)            # console-local; inherits the console scale
 	scr.mesh = qm
 	var shader := load(SCREEN_SHADER)
 	if shader:
@@ -247,8 +249,8 @@ func _flank_console(x: float, z: float, left: bool) -> void:
 	else:
 		scr.material_override = _mat(Color(0.1, 0.5, 0.6), 0.0, 0.3, true, Color(0.2, 0.8, 1.0), 1.6)
 	c.add_child(scr)
-	scr.position = Vector3(0.0, 0.12, 0.42)  # on the +Z (room-facing) face, upper-middle
-	# QuadMesh faces +Z by default → faces the room after the console's yaw.
+	scr.position = Vector3(0.215, 0.27, 0.0)  # on the +X screen face, over the monitor
+	scr.rotation.y = PI * 0.5                 # QuadMesh (+Z default) -> face local +X
 
 
 ## Instance a generated GLB, scale so its larger footprint axis is `target`, sit
@@ -313,7 +315,6 @@ func _build_vendor_stall() -> void:
 	var shop_wall := _panel_mat()
 	if shop_wall == null:
 		shop_wall = counter_mat
-	shop_wall.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_box(Vector3(-3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
 	_box(Vector3(3.0, 2.0, 12.9), Vector3(2, 4, 0.2), shop_wall)
 
