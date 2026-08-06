@@ -16,6 +16,11 @@ const HEIGHT := 2.4
 ## keeps every layer), but the reflection never sees the glass - which would
 ## otherwise sample its own texture into a hall-of-mirrors - or the backing.
 const NO_REFLECT_LAYER := 1 << 19                    # render layer 20
+## Distance-compensation for the reflection zoom (see _process): fov is unchanged
+## at REF_DIST and closer, and narrows past it (down to MIN_FOV_SCALE of fov) so
+## the Guardian keeps a consistent, usable size instead of shrinking with distance.
+const REF_DIST := 2.6
+const MIN_FOV_SCALE := 0.5
 
 var _viewport: SubViewport
 var _camera: Camera3D
@@ -130,7 +135,12 @@ func _process(_delta: float) -> void:
 	var by := t.basis.y - 2.0 * t.basis.y.dot(n) * n
 	var bz := t.basis.z - 2.0 * t.basis.z.dot(n) * n
 	_camera.global_transform = Transform3D(Basis(bx, by, bz), refl_origin)
-	_camera.fov = main.fov
+	# This is a "check your Guardian" mirror, not a physics demo: a real mirror
+	# shrinks you as you step back, which reads as a bug here. Zoom the reflection
+	# IN as the viewer backs away (narrower fov the farther they are) so the
+	# Guardian stays a usable size, clamped so up close it's a normal mirror.
+	var dist := absf((t.origin - o).dot(n))
+	_camera.fov = main.fov * clampf(REF_DIST / maxf(dist, 0.5), MIN_FOV_SCALE, 1.0)
 	_camera.keep_aspect = main.keep_aspect
 	# Occlusion is handled entirely by render layers, not a near plane: the wall
 	# the mirror hangs on is on NO_REFLECT_LAYER (see hub_structure), as is the
