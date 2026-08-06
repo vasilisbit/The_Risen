@@ -86,9 +86,8 @@ func refresh() -> void:
 		var unlocked := true
 		if sm and sm.has_method("is_mission_unlocked"):
 			unlocked = sm.is_mission_unlocked(mission)
-		var mat: StandardMaterial3D = _materials[mission]
-		var tint: Color = _tints.get(mission, HOLO_TINT)
-		mat.albedo_color = tint * (UNLOCKED_BRIGHTNESS if unlocked else LOCKED_BRIGHTNESS)
+		var mat: ShaderMaterial = _materials[mission]
+		mat.set_shader_parameter("brightness", UNLOCKED_BRIGHTNESS if unlocked else LOCKED_BRIGHTNESS)
 		if _labels.has(mission):
 			var label: Label3D = _labels[mission]
 			# A locked world still names itself, but says so. The suffix goes on
@@ -101,35 +100,36 @@ func refresh() -> void:
 			beam.albedo_color.a = 0.10 if unlocked else 0.04
 
 
+## Tight spread (world x) so the three projections sit within the table's inner ring
+## rather than hanging off the edge.
+const PLANET_X := {"Earth": -0.90, "Mars": 0.0, "Venus": 0.90}
+
 func _build() -> void:
+	var shader := load(SHADER)
+	if shader == null:
+		push_warning("HologramTable: %s missing" % SHADER)
+		return
 	_build_console()
 	for mission in PLANETS:
 		var info: Dictionary = PLANETS[mission]
 		var mesh := get_node_or_null("%s/Mesh" % info["node"]) as MeshInstance3D
 		if mesh == null:
 			continue
-		# Hide the old stylised fbm sphere; project the realistic planet render as a
-		# teal-tinted holographic billboard instead (blend-add so black reads as clear).
-		mesh.visible = false
 		var anchor := mesh.get_parent() as Node3D
-		var bb := MeshInstance3D.new()
-		var qm := QuadMesh.new()
-		qm.size = Vector2(PLANET_RADIUS * 2.4, PLANET_RADIUS * 2.4)
-		bb.mesh = qm
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		mat.billboard_keep_scale = true
-		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		var tex := load(String(PLANET_TEX.get(mission, ""))) as Texture2D
-		if tex:
-			mat.albedo_texture = tex
-		mat.albedo_color = HOLO_TINT
-		bb.material_override = mat
-		anchor.add_child(bb)
+		# Seat the projection over the inner ring (keep its y/z, tighten x).
+		anchor.position.x = PLANET_X.get(mission, anchor.position.x)
+		# Stylised fbm hologram SPHERE (reads correctly from every angle round the
+		# table, unlike a flat billboard) with its projector cone under it.
+		mesh.visible = true
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("base_color", info["base"])
+		mat.set_shader_parameter("land_color", info["land"])
+		mat.set_shader_parameter("land_threshold", info["threshold"])
+		mat.set_shader_parameter("band_strength", info["bands"])
+		mat.set_shader_parameter("rot_speed", 0.045 + 0.015 * float(_materials.size()))
+		mesh.material_override = mat
 		_materials[mission] = mat
-		_tints[mission] = HOLO_TINT
 		_labels[mission] = _build_label(anchor, info["base"])
 		_projectors[mission] = _build_projector(anchor, BEAM_TINTS.get(mission, BEAM_TINT))
 
@@ -266,7 +266,7 @@ func _build_console_procedural() -> void:
 func _build_label(anchor: Node3D, tint: Color) -> Label3D:
 	var label := Label3D.new()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
+	label.no_depth_test = false     # respect depth so the name doesn't show through walls
 	label.shaded = false
 	label.double_sided = true
 	label.pixel_size = 0.0012

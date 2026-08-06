@@ -236,13 +236,13 @@ const CONSOLE_POS := Vector3(0.0, 1.12, -3.62)
 const CONSOLE_YAW := -90.0
 const CONSOLE_SCALE := 2.65
 const SCREEN_SLOTS := [
-	Vector3(-0.75, 1.31, -3.55), Vector3(0.0, 1.36, -3.55), Vector3(0.75, 1.31, -3.55),
+	Vector3(-0.71, 1.31, -3.55), Vector3(0.0, 1.36, -3.55), Vector3(0.71, 1.31, -3.55),
 ]
 const SCREEN_SIZE := Vector2(0.45, 0.28)
 const SCREEN_TILT := -40.0    # deg: x-tilt of the recessed screen glass (center screen)
 ## The console is curved, so the side screens also roll about z (and turn about y) to
 ## sit flush on their angled panels. Left rolls +, right rolls - (mirror).
-const SCREEN_SIDE_ROLL := 18.0
+const SCREEN_SIDE_ROLL := 5.8
 const SCREEN_SIDE_YAW := 12.0
 
 func _build_console() -> void:

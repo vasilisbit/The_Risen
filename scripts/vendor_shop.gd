@@ -545,11 +545,12 @@ func _build_backdrop() -> Control:
 	if fc_scene is PackedScene:
 		var fc := (fc_scene as PackedScene).instantiate() as Node3D
 		vp.add_child(fc)
-		# Fixed transform (the SubViewport isn't in the tree here, so a global-AABB
-		# fit would read identity). -PI/2 spans it left-right; scale 4.0 -> ~1.3 m tall.
+		# Fixed transform (the SubViewport isn't in the tree here, so a global-AABB fit
+		# would read identity). -PI/2 spans it left-right; placed as the foreground trade
+		# desk in front of the clerk (tuned in-engine).
 		fc.rotation.y = -PI * 0.5
-		fc.scale = Vector3.ONE * 4.0
-		fc.position = Vector3(0.4, 0.6, -0.5)
+		fc.scale = Vector3.ONE * 3.1
+		fc.position = Vector3(-1.2, 0.72, 0.45)
 	else:
 		_stage_box(vp, Vector3(1.6, 0.55, -0.2), Vector3(11, 1.1, 0.7), Color(0.15, 0.16, 0.20), 0.5)
 		_stage_box(vp, Vector3(1.6, 1.15, -0.15), Vector3(11, 0.1, 0.95), Color(0.85, 0.62, 0.30), 0.3)
