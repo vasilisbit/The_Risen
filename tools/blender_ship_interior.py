@@ -49,8 +49,9 @@ def g2b(g):
     return (g[0], -g[2], g[1])
 
 
-# One bmesh per material role.
-ROLES = ["Hull", "Deck", "Ribs", "Canopy", "CanopyTeal", "Lights", "Glass"]
+# One bmesh per material role. MirrorWall = the bay's left wall (the wall the
+# mirror hangs on); split out so ONLY it can go on the mirror's no-reflect layer.
+ROLES = ["Hull", "Deck", "Ribs", "Canopy", "CanopyTeal", "Lights", "Glass", "MirrorWall"]
 bm = {r: bmesh.new() for r in ROLES}
 
 
@@ -114,8 +115,12 @@ stations.append(REAR_Z)
 
 for a, b in zip(stations[:-1], stations[1:]):
     ra, rb = ring(a), ring(b)
+    bay = a >= 5.4                    # vendor-bay region
     for i in range(len(ra) - 1):
-        quad("Hull", ra[i], ra[i + 1], rb[i + 1], rb[i])
+        # In the bay, the left wall + left chamfer (ring segments 0,1) are the
+        # MirrorWall so they can be hidden from the mirror's reflection camera.
+        role = "MirrorWall" if (bay and i in (0, 1)) else "Hull"
+        quad(role, ra[i], ra[i + 1], rb[i + 1], rb[i])
 
 # Rear bulkhead: close the rear ring into a solid wall (7-gon, floor line closes it).
 ngon("Hull", ring(REAR_Z))
@@ -153,13 +158,22 @@ def fbox(role, x, y, sx, sy, sz, dz=0.06):
     box(role, x, y, ZF(x) + dz, sx, sy, sz)
 
 
+def ceil_y(x):
+    # the loft's front-ring ceiling edge: apex (0,APEX) sloping to the chamfer.
+    return APEX - (APEX - HC) / (5.0 - CI) * abs(x)
+
+
 SEG = 14
 xs = [-WINX + 2 * WINX * s / SEG for s in range(SEG + 1)]
 for i in range(SEG):
     x0, x1 = xs[i], xs[i + 1]
     fquad("Glass", x0, x1, WY0, WY1)          # curved glass pane strip
-    fquad("Hull", x0, x1, 0.0, WY0)           # curved sill below the glass
-    fquad("Hull", x0, x1, WY1, APEX + 0.15)   # curved brow above the glass
+    # Sill SLANTS from the floor edge (flat, z=FRONT_Z) up to the glass bottom
+    # (bulged, z=ZF); brow SLANTS from the glass top (bulged) up to the ceiling
+    # edge (flat, z=FRONT_Z) — this closes the gaps the bulge opened above/below.
+    quad("Hull", (x0, 0.0, FRONT_Z), (x1, 0.0, FRONT_Z), (x1, WY0, ZF(x1)), (x0, WY0, ZF(x0)))
+    quad("Hull", (x0, WY1, ZF(x0)), (x1, WY1, ZF(x1)),
+         (x1, ceil_y(x1), FRONT_Z), (x0, ceil_y(x0), FRONT_Z))
 # flat side panels: window edge -> hull wall, floor -> ceiling (close the corners)
 for sx in (-1, 1):
     xa, xb = sx * WINX, sx * 5.0

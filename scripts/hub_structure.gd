@@ -74,15 +74,17 @@ func _build_shell() -> bool:
 	glass.rim = 0.5
 
 	# Role -> material. CanopyTeal must be tested before Canopy (prefix match).
+	# MirrorWall (the bay's left wall) shares the hull panel material.
 	var by_role := {
 		"CanopyTeal": teal, "Canopy": metal, "Hull": hull, "Deck": deck,
-		"Ribs": metal, "Lights": warm, "Glass": glass,
+		"Ribs": metal, "Lights": warm, "Glass": glass, "MirrorWall": hull,
 	}
-	# The mirror's reflection camera sits behind the left bay wall; the whole
-	# one-piece hull is put on NO_REFLECT_LAYER so it never occludes the mirror
-	# (the main + seat cameras still render that layer). The deck stays on the
-	# default layer so the floor shows under the Guardian in the reflection.
-	var reflect_hidden := {"Hull": true, "Ribs": true, "Lights": true, "Canopy": true, "CanopyTeal": true}
+	# Only the wall the mirror hangs on (MirrorWall = the bay's left wall), plus the
+	# ribs that stand on it, go on NO_REFLECT_LAYER — so that near wall doesn't
+	# occlude the reflection camera behind it, while the REST of the room (right &
+	# back walls, ceiling, props) still shows in the mirror instead of empty space.
+	# (Main + seat cameras still render this layer, so it's visible in normal play.)
+	var reflect_hidden := {"MirrorWall": true, "Ribs": true}
 
 	for mi in shell.find_children("*", "MeshInstance3D", true, false):
 		var role := _role_of((mi as MeshInstance3D).name)
@@ -96,7 +98,7 @@ func _build_shell() -> bool:
 ## Map an imported mesh-instance name (Blender object name, maybe with a suffix)
 ## to its material role. CanopyTeal first so it doesn't match the Canopy prefix.
 func _role_of(node_name: String) -> String:
-	for role in ["CanopyTeal", "Canopy", "Hull", "Deck", "Ribs", "Lights", "Glass"]:
+	for role in ["CanopyTeal", "Canopy", "MirrorWall", "Hull", "Deck", "Ribs", "Lights", "Glass"]:
 		if node_name.begins_with(role):
 			return role
 	return ""
@@ -222,23 +224,20 @@ func _dress_props() -> void:
 	_prop("Prop_Crate", Vector3(3.5, 0, 8.4), 0.4, 1.0)
 
 
-## One flank control console against a side wall (left=true → left wall, faces
-## +X into the room; else right wall, faces -X) plus a live waveform screen on its
-## face so all four match.
+## One flank control console against a side wall. The console's broad vented face
+## is local +Z, which — with these mirrored yaws (left wall +90°, right wall -90°) —
+## points into the room on BOTH walls, so all four face the player. The live
+## waveform panel is PARENTED to the console on that +Z face so it always sits
+## square on the front (upper-middle), never floating beside it.
 func _flank_console(x: float, z: float, left: bool) -> void:
 	var yaw := (PI * 0.5) if left else (-PI * 0.5)
 	var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(x, 0.0, z), yaw, 1.1, true)
-	if c:
-		c.add_to_group("gen_side_console")
-	var nx := 1.0 if left else -1.0
-	_side_screen(Vector3(x + nx * 0.42, 1.02, z), (PI * 0.5) if left else (-PI * 0.5))
-
-
-## A small animated waveform panel (the cockpit-screen shader) facing the room.
-func _side_screen(pos: Vector3, yaw: float) -> void:
+	if c == null:
+		return
+	c.add_to_group("gen_side_console")
 	var scr := MeshInstance3D.new()
 	var qm := QuadMesh.new()
-	qm.size = Vector2(0.52, 0.32)
+	qm.size = Vector2(0.26, 0.17)            # console-local; inherits the console scale
 	scr.mesh = qm
 	var shader := load(SCREEN_SHADER)
 	if shader:
@@ -247,9 +246,9 @@ func _side_screen(pos: Vector3, yaw: float) -> void:
 		scr.material_override = m
 	else:
 		scr.material_override = _mat(Color(0.1, 0.5, 0.6), 0.0, 0.3, true, Color(0.2, 0.8, 1.0), 1.6)
-	scr.position = pos
-	scr.rotation.y = yaw
-	add_child(scr)
+	c.add_child(scr)
+	scr.position = Vector3(0.0, 0.12, 0.42)  # on the +Z (room-facing) face, upper-middle
+	# QuadMesh faces +Z by default → faces the room after the console's yaw.
 
 
 ## Instance a generated GLB, scale so its larger footprint axis is `target`, sit
