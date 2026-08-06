@@ -205,6 +205,16 @@ for sx in (-1, 1):
     box("Lights", sx * 3.4, HC + 0.02, (FRONT_Z + REAR_Z) / 2, 0.12, 0.05, REAR_Z - FRONT_Z - 2.0)
 
 # --------------------------------------------------------- finalize objects
+# The loft is built from independent quads (no shared verts), so recalc can't make
+# the tube's normals consistent — some faces wound inward, some outward. The hull
+# is rendered SINGLE-SIDED (so the planar mirror lights it correctly), which means
+# any outward-facing face is culled and you'd see space through it. Force every
+# hull/mirror-wall face to point INWARD (toward the room centre) so all walls,
+# ceiling and front panels render from inside.
+import mathutils
+ROOM_CENTER = mathutils.Vector((0.0, -(FRONT_Z + REAR_Z) / 2.0, 2.2))  # blender coords
+INWARD_ROLES = {"Hull", "MirrorWall"}
+
 placeholder = {}
 for r in ROLES:
     m = bpy.data.materials.get(r) or bpy.data.materials.new(r)
@@ -213,6 +223,10 @@ for r in ROLES:
 for r in ROLES:
     b = bm[r]
     bmesh.ops.recalc_face_normals(b, faces=b.faces)
+    if r in INWARD_ROLES:
+        outward = [f for f in b.faces if f.normal.dot(ROOM_CENTER - f.calc_center_median()) < 0.0]
+        if outward:
+            bmesh.ops.reverse_faces(b, faces=outward)
     mesh = bpy.data.meshes.new(r)
     b.to_mesh(mesh)
     b.free()
