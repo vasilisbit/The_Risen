@@ -232,18 +232,18 @@ func _last_visited() -> String:
 ## hidden; _deploy_console rises it when you take the helm, _retract hides it. Falls
 ## back to a plain dark box if the asset is missing. Transforms were tuned in-engine.
 const CONSOLE_GLB := "res://assets/generated/interior/cockpit_console.glb"
-const CONSOLE_POS := Vector3(0.0, 1.12, -3.62)
+const CONSOLE_POS := Vector3(0.0, 1.12, -3.52)
 const CONSOLE_YAW := -90.0
 const CONSOLE_SCALE := 2.65
 const SCREEN_SLOTS := [
-	Vector3(-0.71, 1.31, -3.55), Vector3(0.0, 1.36, -3.55), Vector3(0.71, 1.31, -3.55),
+	Vector3(-0.73, 1.27, -3.52), Vector3(0.0, 1.29, -3.55), Vector3(0.73, 1.27, -3.52),
 ]
-const SCREEN_SIZE := Vector2(0.45, 0.28)
-const SCREEN_TILT := -40.0    # deg: x-tilt of the recessed screen glass (center screen)
+const SCREEN_SIZE := Vector2(0.47, 0.28)
+const SCREEN_TILT := -30.0    # deg: x-tilt of the recessed screen glass (center screen)
 ## The console is curved, so the side screens also roll about z (and turn about y) to
 ## sit flush on their angled panels. Left rolls +, right rolls - (mirror).
-const SCREEN_SIDE_ROLL := 5.8
-const SCREEN_SIDE_YAW := 12.0
+const SCREEN_SIDE_ROLL := 2.3
+const SCREEN_SIDE_YAW := 18.0
 
 func _build_console() -> void:
 	_console = Node3D.new()

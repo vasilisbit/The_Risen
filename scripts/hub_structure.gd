@@ -26,7 +26,6 @@ func _ready() -> void:
 	_build_collision()
 	_build_lighting()
 	_build_console_table()
-	_build_glass()
 	_place_seat()
 	_dress_props()
 	_build_mirror()
@@ -63,11 +62,21 @@ func _build_shell() -> bool:
 	metal.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var teal := _mat(Color(0.15, 0.55, 0.72), 0.6, 0.3, true, Color(0.15, 0.55, 0.72), 1.6)
 	var warm := _mat(Color(1.0, 0.86, 0.62), 0.2, 0.4, true, Color(1.0, 0.8, 0.5), 2.4)
+	# Near-clear blue canopy glass — low alpha + smooth so the helm's planet
+	# billboards read through it, a faint rim so the panes catch the interior light.
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.40, 0.55, 0.72, 0.16)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	glass.metallic = 0.0
+	glass.roughness = 0.05
+	glass.rim_enabled = true
+	glass.rim = 0.5
 
 	# Role -> material. CanopyTeal must be tested before Canopy (prefix match).
 	var by_role := {
 		"CanopyTeal": teal, "Canopy": metal, "Hull": hull, "Deck": deck,
-		"Ribs": metal, "Lights": warm,
+		"Ribs": metal, "Lights": warm, "Glass": glass,
 	}
 	# The mirror's reflection camera sits behind the left bay wall; the whole
 	# one-piece hull is put on NO_REFLECT_LAYER so it never occludes the mirror
@@ -87,7 +96,7 @@ func _build_shell() -> bool:
 ## Map an imported mesh-instance name (Blender object name, maybe with a suffix)
 ## to its material role. CanopyTeal first so it doesn't match the Canopy prefix.
 func _role_of(node_name: String) -> String:
-	for role in ["CanopyTeal", "Canopy", "Hull", "Deck", "Ribs", "Lights"]:
+	for role in ["CanopyTeal", "Canopy", "Hull", "Deck", "Ribs", "Lights", "Glass"]:
 		if node_name.begins_with(role):
 			return role
 	return ""
@@ -104,18 +113,27 @@ const REAR_Z := 13.8
 func _build_collision() -> void:
 	var mid := (FRONT_Z + REAR_Z) * 0.5
 	var length := REAR_Z - FRONT_Z + 0.6
-	# Walls are thick (0.8) and sit so their INNER face is just inside the visual
-	# hull, so the player stops before the wall and the camera can never poke
-	# through it. A full CEILING collider caps the vault so a jump can't leave the
-	# ship. Floor + these are the navmesh source geometry.
+	# The container matches the visual hull so the player can never get behind it.
+	# Lower VERTICAL walls (floor -> shoulder y2.3) + SLOPED colliders following the
+	# ceiling chamfer (y2.3 -> 4.2) + a ceiling cap over the vault. The sloped
+	# pieces are what was missing before — a jump near the top used to slip past the
+	# vertical wall into the chamfer and out of the ship. Floor + these feed the nav bake.
 	_col(Vector3(0, -0.15, mid), Vector3(11.4, 0.3, length))          # floor
-	_col(Vector3(0, 4.35, mid), Vector3(11.4, 0.5, length))           # ceiling cap
-	_col(Vector3(0, H * 0.5, FRONT_Z - 0.35), Vector3(11.4, H + 0.6, 0.8))  # front bulkhead
-	_col(Vector3(0, H * 0.5, REAR_Z + 0.25), Vector3(9.4, H + 0.6, 0.8))    # rear bulkhead
-	_col(Vector3(-5.3, H * 0.5, 0.5), Vector3(0.8, H + 0.6, 11.2))    # left cockpit wall
-	_col(Vector3(5.3, H * 0.5, 0.5), Vector3(0.8, H + 0.6, 11.2))     # right cockpit wall
-	_col(Vector3(-4.5, H * 0.5, 9.7), Vector3(0.8, H + 0.6, 9.0))     # left bay wall
-	_col(Vector3(4.5, H * 0.5, 9.7), Vector3(0.8, H + 0.6, 9.0))      # right bay wall
+	_col(Vector3(0, 4.4, mid), Vector3(9.0, 0.5, length))             # ceiling cap (vault)
+	_col(Vector3(0, 2.0, FRONT_Z - 0.35), Vector3(11.4, 5.4, 0.8))    # front bulkhead
+	_col(Vector3(0, 2.0, REAR_Z + 0.25), Vector3(9.4, 5.4, 0.8))      # rear bulkhead
+	# lower vertical walls (y[-0.3, 2.6])
+	_col(Vector3(-5.15, 1.15, 0.5), Vector3(0.8, 2.9, 11.2))          # left cockpit
+	_col(Vector3(5.15, 1.15, 0.5), Vector3(0.8, 2.9, 11.2))           # right cockpit
+	_col(Vector3(-4.35, 1.15, 9.7), Vector3(0.8, 2.9, 9.0))           # left bay
+	_col(Vector3(4.35, 1.15, 9.7), Vector3(0.8, 2.9, 9.0))            # right bay
+	# sloped chamfer seals (rot about Z; identical slope L/R, mirrored angle)
+	var rr := atan2(1.9, -1.15)   # right side chamfer angle
+	var rl := atan2(1.9, 1.15)    # left side
+	_col_rot(Vector3(4.425, 3.25, 0.5), Vector3(2.4, 0.4, 11.2), rr)  # right cockpit chamfer
+	_col_rot(Vector3(-4.425, 3.25, 0.5), Vector3(2.4, 0.4, 11.2), rl) # left cockpit chamfer
+	_col_rot(Vector3(3.625, 3.25, 9.7), Vector3(2.4, 0.4, 9.0), rr)   # right bay chamfer
+	_col_rot(Vector3(-3.625, 3.25, 9.7), Vector3(2.4, 0.4, 9.0), rl)  # left bay chamfer
 
 
 func _col(center: Vector3, size: Vector3) -> void:
@@ -124,6 +142,17 @@ func _col(center: Vector3, size: Vector3) -> void:
 	box.size = size
 	col.shape = box
 	col.position = center
+	add_child(col)
+
+
+## A box collider rotated about Z (used for the ceiling-chamfer seals).
+func _col_rot(center: Vector3, size: Vector3, rot_z: float) -> void:
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	col.shape = box
+	col.position = center
+	col.rotation.z = rot_z
 	add_child(col)
 
 
@@ -171,51 +200,56 @@ func _build_console_table() -> void:
 	add_child(col)
 
 
-## Glass in the canopy so the windshield reads as real windows. Near-clear blue
-## panes filling the opening (x[-3.2,3.2] y[1.1,3.8]) split by the two frame
-## mullions, low-alpha + smooth so the helm's planet billboards still show
-## through. Visual only — the front bulkhead collider already seals the front.
-func _build_glass() -> void:
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.42, 0.56, 0.72, 0.14)
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
-	glass.metallic = 0.0
-	glass.roughness = 0.05
-	glass.rim_enabled = true
-	glass.rim = 0.6
-	glass.rim_tint = 0.5
-	# three panes matching the mullions at x = ±3.2/3
-	var edges := [-3.2, -3.2 / 3.0, 3.2 / 3.0, 3.2]
-	for i in range(edges.size() - 1):
-		var x0: float = edges[i]
-		var x1: float = edges[i + 1]
-		var pane := MeshInstance3D.new()
-		var qm := QuadMesh.new()
-		qm.size = Vector2(x1 - x0 - 0.12, 2.7)
-		pane.mesh = qm
-		pane.material_override = glass
-		pane.position = Vector3((x0 + x1) * 0.5, (1.1 + 3.8) * 0.5, -4.62)
-		add_child(pane)
-
-
 ## Dress the room with our own props, backs to the walls / facing inward: fal.ai
 ## side-control consoles down the cockpit flanks, and kit cargo (lockers, crates,
 ## a barrel, a chest) in the vendor bay. Each no-ops if its asset is missing.
 const SIDE_CONSOLE_GLB := "res://assets/generated/interior/side_console.glb"
+const SCREEN_SHADER := "res://shaders/cockpit_screen.gdshader"
 
 func _dress_props() -> void:
-	# Cockpit flank control consoles (screens facing the room; backs to the walls).
-	for spec in [[-4.55, -1.2, PI * 0.5], [-4.55, 1.4, PI * 0.5], [4.55, -1.2, -PI * 0.5], [4.55, 1.4, -PI * 0.5]]:
-		var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(spec[0], 0.0, spec[1]), spec[2], 1.1, true)
-		if c:
-			c.add_to_group("gen_side_console")
-	# Vendor-bay cargo along the side walls.
+	# Cockpit flank control consoles: all four the SAME — backs to the wall, the
+	# unit turned so its face (and a live waveform screen) points into the room.
+	# Left wall faces +X, right wall faces -X (mirror), and each gets its own
+	# waveform panel so all four read identically.
+	for z in [-1.2, 1.4]:
+		_flank_console(-4.55, z, true)
+		_flank_console(4.55, z, false)
+	# Vendor-bay cargo along the side walls (clear of the mirror at z9.5).
 	_prop("Prop_Locker", Vector3(-3.85, 0, 6.6), PI * 0.5, 1.0)
 	_prop("Prop_Locker", Vector3(-3.85, 0, 7.8), PI * 0.5, 1.0)
 	_prop("Prop_Crate", Vector3(3.7, 0, 6.6), -0.3, 1.0)
 	_prop("Prop_Barrel1", Vector3(3.8, 0, 7.6), 0.0, 1.0)
-	_prop("Prop_Chest", Vector3(-3.6, 0, 8.9), PI * 0.5, 1.0)
+	_prop("Prop_Crate", Vector3(3.5, 0, 8.4), 0.4, 1.0)
+
+
+## One flank control console against a side wall (left=true → left wall, faces
+## +X into the room; else right wall, faces -X) plus a live waveform screen on its
+## face so all four match.
+func _flank_console(x: float, z: float, left: bool) -> void:
+	var yaw := (PI * 0.5) if left else (-PI * 0.5)
+	var c := _gen_prop_glb(SIDE_CONSOLE_GLB, Vector3(x, 0.0, z), yaw, 1.1, true)
+	if c:
+		c.add_to_group("gen_side_console")
+	var nx := 1.0 if left else -1.0
+	_side_screen(Vector3(x + nx * 0.42, 1.02, z), (PI * 0.5) if left else (-PI * 0.5))
+
+
+## A small animated waveform panel (the cockpit-screen shader) facing the room.
+func _side_screen(pos: Vector3, yaw: float) -> void:
+	var scr := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.52, 0.32)
+	scr.mesh = qm
+	var shader := load(SCREEN_SHADER)
+	if shader:
+		var m := ShaderMaterial.new()
+		m.shader = shader
+		scr.material_override = m
+	else:
+		scr.material_override = _mat(Color(0.1, 0.5, 0.6), 0.0, 0.3, true, Color(0.2, 0.8, 1.0), 1.6)
+	scr.position = pos
+	scr.rotation.y = yaw
+	add_child(scr)
 
 
 ## Instance a generated GLB, scale so its larger footprint axis is `target`, sit
