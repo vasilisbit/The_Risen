@@ -50,7 +50,7 @@ def g2b(g):
 
 
 # One bmesh per material role.
-ROLES = ["Hull", "Deck", "Ribs", "Canopy", "CanopyTeal", "Lights"]
+ROLES = ["Hull", "Deck", "Ribs", "Canopy", "CanopyTeal", "Lights", "Glass"]
 bm = {r: bmesh.new() for r in ROLES}
 
 
@@ -127,41 +127,54 @@ box("Deck", 0.0, 0.02, (FRONT_Z + REAR_Z) / 2, 1.4, 0.04, REAR_Z - FRONT_Z)  # c
 for zz in (-1.5, 3.0, 7.5, 11.0):
     box("Deck", 0.0, 0.015, zz, 10.2, 0.03, 0.14)                             # cross seams
 
-# ------------------------------------------------------------- front bulkhead
-# Solid frame around the windshield opening x[-3.2,3.2] y[1.1,3.8]; the opening
-# itself is left clear so space (and the helm's planet billboards) show through.
+# ------------------------------------------------------- curved canopy front
+# The whole front is a curved windshield that bulges forward in the middle (a
+# canopy), not a flat wall with a frame stuck on it. Everything in the window
+# band follows ZF(x) (the sill, the brow AND the glass) so the glass sits IN the
+# curve with no flat-wall look and no gaps above/below it; flat side panels fill
+# out to the hull walls and up to the ceiling so the top corners are closed.
 WINX = 3.2
 WY0, WY1 = 1.1, 3.8
-box("Hull", 0.0, WY0 / 2, FRONT_Z, 10.0, WY0, 0.2)                    # sill under window
-box("Hull", 0.0, (WY1 + APEX) / 2, FRONT_Z, 2 * WINX, APEX - WY1, 0.2)  # brow over window
+BULGE = 0.7
+
+
+def ZF(x):
+    if abs(x) >= WINX:
+        return FRONT_Z                       # flat where it meets the side walls
+    return FRONT_Z - BULGE * (1.0 - (x / WINX) ** 2)
+
+
+def fquad(role, x0, x1, y0, y1):
+    quad(role, (x0, y0, ZF(x0)), (x1, y0, ZF(x1)), (x1, y1, ZF(x1)), (x0, y1, ZF(x0)))
+
+
+def fbox(role, x, y, sx, sy, sz, dz=0.06):
+    # a small frame box sitting just roomward of the curved surface at x
+    box(role, x, y, ZF(x) + dz, sx, sy, sz)
+
+
+SEG = 14
+xs = [-WINX + 2 * WINX * s / SEG for s in range(SEG + 1)]
+for i in range(SEG):
+    x0, x1 = xs[i], xs[i + 1]
+    fquad("Glass", x0, x1, WY0, WY1)          # curved glass pane strip
+    fquad("Hull", x0, x1, 0.0, WY0)           # curved sill below the glass
+    fquad("Hull", x0, x1, WY1, APEX + 0.15)   # curved brow above the glass
+# flat side panels: window edge -> hull wall, floor -> ceiling (close the corners)
 for sx in (-1, 1):
-    box("Hull", sx * (WINX + (5.0 - WINX) / 2), (WY0 + WY1) / 2, FRONT_Z,
-        5.0 - WINX, WY1 - WY0, 0.2)                                   # side panels
-
-# ------------------------------------------------------------------- canopy
-# A solid windshield frame bulging forward into the opening: sill/brow trim,
-# side pillars, and two mullions splitting it into three panes, plus a teal
-# accent line along the brow (reference: the lit canopy edge).
-CZ = -4.75
-BULGE = 0.65
-
-
-def zf(x):
-    return CZ - BULGE * (1.0 - (x / WINX) ** 2)
-
-
-SEG = 10
-for s in range(SEG):
-    x0 = -WINX + 2 * WINX * s / SEG
-    x1 = -WINX + 2 * WINX * (s + 1) / SEG
+    xa, xb = sx * WINX, sx * 5.0
+    fquad("Hull", min(xa, xb), max(xa, xb), 0.0, APEX + 0.15)
+# frame trim on the curve: sill line, brow line + teal accent, two mullions, pillars
+for i in range(SEG):
+    x0, x1 = xs[i], xs[i + 1]
     mx = (x0 + x1) / 2
-    box("Canopy", mx, WY0, zf(mx), 2 * WINX / SEG, 0.16, 0.16)         # sill trim
-    box("Canopy", mx, WY1, zf(mx), 2 * WINX / SEG, 0.2, 0.2)           # brow trim
-    box("CanopyTeal", mx, WY1 + 0.17, zf(mx), 2 * WINX / SEG, 0.05, 0.05)  # teal accent
-for x in (-WINX, WINX):
-    box("Canopy", x, (WY0 + WY1) / 2, zf(x), 0.2, WY1 - WY0, 0.2)      # A-pillars
+    fbox("Canopy", mx, WY0, 2 * WINX / SEG, 0.14, 0.14)
+    fbox("Canopy", mx, WY1, 2 * WINX / SEG, 0.18, 0.18)
+    fbox("CanopyTeal", mx, WY1 + 0.15, 2 * WINX / SEG, 0.05, 0.05)
 for x in (-WINX / 3.0, WINX / 3.0):
-    box("Canopy", x, (WY0 + WY1) / 2, zf(x), 0.1, WY1 - WY0, 0.1)      # mullions
+    fbox("Canopy", x, (WY0 + WY1) / 2, 0.1, WY1 - WY0, 0.14)            # mullions
+for x in (-WINX, WINX):
+    fbox("Canopy", x, (WY0 + WY1) / 2, 0.2, WY1 - WY0 + 0.3, 0.2)       # A-pillars
 
 # ------------------------------------------------------- ribs + ceiling lights
 # Structural rib rings (vertical pilasters + a ceiling brace) at intervals, plus
