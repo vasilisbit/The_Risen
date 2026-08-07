@@ -100,6 +100,7 @@ var _ship_follow: PathFollow3D
 var _ship_model: Node3D
 var _planet: Node3D
 var _engine_glow: OmniLight3D
+var _engine_player: AudioStreamPlayer
 
 # Overlay UI (freed with this scene on the swap; the white flash lives on ShipTravel).
 var _ui: CanvasLayer
@@ -122,6 +123,7 @@ func play(mission: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	set_process(true)
 	set_process_unhandled_input(true)
+	_start_audio()
 	_run()
 
 
@@ -361,8 +363,36 @@ func _finish() -> void:
 	if _done:
 		return
 	_done = true
+	_stop_audio()
 	_set_state(State.HANDOFF)
 	handoff.emit(_mission)
+
+
+## Fold audio: the warp boom on the jump, a looping engine bed during the flight, and the
+## travel-music stinger. All generated on fal.ai; if a clip is missing these are silent
+## no-ops (AudioManager falls back / returns null).
+func _start_audio() -> void:
+	var am := get_node_or_null("/root/AudioManager")
+	if am == null:
+		return
+	if am.has_method("play_sfx"):
+		am.play_sfx("warp")
+	if am.has_method("play_music"):
+		am.play_music("travel")
+	if am.has_method("_sfx"):
+		var eng: AudioStream = am._sfx("engine")
+		if eng:
+			_engine_player = AudioStreamPlayer.new()
+			_engine_player.bus = "SFX"
+			_engine_player.stream = eng
+			_engine_player.volume_db = -6.0
+			add_child(_engine_player)
+			_engine_player.play()
+
+
+func _stop_audio() -> void:
+	if _engine_player and is_instance_valid(_engine_player):
+		_engine_player.stop()
 
 
 ## Chase-cam: every frame the camera sits at a fixed (tweened) offset from the ship and

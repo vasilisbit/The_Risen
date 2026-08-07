@@ -53,10 +53,19 @@ func _build_ui() -> void:
 	add_child(_label)
 
 
-## Set the hero ship down on the ground a few metres ahead of the player, angled to face
-## them, as the boarding point. Ground-snapped by a downward ray; grounded fallback if the
-## asset or a surface is missing (the [L]/auto exit still works either way).
+## Pick the boarding point. Preferred: the mission's PERMANENT parked ship (group
+## "extraction_ship", placed behind the spawn by the level) - the one that's been sitting
+## there the whole mission. Only if a level has none do we set a temporary ship down ahead
+## of the player as a fallback. Grounded fallback if the asset/surface is missing too, so
+## the [L]/auto exit can never soft-lock.
 func _land_ship() -> void:
+	var parked := get_tree().get_first_node_in_group("extraction_ship") as Node3D
+	if parked and is_instance_valid(parked):
+		_ship = parked
+		_ship_pos = parked.global_position
+		_has_ship = true
+		return
+
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	if player == null:
 		return

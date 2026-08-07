@@ -104,6 +104,11 @@ func _ready() -> void:
 	_build_spawns()
 	_build_kill_plane()
 
+	# The player's ship, parked on the apron behind the spawn (board it to extract).
+	var ship := preload("res://scripts/landed_ship.gd").new()
+	add_child(ship)
+	ship.configure(Vector3(0, 0.0, 25.0), Vector3(0, 1.0, 6.0))
+
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
 		region.bake_navigation_mesh(false)
@@ -117,15 +122,15 @@ func _build_kill_plane() -> void:
 	a.body_entered.connect(_on_void)
 
 	# BEHIND the spawn pad (z > 12) is open void - the ascent climbs the other way (-z),
-	# so there is no floor and only the distant, collision-less horizon volcanoes back
-	# there. Stepping off the back used to drop you ~56 m at speed, which could TUNNEL
-	# the thin main kill plane above (a fast body can cross its 4 m in one physics frame
-	# without firing body_entered) - so you'd fall forever. Cover the whole behind-spawn
-	# region with a TALL lethal volume that catches you the instant you leave the pad's
-	# back edge. It starts at z 13 (just past the pad, which ends at z 12) so a player
-	# standing on the pad or climbing the slope (z <= 12) is never touched, and it sits
-	# far from the boss arena (which is at a large negative z), so nothing legit overlaps.
-	var back := _area(Vector3(0, -28.0, 210.0), Vector3(600, 64, 394))
+	# so there is no floor back there. Stepping off the back used to drop you ~56 m at
+	# speed, which could TUNNEL the thin main kill plane above (a fast body can cross its
+	# 4 m in one physics frame without firing body_entered) - so you'd fall forever. Cover
+	# the whole behind-spawn region with a TALL lethal volume. Its TOP is at y -2, i.e.
+	# just BELOW every walkable surface back there (the spawn pad + the parked-ship landing
+	# apron both sit at y 0), so standing on them is safe but stepping off any edge drops
+	# you below y -2 into the volume = instant death + checkpoint respawn. It sits far from
+	# the boss arena (large negative z), so nothing legit overlaps.
+	var back := _area(Vector3(0, -31.0, 210.0), Vector3(600, 58, 394))
 	back.body_entered.connect(_on_void)
 
 
@@ -151,6 +156,11 @@ func _build_ascent() -> void:
 
 	# Flat staging pad at the foot of the volcano (player spawns here).
 	_box(Vector3(0, -T * 0.5, 6), Vector3(ASCENT_WIDTH, T, 12), _rock)
+	# Landing apron reaching BEHIND the spawn (into +z) so the parked ship has solid,
+	# prop-free ground to stand on over the drop. Its top is at y 0, above the lethal
+	# void volume (top y -2), so it is safe to walk while stepping off its far/side edges
+	# is still a lethal fall. Continuous with the staging pad (both z-spans meet at ~z10).
+	_box(Vector3(0, -T * 0.5, 25.0), Vector3(36, T, 32), _rock)
 	# Gorge walls flank the flat staging pad too, seated at the pad level (y 0), so the
 	# cliffs are continuous from the spawn - no floating first wall / open gap at the foot.
 	for s in [-1.0, 1.0]:
