@@ -76,6 +76,7 @@ func _ready() -> void:
 	var ship := preload("res://scripts/landed_ship.gd").new()
 	add_child(ship)
 	ship.configure(Vector3(0, 0.0, 23.0), Vector3(0, 1.0, 9.0))
+	ship.call_deferred("start_landing")     # arrival: the ship drops onto the pad
 	_build_spawns()
 	_build_kill_plane()
 
