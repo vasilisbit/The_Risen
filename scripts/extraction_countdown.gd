@@ -24,6 +24,7 @@ var _going: bool = false
 var _ship: Node3D
 var _ship_pos: Vector3 = Vector3.ZERO
 var _has_ship: bool = false
+var _boarding: bool = false
 
 
 ## Show the window and start. Add this to the running scene first.
@@ -109,12 +110,10 @@ func _process(delta: float) -> void:
 	if _left <= 0.0:
 		_return_to_ship()
 		return
+	if _boarding:
+		return
 	var near := _player_near_ship()
-	var line2 := ""
-	if _has_ship:
-		line2 = ("[E] Board ship" if near else "Return to your ship") + "        [L] Lift off"
-	else:
-		line2 = "[L] Lift off"
+	var line2 := ("[E] Board ship" if near else "Return to your ship")
 	_label.text = "AREA SECURED  -  loot up!\n%s   (auto in %d s)" % [line2, int(ceil(_left))]
 
 
@@ -127,14 +126,32 @@ func _player_near_ship() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _going:
+	if _going or _boarding:
 		return
-	# [L] lifts off from anywhere; [E] boards when you are next to the landed ship.
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_L:
+	# [E] near the ship boards it (a 3rd-person view + [L] to lift off); [L] boards from
+	# anywhere as a shortcut.
+	if event.is_action_pressed("interact") and _player_near_ship():
 		get_viewport().set_input_as_handled()
-		_return_to_ship()
-	elif event.is_action_pressed("interact") and _player_near_ship():
+		_board()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_L:
 		get_viewport().set_input_as_handled()
+		_board()
+
+
+## Board the parked ship: hand off to its 3rd-person boarding cinematic (which waits for
+## [L] to lift off, then emits `lifted_off` -> we return to the hub). If the ship has no
+## cinematic (a fallback temp ship), just return home directly.
+func _board() -> void:
+	if _boarding or _going:
+		return
+	_boarding = true
+	if _label:
+		_label.visible = false
+	if _ship and is_instance_valid(_ship) and _ship.has_signal("lifted_off"):
+		if not _ship.lifted_off.is_connected(_return_to_ship):
+			_ship.lifted_off.connect(_return_to_ship)
+		_ship.begin_boarding()
+	else:
 		_return_to_ship()
 
 

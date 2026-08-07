@@ -404,15 +404,15 @@ func _build_environment() -> void:
 func _build_start_base() -> void:
 	# Enlarged standable courtyard so the parked ship has clear ground BEHIND the spawn
 	# (the player starts near z4 and climbs -z; the ship sits at z~22).
-	_box(Vector3(0, -0.25, 16), Vector3(28, 0.5, 40), _rock2)          # standable floor (z-4..36)
-	_box(Vector3(0, 2.0, 34), Vector3(28, 4.5, 0.5), _rock)           # back wall (no fall-off)
-	# The player's ship parked at the back of the courtyard, on the landing pad, facing the
-	# spawn - the permanent extraction point. Placed FIRST so the rest of the dressing is
-	# kept clear of its footprint (z 12..32).
-	_place_struct("mars_landing_pad", Vector3(0, 0.02, 22), 0.0, 13.0, false)
+	_box(Vector3(0, -0.25, 19), Vector3(30, 0.5, 46), _rock2)          # standable floor (z-4..42)
+	_box(Vector3(0, 2.0, 40), Vector3(30, 4.5, 0.5), _rock)           # back wall (no fall-off)
+	# The player's ship parked at the back of the courtyard, on its own landing pad, facing
+	# the spawn - the permanent extraction point. Same large size as the other maps (the old
+	# oversized mars_landing_pad prop that loomed over it is gone - the ship brings its pad).
 	var ship := preload("res://scripts/landed_ship.gd").new()
 	add_child(ship)
-	ship.configure(Vector3(0, 0.0, 22.0), Vector3(0, 1.0, 4.0), 7.0)
+	ship.configure(Vector3(0, 0.0, 23.0), Vector3(0, 1.0, 4.0))
+	ship.call_deferred("start_landing")     # arrival: the ship drops onto the pad
 	# fal.ai Mars base dressing, kept to the FRONT / side corners so nothing sits inside the
 	# ship's footprint. All SOLID collision (AABB box) so the player can't walk through them.
 	_place_struct("mars_habitat_tall", Vector3(-11.5, 0, 6.0), 0.25, 6.0, true)

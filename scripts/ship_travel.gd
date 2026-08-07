@@ -77,6 +77,11 @@ func begin(mission: String, _planet_node: Node3D = null) -> bool:
 	if player:
 		player.visible = false
 		player.process_mode = Node.PROCESS_MODE_DISABLED
+	# Hide the crosshair "[E] Deploy to X" prompt so it doesn't freeze on screen while the
+	# player (which owns the mission interactor) is disabled for the cutscene.
+	var prompt := get_tree().get_first_node_in_group("interact_prompt") as CanvasItem
+	if prompt:
+		prompt.visible = false
 
 	if _cutscene.has_signal("state_changed"):
 		_cutscene.state_changed.connect(func(s: int) -> void: state = s)

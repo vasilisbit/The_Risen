@@ -104,10 +104,11 @@ func _ready() -> void:
 	_build_spawns()
 	_build_kill_plane()
 
-	# The player's ship, parked on the apron behind the spawn (board it to extract).
+	# The player's ship, parked well back on the apron behind the spawn (board it to extract).
 	var ship := preload("res://scripts/landed_ship.gd").new()
 	add_child(ship)
-	ship.configure(Vector3(0, 0.0, 25.0), Vector3(0, 1.0, 6.0))
+	ship.configure(Vector3(0, 0.0, 32.0), Vector3(0, 1.0, 6.0))
+	ship.call_deferred("start_landing")     # arrival: the ship drops onto the pad
 
 	var region := get_parent()
 	if region is NavigationRegion3D and region.navigation_mesh != null:
@@ -156,11 +157,11 @@ func _build_ascent() -> void:
 
 	# Flat staging pad at the foot of the volcano (player spawns here).
 	_box(Vector3(0, -T * 0.5, 6), Vector3(ASCENT_WIDTH, T, 12), _rock)
-	# Landing apron reaching BEHIND the spawn (into +z) so the parked ship has solid,
-	# prop-free ground to stand on over the drop. Its top is at y 0, above the lethal
-	# void volume (top y -2), so it is safe to walk while stepping off its far/side edges
-	# is still a lethal fall. Continuous with the staging pad (both z-spans meet at ~z10).
-	_box(Vector3(0, -T * 0.5, 25.0), Vector3(36, T, 32), _rock)
+	# Landing apron reaching BEHIND the spawn (into +z) - a broad, open plaza so the parked
+	# ship stands well clear of the spawn cliffs/gorge, not cramped against them. Its top is
+	# at y 0, above the lethal void volume (top y -2), so it is safe to walk while stepping
+	# off its far/side edges is still a lethal fall. Continuous with the staging pad.
+	_box(Vector3(0, -T * 0.5, 30.0), Vector3(48, T, 48), _rock)
 	# Gorge walls flank the flat staging pad too, seated at the pad level (y 0), so the
 	# cliffs are continuous from the spawn - no floating first wall / open gap at the foot.
 	for s in [-1.0, 1.0]:

@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://dlgqussxqn4eb"
+path.s3tc="res://.godot/imported/landing_pad_ORM_efc7c2da-28e3-47fe-8eb3-7a67ee0c6fad.jpg-2ad253da75c686a33657d18e0b22bc03.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "7a5e5d807b9a1b2cc3bff4d240c2b8ab"
+}
+
+[deps]
+
+source_file="res://assets/generated/ship/landing_pad_ORM_efc7c2da-28e3-47fe-8eb3-7a67ee0c6fad.jpg"
+dest_files=["res://.godot/imported/landing_pad_ORM_efc7c2da-28e3-47fe-8eb3-7a67ee0c6fad.jpg-2ad253da75c686a33657d18e0b22bc03.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

@@ -61,23 +61,13 @@ func _build() -> bool:
 	mesh.mesh = sph
 	mesh.extra_cull_margin = _radius * 2.0
 
+	# UNSHADED: show the surface map's true colours exactly, in any lighting, with no
+	# terminator and - crucially - no double-brightening blowout that washed the planet
+	# white when scene ambient + emission stacked on the albedo. The silhouette + rotation
+	# carry the 3D read (this is how the project's own procedural planet reads, too).
 	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_texture = load(map_path)
-	mat.metallic = 0.0
-	mat.roughness = 1.0
-	# PATINA maps (if generated) add surface relief where the planet is lit.
-	var nrm: String = NORMAL.get(_mission, "")
-	if nrm != "" and ResourceLoader.exists(nrm):
-		mat.normal_enabled = true
-		mat.normal_texture = load(nrm)
-	var rgh: String = ROUGH.get(_mission, "")
-	if rgh != "" and ResourceLoader.exists(rgh):
-		mat.roughness_texture = load(rgh)
-	# Self-illumination floor so the world reads clearly even in an unlit context.
-	mat.emission_enabled = true
-	mat.emission_texture = mat.albedo_texture
-	mat.emission = Color(1, 1, 1)
-	mat.emission_energy_multiplier = 0.6
 	mesh.material_override = mat
 
 	_spinner.add_child(mesh)
