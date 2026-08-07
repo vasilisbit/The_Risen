@@ -71,6 +71,11 @@ func _ready() -> void:
 		_place_chunk(row)
 	_marker(Vector3(0, 1.0, 9.0), "player_spawn")
 	_marker(Vector3(0, 1.0, BOSS_Z), "boss_spawn")
+	# The player's ship sits parked behind the spawn (up the street, away from the boss)
+	# as a landmark + the extraction point (board it to leave).
+	var ship := preload("res://scripts/landed_ship.gd").new()
+	add_child(ship)
+	ship.configure(Vector3(0, 0.0, 23.0), Vector3(0, 1.0, 9.0))
 	_build_spawns()
 	_build_kill_plane()
 
@@ -348,7 +353,7 @@ func _skyline_box(center: Vector3, size: Vector3, rng: RandomNumberGenerator) ->
 func _build_bounds() -> void:
 	_barrier(Vector3(-15.5, 6.5, -36), Vector3(0.6, 15, 112))
 	_barrier(Vector3(15.5, 6.5, -36), Vector3(0.6, 15, 112))
-	_barrier(Vector3(0, 6.5, 14), Vector3(32, 15, 0.6))      # behind start
+	_barrier(Vector3(0, 6.5, 37), Vector3(48, 15, 0.6))      # behind start (moved back to fit the parked ship)
 	_barrier(Vector3(0, 6.5, -87), Vector3(34, 15, 0.6))     # behind plaza
 
 

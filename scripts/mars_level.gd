@@ -402,18 +402,25 @@ func _build_environment() -> void:
 ## can't stroll off the rear into the void); the kit pieces are visual dressing.
 ## Sits entirely BEHIND the ascent (z > 4), so it never bridges a platform gap.
 func _build_start_base() -> void:
-	_box(Vector3(0, -0.25, 11), Vector3(18, 0.5, 15), _rock2)          # standable floor
-	_box(Vector3(0, 2.0, 18.7), Vector3(18, 4.5, 0.5), _rock)         # back wall (no fall-off)
-	# fal.ai Mars base structures ringing the courtyard, all with SOLID collision
-	# (AABB box) so the player can't walk through the assets behind spawn.
-	_place_struct("mars_landing_pad", Vector3(0, 0.02, 15), 0.0, 9.0, true)
-	_place_struct("mars_rover", Vector3(0, 0.7, 14), 0.0, 4.5, true)
-	_place_struct("mars_habitat_tall", Vector3(-7.5, 0, 16.5), 0.25, 6.0, true)
-	_place_struct("mars_habitat_low", Vector3(7.5, 0, 16.5), -0.25, 5.0, true)
-	_place_struct("mars_containers", Vector3(-8.2, 0, 9), 0.1, 4.5, true)
-	_place_struct("mars_containers", Vector3(8.2, 0, 9), -0.1, 4.5, true)
-	_place_struct("mars_solar", Vector3(-8.2, 0, 4.5), 0.5, 5.0, true)
-	_place_struct("mars_drill", Vector3(8.2, 0, 4.5), -0.4, 8.0, true)
+	# Enlarged standable courtyard so the parked ship has clear ground BEHIND the spawn
+	# (the player starts near z4 and climbs -z; the ship sits at z~22).
+	_box(Vector3(0, -0.25, 16), Vector3(28, 0.5, 40), _rock2)          # standable floor (z-4..36)
+	_box(Vector3(0, 2.0, 34), Vector3(28, 4.5, 0.5), _rock)           # back wall (no fall-off)
+	# The player's ship parked at the back of the courtyard, on the landing pad, facing the
+	# spawn - the permanent extraction point. Placed FIRST so the rest of the dressing is
+	# kept clear of its footprint (z 12..32).
+	_place_struct("mars_landing_pad", Vector3(0, 0.02, 22), 0.0, 13.0, false)
+	var ship := preload("res://scripts/landed_ship.gd").new()
+	add_child(ship)
+	ship.configure(Vector3(0, 0.0, 22.0), Vector3(0, 1.0, 4.0), 7.0)
+	# fal.ai Mars base dressing, kept to the FRONT / side corners so nothing sits inside the
+	# ship's footprint. All SOLID collision (AABB box) so the player can't walk through them.
+	_place_struct("mars_habitat_tall", Vector3(-11.5, 0, 6.0), 0.25, 6.0, true)
+	_place_struct("mars_habitat_low", Vector3(11.5, 0, 6.0), -0.25, 5.0, true)
+	_place_struct("mars_containers", Vector3(-11.5, 0, 0.0), 0.1, 4.5, true)
+	_place_struct("mars_containers", Vector3(11.5, 0, 0.0), -0.1, 4.5, true)
+	_place_struct("mars_solar", Vector3(-8.2, 0, -4.0), 0.5, 5.0, true)
+	_place_struct("mars_drill", Vector3(8.2, 0, -4.0), -0.4, 8.0, true)
 
 
 ## Place a detailed Tripo H3.1 Mars rock: uniform-scale the unit-cube-normalized mesh

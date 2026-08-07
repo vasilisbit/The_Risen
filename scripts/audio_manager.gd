@@ -34,8 +34,20 @@ const TRACK_HUB := "hub"
 const TRACK_COMBAT_EARTH := "earth_combat"
 const TRACK_COMBAT_MARS := "mars_combat"
 const TRACK_BOSS := "boss"
+const TRACK_TRAVEL := "travel"           # the Fold cutscene stinger (file-only)
+
+## Real audio generated on fal.ai (ElevenLabs SFX + Stable Audio music). When a file
+## exists it is used in place of the code-synthesised fallback, so the game degrades
+## gracefully if a clip is missing. See tools/gen_audio.py.
+const SFX_FILE := "res://assets/generated/audio/sfx/%s.mp3"
+const MUSIC_FILE := "res://assets/generated/audio/music/%s.mp3"
+const LOOP_SFX := ["engine", "wind"]     # SFX streams that should loop
 
 var current_track: String = ""
+
+## Looping planet/hub ambience bed (a generated wind/room tone), swapped by scene.
+var _ambient: AudioStreamPlayer
+var _ambient_id: String = ""
 
 var _players: Array[AudioStreamPlayer] = []
 var _active: int = 0
@@ -60,6 +72,10 @@ func _ready() -> void:
 		p.volume_db = -80.0
 		add_child(p)
 		_players.append(p)
+	_ambient = AudioStreamPlayer.new()
+	_ambient.bus = SFX_BUS
+	_ambient.volume_db = -14.0
+	add_child(_ambient)
 	_load_volumes()
 	_warm_task = WorkerThreadPool.add_task(_warm_music, true, "Synthesise music loops")
 
@@ -72,7 +88,7 @@ func _exit_tree() -> void:
 ## Build every loop up front, off the main thread. Until a track lands in the
 ## cache the director simply retries a second later, so nothing stalls.
 func _warm_music() -> void:
-	for track in [TRACK_HUB, TRACK_COMBAT_EARTH, TRACK_COMBAT_MARS, TRACK_BOSS]:
+	for track in [TRACK_HUB, TRACK_COMBAT_EARTH, TRACK_COMBAT_MARS, TRACK_BOSS, TRACK_TRAVEL]:
 		var wav := _build_music(track)
 		if wav == null:
 			continue
@@ -88,6 +104,27 @@ func _process(delta: float) -> void:
 		var wanted := _wanted_track()
 		if wanted != "" and wanted != current_track:
 			play_music(wanted)
+		_update_ambient()
+
+
+## Swap the looping ambience bed by scene: alien wind on the planets, nothing in the hub
+## or menu (the calm music carries those). Only plays if a generated clip is present.
+func _update_ambient() -> void:
+	var tree := get_tree()
+	var scene := String(tree.current_scene.name) if tree and tree.current_scene else ""
+	var wanted := "wind" if scene in ["Earth", "Mars", "Venus"] else ""
+	if wanted == _ambient_id:
+		return
+	_ambient_id = wanted
+	if wanted == "":
+		_ambient.stop()
+		return
+	var stream := _load_sfx_file(wanted)
+	if stream:
+		_ambient.stream = stream
+		_ambient.play()
+	else:
+		_ambient.stop()
 
 
 # --- buses ------------------------------------------------------------------
@@ -256,7 +293,11 @@ func _music(track: String) -> AudioStream:
 	return cached as AudioStream if cached != null else null
 
 
-func _build_music(track: String) -> AudioStreamWAV:
+func _build_music(track: String) -> AudioStream:
+	# Prefer a generated music file (Stable Audio); fall back to the synth loop.
+	var file := _load_music_file(track)
+	if file != null:
+		return file
 	var wav: AudioStreamWAV = null
 	match track:
 		TRACK_HUB:
@@ -272,6 +313,31 @@ func _build_music(track: String) -> AudioStreamWAV:
 		wav.loop_begin = 0
 		wav.loop_end = wav.data.size() / 2
 	return wav
+
+
+## Load a generated music track as a looping stream, or null if there is no file.
+func _load_music_file(track: String) -> AudioStream:
+	var path := MUSIC_FILE % track
+	if not ResourceLoader.exists(path):
+		return null
+	var s := load(path)
+	if s is AudioStreamMP3:
+		(s as AudioStreamMP3).loop = true
+	elif s is AudioStreamOggVorbis:
+		(s as AudioStreamOggVorbis).loop = true
+	return s as AudioStream
+
+
+## Load a generated SFX file, looping the ids in LOOP_SFX (engine/wind), or null if none.
+func _load_sfx_file(id: String) -> AudioStream:
+	var path := SFX_FILE % id
+	if not ResourceLoader.exists(path):
+		return null
+	var s := load(path)
+	if id in LOOP_SFX and s is AudioStreamMP3:
+		s = (s as AudioStreamMP3).duplicate()   # own copy so the loop flag is local
+		(s as AudioStreamMP3).loop = true
+	return s as AudioStream
 
 
 ## True once every music loop has been synthesised. Exposed for tests.
@@ -353,6 +419,11 @@ func _make_boss() -> AudioStreamWAV:
 func _sfx(id: String) -> AudioStream:
 	if _sfx_cache.has(id):
 		return _sfx_cache[id]
+	# Prefer a generated SFX file (ElevenLabs); fall back to the synth effect.
+	var file := _load_sfx_file(id)
+	if file != null:
+		_sfx_cache[id] = file
+		return file
 	var wav: AudioStreamWAV = null
 	match id:
 		# Weapons: same shape, different weight and pitch.
