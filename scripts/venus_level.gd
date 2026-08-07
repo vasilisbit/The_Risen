@@ -116,6 +116,18 @@ func _build_kill_plane() -> void:
 	var a := _area(Vector3(0, -55, -200), Vector3(220, 4, 700))
 	a.body_entered.connect(_on_void)
 
+	# BEHIND the spawn pad (z > 12) is open void - the ascent climbs the other way (-z),
+	# so there is no floor and only the distant, collision-less horizon volcanoes back
+	# there. Stepping off the back used to drop you ~56 m at speed, which could TUNNEL
+	# the thin main kill plane above (a fast body can cross its 4 m in one physics frame
+	# without firing body_entered) - so you'd fall forever. Cover the whole behind-spawn
+	# region with a TALL lethal volume that catches you the instant you leave the pad's
+	# back edge. It starts at z 13 (just past the pad, which ends at z 12) so a player
+	# standing on the pad or climbing the slope (z <= 12) is never touched, and it sits
+	# far from the boss arena (which is at a large negative z), so nothing legit overlaps.
+	var back := _area(Vector3(0, -28.0, 210.0), Vector3(600, 64, 394))
+	back.body_entered.connect(_on_void)
+
 
 func _on_void(body: Node) -> void:
 	if body.is_in_group("player") and body.has_method("fall_to_death"):
