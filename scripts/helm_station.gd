@@ -170,29 +170,19 @@ func _build_worlds() -> void:
 		if sm and sm.has_method("is_mission_unlocked"):
 			unlocked = sm.is_mission_unlocked(mission)
 
-		var planet := MeshInstance3D.new()
-		planet.name = "%sPlanet" % mission
-		# Realistic planet as a camera-facing billboard (the fal.ai full-disc render),
-		# additively blended so the image's black background reads as empty space and
-		# never draws a black square over a farther world behind it.
-		var quad := QuadMesh.new()
-		var qs := radius * 2.0 / 0.9      # the disc fills ~0.9 of the square image
-		quad.size = Vector2(qs, qs)
-		planet.mesh = quad
-		planet.extra_cull_margin = qs
-		var pm := StandardMaterial3D.new()
-		pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		pm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		pm.billboard_keep_scale = true
-		pm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		pm.cull_mode = BaseMaterial3D.CULL_DISABLED
-		var tex := load(String(PLANET_TEX.get(mission, ""))) as Texture2D
-		if tex:
-			pm.albedo_texture = tex
-		pm.albedo_color = Color(0.95, 0.95, 0.95) if unlocked else Color(0.45, 0.45, 0.45)
-		planet.material_override = pm
-		add_child(planet)
-		planet.global_position = pos
+		# The world out the canopy is now a real 3D fal.ai planet (photographic detail,
+		# slowly spinning, self-lit so it reads in the dim cockpit); falls back to the
+		# flat billboard render if the GLB is missing. The near/current world turns a
+		# touch faster so it draws the eye.
+		var pb: Node3D = preload("res://scripts/planet_body.gd").new()
+		pb.name = "%sPlanet" % mission
+		add_child(pb)
+		pb.global_position = pos
+		if not pb.setup(mission, radius, 0.06 if near else 0.035):
+			pb.queue_free()
+			var bb := _billboard_planet(mission, unlocked, radius)
+			add_child(bb)
+			bb.global_position = pos
 		_planets[mission] = pos          # aim at the planet itself, not its label
 		_planet_radius[mission] = radius
 
@@ -215,6 +205,30 @@ func _build_worlds() -> void:
 		add_child(label)                # in-tree before setting the world position
 		label.global_position = pos + Vector3(0.0, radius + 1.5, 0.0)
 		_labels[mission] = label
+
+
+## Fallback flat-billboard planet (the fal.ai full-disc render), additively blended so
+## the image's black background reads as empty space. Used only if the 3D GLB is missing.
+func _billboard_planet(mission: String, unlocked: bool, radius: float) -> MeshInstance3D:
+	var planet := MeshInstance3D.new()
+	planet.name = "%sPlanet" % mission
+	var quad := QuadMesh.new()
+	var qs := radius * 2.0 / 0.9      # the disc fills ~0.9 of the square image
+	quad.size = Vector2(qs, qs)
+	planet.mesh = quad
+	planet.extra_cull_margin = qs
+	var pm := StandardMaterial3D.new()
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	pm.billboard_keep_scale = true
+	pm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	pm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var tex := load(String(PLANET_TEX.get(mission, ""))) as Texture2D
+	if tex:
+		pm.albedo_texture = tex
+	pm.albedo_color = Color(0.95, 0.95, 0.95) if unlocked else Color(0.45, 0.45, 0.45)
+	planet.material_override = pm
+	return planet
 
 
 ## The mission most recently deployed to (the near/foreground world). Default Earth.
@@ -413,6 +427,10 @@ func _find_player() -> Node3D:
 
 
 func _update_seated(delta: float) -> void:
+	# Restore the aiming HUD (it is hidden while the difficulty prompt is open; the tree
+	# is paused then, so reaching here means the prompt just closed - e.g. a cancel).
+	_reticle.visible = true
+	_target_label.visible = true
 	# Re-aim the seat camera from the base canopy view by the accumulated look. Yaw
 	# is applied about WORLD up (a level pan) and pitch about the camera's own right,
 	# so panning left/right doesn't dip the aim - the earlier local-up yaw did, which
@@ -550,20 +568,25 @@ func _set_seated_hud(on: bool) -> void:
 	_sit_prompt.visible = false        # the "take the helm" prompt is a not-seated cue
 
 
-## Fold confirmed: leave the helm (so a cancelled difficulty prompt returns you to a
-## normal walkable hub), then run the exact table launch path.
+## Fold confirmed: open the difficulty prompt WHILE STILL SEATED at the helm (you pick
+## the difficulty from the chair, looking out the canopy), then run the launch path. A
+## cancelled prompt leaves you seated to pick again; a confirm hands off to the cutscene.
 func _fold_to(mission: String) -> void:
-	_leave_helm()
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("is_mission_unlocked") and not sm.is_mission_unlocked(mission):
 		_notify("%s is locked." % mission)
-		return
+		return                       # stay seated
 	if not MISSION_SCENES.has(mission):
 		return
 	var prompt := get_tree().get_first_node_in_group("difficulty_select")
 	if prompt and prompt.has_method("open"):
 		if not prompt.launch_confirmed.is_connected(_start_mission):
 			prompt.launch_confirmed.connect(_start_mission)
+		# Hide the aiming HUD behind the prompt; _update_seated restores it if cancelled.
+		_hold = 0.0
+		_reticle.visible = false
+		_target_label.visible = false
+		_fold_bar.visible = false
 		prompt.open(mission)
 	else:
 		_start_mission(mission)
@@ -575,6 +598,11 @@ func _fold_to(mission: String) -> void:
 func _start_mission(mission: String) -> void:
 	if not MISSION_SCENES.has(mission):
 		return
+	# The cutscene (or the fallback fade) owns the camera from here, so tear down the
+	# seated helm view without restoring the walking player - the scene swaps away.
+	_seated = false
+	if _hud:
+		_hud.visible = false
 	var st := get_node_or_null("/root/ShipTravel")
 	if st and st.has_method("begin"):
 		var planet_hint := _labels.get(mission) as Node3D   # aimed world, hint only

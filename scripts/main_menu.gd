@@ -35,6 +35,13 @@ const MENU_PLANETS := [
 ]
 var _planet_tex: Array = []
 
+## Spinning 3D planets (fal.ai GLBs) rendered in an offscreen SubViewport and composited
+## into the 2D menu draw. Any planet whose GLB is missing falls back to its flat texture.
+const MENU_ORTHO := 100.0            # world units spanned by the screen height
+var _menu_vp: SubViewport
+var _menu_cam: Camera3D
+var _planet3d: Array = []            # PlanetBody per MENU_PLANETS entry, or null (fallback)
+
 var _entries: Array[Dictionary] = []
 var _hovered: int = -1
 var _confirm: Control
@@ -53,7 +60,56 @@ func _ready() -> void:
 	_seed_stars()
 	for info in MENU_PLANETS:
 		_planet_tex.append(load(info["tex"]) as Texture2D)
+	# _build_ui() first: _layout() addresses the title/subtitle by child index, so the
+	# SubViewport must be added AFTER them (as the last child), not before.
 	_build_ui()
+	_build_planets_3d()
+
+
+## Offscreen 3D scene: an orthographic camera over the three fal.ai planet GLBs, so the
+## menu backdrop shows real spinning worlds. Its texture is drawn in _draw. Ortho keeps
+## the screen-fraction layout of the old 2D planets exact. Planets without a GLB stay 2D.
+func _build_planets_3d() -> void:
+	_menu_vp = SubViewport.new()
+	_menu_vp.own_world_3d = true
+	_menu_vp.transparent_bg = true
+	_menu_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_menu_vp.size = Vector2i(maxi(int(size.x), 320), maxi(int(size.y), 240))
+	add_child(_menu_vp)
+
+	_menu_cam = Camera3D.new()
+	_menu_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_menu_cam.size = MENU_ORTHO
+	_menu_cam.position = Vector3(0, 0, 200)
+	_menu_cam.far = 2000.0
+	_menu_vp.add_child(_menu_cam)
+
+	for i in MENU_PLANETS.size():
+		var info: Dictionary = MENU_PLANETS[i]
+		var pb: Node3D = preload("res://scripts/planet_body.gd").new()
+		_menu_vp.add_child(pb)
+		var mission := _mission_for(info)
+		if pb.setup(mission, _planet_world_radius(info), float(info["orbit"]) * 1.4):
+			_planet3d.append(pb)
+		else:
+			pb.queue_free()
+			_planet3d.append(null)
+
+
+## Map a planet texture path to its mission id (for the matching GLB).
+func _mission_for(info: Dictionary) -> String:
+	var t := String(info["tex"])
+	if t.find("mars") != -1:
+		return "Mars"
+	if t.find("venus") != -1:
+		return "Venus"
+	return "Earth"
+
+
+## World radius so the sphere covers the same on-screen radius the flat disc did.
+func _planet_world_radius(info: Dictionary) -> float:
+	var h: float = maxf(size.y, 1.0)
+	return float(info["radius"]) * MENU_ORTHO / h
 
 
 func _process(delta: float) -> void:
@@ -67,17 +123,48 @@ func _process(delta: float) -> void:
 			s.x = 1.02
 			s.y = randf()
 		_stars[i] = s
+	_update_planets_3d()
 	queue_redraw()
+
+
+## Keep the SubViewport screen-sized and drift each 3D planet on the same slow Lissajous
+## the flat version used, mapping its screen anchor into the ortho camera's world.
+func _update_planets_3d() -> void:
+	if _menu_vp == null:
+		return
+	var want := Vector2i(maxi(int(size.x), 320), maxi(int(size.y), 240))
+	if _menu_vp.size != want:
+		_menu_vp.size = want
+	var aspect: float = maxf(size.x, 1.0) / maxf(size.y, 1.0)
+	for i in MENU_PLANETS.size():
+		var pb = _planet3d[i] if i < _planet3d.size() else null
+		if pb == null or not is_instance_valid(pb):
+			continue
+		var info: Dictionary = MENU_PLANETS[i]
+		var orbit: float = float(info["orbit"])
+		var sway: Vector2 = info["sway"]
+		var frac := Vector2(info["pos"]) + Vector2(
+			sin(_time * orbit) * sway.x, cos(_time * orbit * 0.73) * sway.y)
+		pb.position = Vector3(
+			(frac.x - 0.5) * MENU_ORTHO * aspect,
+			(0.5 - frac.y) * MENU_ORTHO, 0.0)
 
 
 func _draw() -> void:
 	var vp := size
 	# Pure black so the planet renders' black backdrops blend seamlessly.
 	draw_rect(Rect2(Vector2.ZERO, vp), Color(0, 0, 0))
-	# Planets first, then stars over them, so the images' black corners don't punch
-	# a starless square out of the field.
+	# Planets first, then stars over them, so the black corners don't punch a starless
+	# square out of the field. The spinning 3D worlds render in the SubViewport (drawn
+	# full-screen); any planet without a GLB falls back to its flat disc.
+	if _menu_vp:
+		var vtex := _menu_vp.get_texture()
+		if vtex:
+			draw_texture_rect(vtex, Rect2(Vector2.ZERO, vp), false)
 	for i in MENU_PLANETS.size():
-		_draw_menu_planet(MENU_PLANETS[i], vp, _planet_tex[i] if i < _planet_tex.size() else null)
+		var has3d: bool = i < _planet3d.size() and _planet3d[i] != null
+		if not has3d:
+			_draw_menu_planet(MENU_PLANETS[i], vp, _planet_tex[i] if i < _planet_tex.size() else null)
 	for s in _stars:
 		var p := Vector2(s.x * vp.x, s.y * vp.y)
 		var a: float = 0.25 + 0.55 * s.z

@@ -76,11 +76,15 @@ const PLANET_RADIUS := 50.0
 ## planet fills the background behind it.
 const CAM_OFF_FOLD := Vector3(16.0, 9.0, 40.0)
 const CAM_OFF_APPROACH := Vector3(20.0, 7.0, 34.0)
-const CAM_OFF_DESCENT := Vector3(24.0, 11.0, 30.0)
-## How far the camera's look-at is biased from the ship toward the planet (0 = the
-## ship, 1 = the planet). Higher on descent so the world swells to fill frame.
+## Descent frames the ship from the upper-RIGHT side (not behind), so we look down onto
+## the TOP of the hull and its travel direction (-Z) reads left-to-right: the nose points
+## right, toward the planet that sits in the lower-right of frame.
+const CAM_OFF_DESCENT := Vector3(32.0, 24.0, 8.0)
+## How far the camera's look-at is biased from the ship toward the planet (0 = the ship,
+## 1 = the planet). Small on descent - looking mostly at the ship keeps the side-top
+## framing (a strong planet bias would swing back to a behind-the-ship rear view).
 const FOCUS_APPROACH := 0.22
-const FOCUS_DESCENT := 0.42
+const FOCUS_DESCENT := 0.16
 
 var _state: int = State.IDLE
 var _mission: String = ""
@@ -94,7 +98,7 @@ var _rig: Node3D
 var _cam: Camera3D
 var _ship_follow: PathFollow3D
 var _ship_model: Node3D
-var _planet: MeshInstance3D
+var _planet: Node3D
 var _engine_glow: OmniLight3D
 
 # Overlay UI (freed with this scene on the swap; the white flash lives on ShipTravel).
@@ -133,32 +137,17 @@ func _build_rig() -> void:
 	sun.rotation = Vector3(deg_to_rad(-35.0), deg_to_rad(35.0), 0.0)
 	_rig.add_child(sun)
 
-	# Destination planet - the project's self-lit procedural planet shader, tinted per
-	# world so it matches the one out the cockpit window.
-	_planet = MeshInstance3D.new()
-	_planet.name = "Planet"
-	var sphere := SphereMesh.new()
-	sphere.radius = PLANET_RADIUS
-	sphere.height = PLANET_RADIUS * 2.0
-	sphere.radial_segments = 64
-	sphere.rings = 32
-	_planet.mesh = sphere
-	_planet.extra_cull_margin = PLANET_RADIUS * 2.0
-	var pshader := load(PLANET_SHADER)
-	if pshader:
-		var pmat := ShaderMaterial.new()
-		pmat.shader = pshader
-		var w: Dictionary = WORLDS[_mission]
-		pmat.set_shader_parameter("ocean_color", w["ocean"])
-		pmat.set_shader_parameter("land_color", w["land"])
-		pmat.set_shader_parameter("atmo_color", w["atmo"])
-		pmat.set_shader_parameter("land_threshold", w["threshold"])
-		pmat.set_shader_parameter("band_strength", w["bands"])
-		pmat.set_shader_parameter("cloud_amount", w["clouds"])
-		pmat.set_shader_parameter("rot_speed", 0.03)
-		_planet.material_override = pmat
-	_rig.add_child(_planet)
-	_planet.position = PLANET_POS
+	# Destination planet: the fal.ai 3D planet (photographic detail, slowly spinning,
+	# self-lit); falls back to the procedural planet shader if the GLB is missing.
+	var pb: Node3D = preload("res://scripts/planet_body.gd").new()
+	pb.name = "Planet"
+	_rig.add_child(pb)
+	pb.position = PLANET_POS
+	if pb.setup(_mission, PLANET_RADIUS, 0.05):
+		_planet = pb
+	else:
+		pb.queue_free()
+		_planet = _build_procedural_planet()
 
 	# The flight path + the ship mounted on a PathFollow3D (position along the curve is
 	# tweened; the model's heading is corrected by SHIP_YAW).
@@ -202,6 +191,36 @@ func _build_rig() -> void:
 	_rig.add_child(_cam)
 	_cam_offset = CAM_OFF_FOLD
 	_cam.global_position = _ship_model.global_position + _cam_offset
+
+
+## Fallback destination planet on the procedural shader (used only if the fal.ai GLB
+## is missing), tinted per world to match the one out the cockpit window.
+func _build_procedural_planet() -> Node3D:
+	var planet := MeshInstance3D.new()
+	planet.name = "Planet"
+	var sphere := SphereMesh.new()
+	sphere.radius = PLANET_RADIUS
+	sphere.height = PLANET_RADIUS * 2.0
+	sphere.radial_segments = 64
+	sphere.rings = 32
+	planet.mesh = sphere
+	planet.extra_cull_margin = PLANET_RADIUS * 2.0
+	var pshader := load(PLANET_SHADER)
+	if pshader:
+		var pmat := ShaderMaterial.new()
+		pmat.shader = pshader
+		var w: Dictionary = WORLDS[_mission]
+		pmat.set_shader_parameter("ocean_color", w["ocean"])
+		pmat.set_shader_parameter("land_color", w["land"])
+		pmat.set_shader_parameter("atmo_color", w["atmo"])
+		pmat.set_shader_parameter("land_threshold", w["threshold"])
+		pmat.set_shader_parameter("band_strength", w["bands"])
+		pmat.set_shader_parameter("cloud_amount", w["clouds"])
+		pmat.set_shader_parameter("rot_speed", 0.03)
+		planet.material_override = pmat
+	_rig.add_child(planet)
+	planet.position = PLANET_POS
+	return planet
 
 
 func _build_ui() -> void:
@@ -318,7 +337,7 @@ func _run() -> void:
 	tw.parallel().tween_property(_ship_follow, "progress_ratio", 1.0, T_DESCENT) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(_ship_model, "rotation:z", 0.0, T_DESCENT * 0.4)
-	tw.parallel().tween_property(_ship_model, "rotation:x", deg_to_rad(-34.0), T_DESCENT * 0.7) \
+	tw.parallel().tween_property(_ship_model, "rotation:x", deg_to_rad(-26.0), T_DESCENT * 0.7) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(self, "_cam_offset", CAM_OFF_DESCENT, T_DESCENT) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
