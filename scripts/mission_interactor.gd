@@ -148,11 +148,16 @@ func _previous_mission(mission: String) -> String:
 
 
 func _start_mission(mission: String) -> void:
-	if MISSION_SCENES.has(mission):
-		var gs := get_node_or_null("/root/GameState")
-		if gs and gs.has_method("transition_to"):
-			gs.transition_to(MISSION_SCENES[mission])   # fade to black
-		else:
-			get_tree().change_scene_to_file(MISSION_SCENES[mission])
-	else:
+	if not MISSION_SCENES.has(mission):
 		print("Mission not implemented yet: %s" % mission)
+		return
+	# Funnel the hologram-table launch through the same Fold cinematic as the helm; if
+	# ShipTravel can't run (missing assets), fall back to the plain fade-to-black.
+	var st := get_node_or_null("/root/ShipTravel")
+	if st and st.has_method("begin") and st.begin(mission, null):
+		return
+	var gs := get_node_or_null("/root/GameState")
+	if gs and gs.has_method("transition_to"):
+		gs.transition_to(MISSION_SCENES[mission])   # fade to black
+	else:
+		get_tree().change_scene_to_file(MISSION_SCENES[mission])

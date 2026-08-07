@@ -23,6 +23,7 @@ GameState="*res://scripts/game_state.gd"
 AudioManager="*res://scripts/audio_manager.gd"
 Telemetry="*res://scripts/telemetry.gd"
 Difficulty="*res://scripts/difficulty.gd"
+ShipTravel="*res://scripts/ship_travel.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [editor_plugins]

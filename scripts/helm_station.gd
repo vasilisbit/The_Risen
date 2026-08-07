@@ -569,9 +569,17 @@ func _fold_to(mission: String) -> void:
 		_start_mission(mission)
 
 
+## Difficulty confirmed: run the Fold cinematic (fly to the world & land), then it
+## swaps to the mission. Falls back to the plain fade if ShipTravel can't run (missing
+## ship asset / cutscene scene), so the launch never dead-ends.
 func _start_mission(mission: String) -> void:
 	if not MISSION_SCENES.has(mission):
 		return
+	var st := get_node_or_null("/root/ShipTravel")
+	if st and st.has_method("begin"):
+		var planet_hint := _labels.get(mission) as Node3D   # aimed world, hint only
+		if st.begin(mission, planet_hint):
+			return
 	var gs := get_node_or_null("/root/GameState")
 	if gs and gs.has_method("transition_to"):
 		gs.transition_to(MISSION_SCENES[mission])
