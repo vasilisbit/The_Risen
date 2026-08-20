@@ -263,9 +263,11 @@ func _build_ui() -> void:
 	_bar_bottom.offset_bottom = 120.0       # parked below the screen
 	_ui.add_child(_bar_bottom)
 
-	# Lower-left title card, reference styling: thin wide-tracked caps.
+	# Lower-left title card, reference styling: thin wide-tracked caps. Text is the shared,
+	# realistic fold card (named landing site + planet designation + environmental readout).
+	var ft := _fold_text()
 	_title = Label.new()
-	_title.text = "%s - DESCENT" % _mission.to_upper()
+	_title.text = ft["site"]
 	_title.add_theme_font_size_override("font_size", 30)
 	_title.add_theme_color_override("font_color", Color(0.88, 0.95, 1.0))
 	_title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
@@ -276,7 +278,7 @@ func _build_ui() -> void:
 	_ui.add_child(_title)
 
 	_subtitle = Label.new()
-	_subtitle.text = "%s  -  ATTITUDE NOMINAL" % WORLDS[_mission]["lore"]
+	_subtitle.text = "%s      %s" % [ft["designation"], ft["readout"]]
 	_subtitle.add_theme_font_size_override("font_size", 15)
 	_subtitle.add_theme_color_override("font_color", Color(0.55, 0.78, 0.95))
 	_subtitle.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
@@ -295,6 +297,18 @@ func _build_ui() -> void:
 	_skip_hint.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_skip_hint.position = Vector2(-96, -40)
 	_ui.add_child(_skip_hint)
+
+
+## The shared realistic fold card for this mission (named landing site + planet designation +
+## environmental readout), read from ShipTravel.FOLD_TEXT so there is one source of truth.
+## Falls back to a plain planet name if the mission is unknown.
+func _fold_text() -> Dictionary:
+	var st = get_node_or_null("/root/ShipTravel")
+	if st != null:
+		var ft = st.FOLD_TEXT
+		if ft is Dictionary and ft.has(_mission):
+			return ft[_mission]
+	return {"site": "%s - DESCENT" % _mission.to_upper(), "designation": _mission.to_upper(), "readout": ""}
 
 
 func _mk_bar() -> ColorRect:

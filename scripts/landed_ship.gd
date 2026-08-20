@@ -17,6 +17,9 @@ const PAD_GLB := "res://assets/generated/ship/landing_pad.glb"
 
 ## Cinematics: how high the ship starts (landing) / ends (lift-off) above the pad, the
 ## durations, and the 3rd-person camera offset from the pad (local: right / up / back).
+## CAM_OFFSET is the default; a level can pass its own to configure() when its clear
+## framing is on a different side (e.g. Venus frames the ship against its open bay, not
+## the narrow ascent gorge behind the nose).
 const SKY_HEIGHT := 95.0
 const LAND_TIME := 3.4
 const LIFT_TIME := 3.0
@@ -45,6 +48,7 @@ const SHIP_SCALE := 13.0
 var _scale: float = SHIP_SCALE
 var _ship: Node3D
 var _footprint: float = 6.0
+var _cam_offset: Vector3 = CAM_OFFSET   # 3rd-person cine offset (level-overridable)
 
 
 func _ready() -> void:
@@ -53,8 +57,9 @@ func _ready() -> void:
 
 ## Place the parked ship. `pad_center` is the ground point the pad sits on; the ship is
 ## turned so its nose faces `look_target` (the spawn), so it reads as "landed facing you".
-func configure(pad_center: Vector3, look_target: Vector3, ship_scale := SHIP_SCALE) -> void:
+func configure(pad_center: Vector3, look_target: Vector3, ship_scale := SHIP_SCALE, cam_offset := CAM_OFFSET) -> void:
 	_scale = ship_scale
+	_cam_offset = cam_offset
 	global_position = pad_center
 	_build()
 	var to := look_target - global_position
@@ -203,7 +208,7 @@ func _make_cine_cam() -> void:
 	_cine_cam.fov = 58.0
 	_cine_cam.far = 3000.0
 	add_child(_cine_cam)
-	_cine_cam.global_position = to_global(CAM_OFFSET)   # fixed ground spot by the pad
+	_cine_cam.global_position = to_global(_cam_offset)   # fixed ground spot by the pad
 	_cine_cam.look_at(_ship.global_position, Vector3.UP)
 	_cine_cam.make_current()
 

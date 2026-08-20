@@ -45,6 +45,12 @@ Tight loop, do it constantly:
   wall/glass are on `NO_REFLECT 1<<19`.
 
 ## Asset pipeline (fal.ai + Blender + Godot)
+> **Full pipeline reference:** planning repo **`docs/FAL_PIPELINE.md`** — the model map
+> (which endpoint per job), what's new (Seedance video, Meshy 7 + rigging, Tripo Smart Mesh,
+> Hi3D V3.0), the **Fold cinematic video** pipeline (`tools/gen_fold_video.py`), the
+> **rigged-character** pipeline (Meshy rigging), costs, and the YouTube study list. Read it
+> before generating anything new. Quick summary below.
+
 AI 3D-gen **studios** (Tripo, Meshy) gate export behind paid plans — do NOT rely on
 their free-tier download. Use **fal.ai's API** instead: it returns the file directly.
 - Auth: `FAL_KEY` in **`.env.local`** (gitignored — never commit keys). Header is
