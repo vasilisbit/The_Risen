@@ -21,9 +21,14 @@ const SKY_HEIGHT := 95.0
 const LAND_TIME := 3.4
 const LIFT_TIME := 3.0
 const CAM_OFFSET := Vector3(16.0, 9.0, 24.0)
+## How close the player must be to the ship to board it, and where to go on lift-off.
+const BOARD_RANGE := 8.0
+const HUB_SCENE := "res://scenes/hub/hub.tscn"
 
 var _parked_y: float = 0.0
 var _busy: bool = false
+var _boardable: bool = false        # true once landed - the player may board to leave
+var _prompt_shown: bool = false
 var _await_liftoff: bool = false
 var _cine_cam: Camera3D
 var _player: Node3D
@@ -56,6 +61,9 @@ func configure(pad_center: Vector3, look_target: Vector3, ship_scale := SHIP_SCA
 	to.y = 0.0
 	if to.length() > 0.5:
 		look_at(global_position + to, Vector3.UP)
+	# Boardable by default; start_landing() suppresses the prompt (via _busy) until the
+	# arrival touchdown finishes, and re-affirms it in _end_landing.
+	_boardable = true
 
 
 ## The radius of clear ground the parked ship needs (pad radius); callers use it to carve
@@ -105,14 +113,18 @@ func _end_landing() -> void:
 	_release_cine_cam()
 	_freeze_player(false)
 	_busy = false
+	_boardable = true        # from now on, walking up to the ship lets you board + leave
 
 
 ## Boarding: swap to a 3rd-person view of the ship and wait for the player to press [L]
-## to lift off. Called by ExtractionCountdown when the player boards at the ship.
+## to lift off. Reached by walking up to the ship ([E]) any time during a mission, or from
+## ExtractionCountdown at mission end. On lift-off the ship flies up and returns to the hub.
 func begin_boarding() -> void:
 	if _ship == null or _busy:
 		return
 	_busy = true
+	_boardable = false
+	_hide_prompt()
 	_freeze_player(true)
 	_make_cine_cam()
 	_show_prompt("[L]  Lift off")
@@ -126,24 +138,61 @@ func _liftoff() -> void:
 	_engine(true)
 	var tw := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(_ship, "position:y", _parked_y + SKY_HEIGHT, LIFT_TIME)
-	tw.tween_callback(func() -> void:
-		_engine(false)
-		lifted_off.emit())
+	tw.tween_callback(_return_home)
+
+
+## Lift-off complete: sweep up any loot the player left, notify listeners, and fly home to
+## the hub (the ship interior in orbit).
+func _return_home() -> void:
+	_engine(false)
+	lifted_off.emit()
+	for l in get_tree().get_nodes_in_group("loot"):
+		if is_instance_valid(l) and l.has_method("pickup"):
+			l.pickup()
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var gs := get_node_or_null("/root/GameState")
+	if gs and gs.has_method("transition_to"):
+		gs.transition_to(HUB_SCENE)
+	else:
+		get_tree().change_scene_to_file(HUB_SCENE)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _await_liftoff and event is InputEventKey and event.pressed and not event.echo \
-			and event.keycode == KEY_L:
+	if _busy:
+		if _await_liftoff and event is InputEventKey and event.pressed and not event.echo \
+				and event.keycode == KEY_L:
+			get_viewport().set_input_as_handled()
+			_liftoff()
+		return
+	# [E] near the parked ship boards it (and lets you leave the mission).
+	if _boardable and event.is_action_pressed("interact") and _player_near():
 		get_viewport().set_input_as_handled()
-		_liftoff()
+		begin_boarding()
 
 
-## Keep the 3rd-person camera aimed at the ship as it moves through a cinematic.
+## True when the player is close enough to board the parked ship.
+func _player_near() -> bool:
+	var p := get_tree().get_first_node_in_group("player") as Node3D
+	return p != null and p.global_position.distance_to(global_position) <= BOARD_RANGE
+
+
+## Keep the 3rd-person camera aimed at the ship during a cinematic; otherwise show the
+## "[E] Board ship" prompt whenever the player is standing by the parked ship.
 func _process(_delta: float) -> void:
 	if _cine_cam and _ship and is_instance_valid(_ship):
 		var to := _ship.global_position
 		if _cine_cam.global_position.distance_to(to) > 0.1:
 			_cine_cam.look_at(to, Vector3.UP)
+		return
+	if _boardable and not _busy:
+		var near := _player_near()
+		if near and not _prompt_shown:
+			_show_prompt("[E]  Board ship  -  leave the mission")
+			_prompt_shown = true
+		elif not near and _prompt_shown:
+			_hide_prompt()
+			_prompt_shown = false
 
 
 func _make_cine_cam() -> void:
@@ -174,13 +223,15 @@ func _freeze_player(frozen: bool) -> void:
 		var hud := p.get_node_or_null("DebugHUD") as CanvasLayer
 		if hud:
 			hud.visible = not frozen
-		# Hide the first-person weapon viewmodel (its own CanvasLayer overlay) so the gun
+		# Hide the first-person weapon viewmodel (the composited arms+gun overlay) so the gun
 		# doesn't hang in the corner of the 3rd-person cinematic.
-		var vm := p.get_node_or_null("SpringArm3D/Camera3D/WeaponViewmodel")
-		if vm:
-			for c in vm.get_children():
-				if c is CanvasLayer:
-					(c as CanvasLayer).visible = not frozen
+		var vm = p.get("_fp_viewmodel")
+		if vm and is_instance_valid(vm) and vm.has_method("set_shown"):
+			vm.set_shown(not frozen)
+	# Hide the mission HUD (objectives panel etc.) during the cinematic.
+	for h in get_tree().get_nodes_in_group("mission_hud"):
+		if h is CanvasLayer:
+			(h as CanvasLayer).visible = not frozen
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN if frozen else Input.MOUSE_MODE_CAPTURED
 
 

@@ -126,6 +126,7 @@ func _on_all_complete() -> void:
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
+	layer.add_to_group("mission_hud")     # hidden during the ship landing/board cinematics
 	add_child(layer)
 	var panel := VBoxContainer.new()
 	# Left edge, vertically centred - clear of the top-left radar and the
