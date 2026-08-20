@@ -28,6 +28,16 @@ const ASCENT_LENGTH := 200.0            # m of path (GDD §3.4)
 const ASCENT_SEGMENTS := 10
 const ASCENT_WIDTH := 16.0
 
+# --- Ship landing bay (behind the spawn) ---
+# A broad, open apron where the parked ship touches down. It is kept clear of the towering
+# horizon volcanoes (_build_environment skips its clear-radius) so the ship never lands
+# inside a mountain, and it is framed by low set-back cliffs (_build_ship_bay) so the
+# landing/lift-off camera sees the ship against open sky + distant peaks.
+const SHIP_BAY_CENTER := Vector3(0.0, 0.0, 34.0)
+const SHIP_BAY_W := 74.0                # apron width (x)
+const SHIP_BAY_D := 66.0                # apron depth (z)
+const SHIP_BAY_CLEAR := 200.0           # horizon volcanoes kept at least this far (xz) from the bay
+
 # --- Section 2: Interior Descent (sparse jump puzzle) ---
 # Platforms alternate hard left/right at PLATFORM_X, PLATFORM_PITCH apart along -Z and
 # dropping PLATFORM_DROP each - a committed diagonal hop. The cavern also DAMPENS the
@@ -99,15 +109,20 @@ func _ready() -> void:
 	_build_lights()
 	_build_atmosphere()
 	_build_environment()
+	_build_ship_bay()
 	_build_volcano()
 	_build_wind()
 	_build_spawns()
 	_build_kill_plane()
 
-	# The player's ship, parked well back on the apron behind the spawn (board it to extract).
+	# The player's ship, parked in a wide OPEN landing bay behind the spawn (board it to
+	# extract). The bay (_build_ship_bay) is a broad apron framed by set-back cliffs, kept
+	# clear of the towering horizon volcanoes, so the ship sits in open space - not buried
+	# in a mountain. The cine camera watches from the SPAWN side (local -Z) so the landing/
+	# lift-off frames the ship against the open bay + distant peaks, never the narrow gorge.
 	var ship := preload("res://scripts/landed_ship.gd").new()
 	add_child(ship)
-	ship.configure(Vector3(0, 0.0, 32.0), Vector3(0, 1.0, 6.0))
+	ship.configure(SHIP_BAY_CENTER, Vector3(0, 1.0, 6.0), 13.0, Vector3(-30.0, 12.0, 8.0))
 	ship.call_deferred("start_landing")     # arrival: the ship drops onto the pad
 
 	var region := get_parent()
@@ -157,11 +172,12 @@ func _build_ascent() -> void:
 
 	# Flat staging pad at the foot of the volcano (player spawns here).
 	_box(Vector3(0, -T * 0.5, 6), Vector3(ASCENT_WIDTH, T, 12), _rock)
-	# Landing apron reaching BEHIND the spawn (into +z) - a broad, open plaza so the parked
-	# ship stands well clear of the spawn cliffs/gorge, not cramped against them. Its top is
-	# at y 0, above the lethal void volume (top y -2), so it is safe to walk while stepping
-	# off its far/side edges is still a lethal fall. Continuous with the staging pad.
-	_box(Vector3(0, -T * 0.5, 30.0), Vector3(48, T, 48), _rock)
+	# Landing apron reaching BEHIND the spawn (into +z) - a broad, OPEN bay so the parked
+	# ship stands in clear space, not cramped against the spawn cliffs/gorge and not buried
+	# in the horizon volcanoes. Its top is at y 0, above the lethal void volume (top y -2),
+	# so it is safe to walk while stepping off its far/side edges is still a lethal fall.
+	# Continuous with the staging pad. The framing cliffs + backdrop are in _build_ship_bay.
+	_box(SHIP_BAY_CENTER - Vector3(0, T * 0.5, 0), Vector3(SHIP_BAY_W, T, SHIP_BAY_D), _rock)
 	# Gorge walls flank the flat staging pad too, seated at the pad level (y 0), so the
 	# cliffs are continuous from the spawn - no floating first wall / open gap at the foot.
 	for s in [-1.0, 1.0]:
@@ -741,15 +757,57 @@ func _build_environment() -> void:
 	rng.seed = 51877
 	var count := 26
 	var kinds := ["venus_volcano", "venus_cliff", "venus_volcano", "venus_spire"]
+	var bay := Vector2(SHIP_BAY_CENTER.x, SHIP_BAY_CENTER.z)
 	for i in count:
 		var ang: float = TAU * float(i) / float(count) + rng.randf_range(-0.12, 0.12)
-		var rad: float = rng.randf_range(240.0, 360.0)
+		# Pushed back (min radius 300) so the ring sits on the far horizon, not looming over
+		# the play space.
+		var rad: float = rng.randf_range(300.0, 400.0)
 		# seat a couple of metres INTO the plain so no gap shows under the base. Taller now
 		# so the peaks clearly rise ABOVE the ascent gorge walls on the horizon (they read
 		# from the open-sky cliff climb; the boss cave below no longer shows them at all).
 		var pos := Vector3(sin(ang) * rad, -42.0, -200.0 + cos(ang) * rad)
+		# NEVER let a towering peak land on / swallow the ship bay behind the spawn - a
+		# straight-behind ring volcano used to envelop the ship and put the camera INSIDE
+		# the mesh. Skip any candidate whose ground position is within the bay clear radius,
+		# leaving open haze behind the ship (the framed backdrop is added in _build_ship_bay).
+		if Vector2(pos.x, pos.z).distance_to(bay) < SHIP_BAY_CLEAR:
+			continue
 		var size: float = rng.randf_range(130.0, 240.0)
 		_place_rock(kinds[i % kinds.size()], pos, rng.randf_range(0.0, TAU), size)
+
+
+# --- Ship landing bay (framing the parked ship) ----------------------------
+
+## Frame the open landing bay behind the spawn: low, set-back volcanic cliffs form a
+## horseshoe around the back and sides of the apron (open toward the spawn/-Z, where the
+## player walks in from the gorge), and a few distant peaks sit far beyond for silhouette
+## depth. The apron itself and the horizon-volcano clear radius are handled elsewhere; this
+## is the visual framing so the ship reads as landed in a real bay, not floating on void or
+## buried in a mountain. All visual-only (no collision) - the apron edge is the real bound.
+func _build_ship_bay() -> void:
+	var cx := SHIP_BAY_CENTER.x
+	var cz := SHIP_BAY_CENTER.z
+	var half_w := SHIP_BAY_W * 0.5
+	var half_d := SHIP_BAY_D * 0.5
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90210
+
+	# Low, COMPACT boulders along the BACK edge only (venus_boulder, not the cliff-wall
+	# asset which balloons when scaled) - a natural grounded rim behind the ship so the bay
+	# doesn't look like a floating slab, while the whole approach + both flanks stay wide
+	# and open. Nothing tall or close: the landing/lift-off camera keeps a clean frame.
+	var back_z := cz + half_d - 3.0
+	for x: float in [-28.0, -10.0, 8.0, 26.0]:
+		_place_rock("venus_boulder", Vector3(cx + x, -0.4, back_z + rng.randf_range(-2.0, 2.0)),
+			rng.randf_range(0.0, TAU), 6.0 + rng.randf_range(-1.0, 2.5))
+
+	# Distant backdrop peaks far beyond the bay (past the clear radius), so there is a
+	# volcanic silhouette on the horizon behind the ship instead of bare haze.
+	var kinds: Array[String] = ["venus_volcano", "venus_cliff", "venus_volcano"]
+	var spots: Array[Vector3] = [Vector3(-120.0, -42.0, cz + 300.0), Vector3(20.0, -42.0, cz + 340.0), Vector3(150.0, -42.0, cz + 270.0)]
+	for i in spots.size():
+		_place_rock(kinds[i % kinds.size()], spots[i], rng.randf_range(0.0, TAU), rng.randf_range(170.0, 220.0))
 
 
 # --- The active volcano (summit peak + magma bombardment) -------------------

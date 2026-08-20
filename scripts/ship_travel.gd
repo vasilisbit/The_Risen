@@ -1,25 +1,33 @@
 extends CanvasLayer
-## ShipTravel autoload (P1) - the public entry point for the Fold cinematic and the
-## keeper of the white "atmospheric entry" flash + the actual scene swap.
+## ShipTravel autoload (P1) - the public entry point for the Fold cinematic and the keeper
+## of the SEAMLESS hand-off into the mission's real-time landing.
 ##
-## The verb is: from the helm (or the hologram table) you pick a world and confirm a
-## difficulty; that funnels here. `begin()` drops a `travel_cutscene` into the live
-## scene, which flies the hero ship to the planet and lands (see travel_cutscene.gd).
-## When the descent finishes the cutscene emits `handoff`; THIS node then flashes the
-## screen white, swaps to the mission scene, and clears the white - so the surface
-## "washes in" out of a bright cloud, exactly like the reference.
+## The verb: from the helm (or the hologram table) you pick a world and confirm a
+## difficulty; that funnels here. `begin()` plays the Fold - the warp-to-planet transition -
+## and then dissolves straight into the mission, whose own landed_ship.start_landing() runs
+## the INTERACTIVE, in-engine landing on the surface (that half is deliberately NOT baked, so
+## it stays live/replayable). There is no white flash any more: the swap happens under a
+## short dark dissolve while the destination is preloaded, so the fold flows into the landing
+## as one continuous shot.
 ##
-## It is an autoload (not scene-scoped) for two reasons: the public API reads cleanly
-## as `ShipTravel.begin(...)`, and the white flash must survive the scene change that
-## frees the cutscene, so it lives on this persistent CanvasLayer.
+## The Fold itself is played one of two ways, best-first:
+##   1. A PRE-BAKED VIDEO  (assets/generated/fold/<mission>.ogv, made by tools/gen_fold_video.py
+##      on fal.ai Seedance) - a filmic warp+approach+atmospheric-entry clip. Preferred when the
+##      file is present; this is the "do the fold with video" path.
+##   2. The in-engine `travel_cutscene` - a real-time chase-cam flight of hero_ship.glb to the
+##      3D planet. The always-available fallback when no video is baked.
 ##
-## SAFE FALLBACK: if the ship asset or the cutscene scene is missing, `begin()` returns
-## false and the caller does its existing plain fade instead - the Fold never dead-ends.
+## It is an autoload (not scene-scoped) so the API reads as `ShipTravel.begin(...)` and so the
+## dissolve + preloaded swap survive the scene change that frees the fold.
+##
+## SAFE FALLBACK: if neither a video nor the in-engine cutscene assets are available, `begin()`
+## returns false and the caller does its existing plain fade instead - the Fold never dead-ends.
 
 enum State { IDLE, FOLD, APPROACH, DESCENT, HANDOFF }
 
 const CUTSCENE_SCENE := "res://scenes/hub/travel_cutscene.tscn"
 const SHIP_GLB := "res://assets/generated/ship/hero_ship.glb"
+const FOLD_DIR := "res://assets/generated/fold/"
 
 ## Mission planet -> level scene (same map the helm/table interactors keep locally).
 const MISSION_SCENES := {
@@ -28,97 +36,307 @@ const MISSION_SCENES := {
 	"Venus": "res://scenes/missions/venus/venus.tscn",
 }
 
+## Realistic fold title-card text (shared by the video overlay AND the in-engine cutscene, so
+## there is one source of truth). Each landing site is a real planetary feature so the card
+## names the specific place the ship is dropping onto, with a grounded environmental readout.
+##   Earth -> a ruined-city archive dig (Geneva). Mars -> Valles Marineris (a real canyon).
+##   Venus -> Maat Mons (a real Venusian volcano - matches the volcano-ascent mission).
+const FOLD_TEXT := {
+	"Earth": {
+		"designation": "SOL III   ·   EARTH",
+		"site": "GENEVA ARCHIVE RUINS",
+		"readout": "ATMOSPHERE BREATHABLE    GRAVITY 1.0 G    ARCHIVE CORE DETECTED",
+	},
+	"Mars": {
+		"designation": "SOL IV   ·   MARS",
+		"site": "VALLES MARINERIS OUTPOST",
+		"readout": "THIN CO2 ATMOSPHERE    GRAVITY 0.38 G    DUST STORM INBOUND",
+	},
+	"Venus": {
+		"designation": "SOL II   ·   VENUS",
+		"site": "MAAT MONS ASCENT",
+		"readout": "SULFURIC OVERCAST    GRAVITY 0.90 G    SURFACE 464 °C",
+	},
+}
+
 ## Observable current beat (mirrors the cutscene's state machine), exposed for tests.
 var state: int = State.IDLE
 
 var _running: bool = false
 var _cutscene: Node3D = null
-var _white: ColorRect
+var _fade: ColorRect                 # black dissolve that covers the seamless swap
+var _pending_path: String = ""       # mission scene, threaded-preloaded during the fold
+
+# Video-fold overlay (present only on the video path; freed on the swap).
+var _video: VideoStreamPlayer = null
+var _video_ui: Control = null
+var _skipped: bool = false
 
 
 func _ready() -> void:
 	layer = 140                       # above GameState's fade (128) and HUDs
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_white = ColorRect.new()
-	_white.color = Color(1, 1, 1, 0)
-	_white.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_white.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_white)
+	_fade = ColorRect.new()
+	_fade.color = Color(0, 0, 0, 0)   # black, transparent until the hand-off
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_fade)
 
 
-## Start the Fold cinematic to `mission`. `planet_node` is the aimed world (helm
-## billboard / mission sphere) - accepted per the design API, used only as a hint;
-## the cutscene builds its own framed pocket of space. Returns true if the cinematic
-## was launched, false if assets are missing (caller should fall back to a plain fade).
+## Start the Fold to `mission`. `planet_node` is the aimed world - accepted per the design
+## API, used only as a hint. Returns true if the fold was launched, false if nothing can play
+## it (caller should fall back to a plain fade). Prefers the baked video, else the in-engine
+## cutscene.
 func begin(mission: String, _planet_node: Node3D = null) -> bool:
 	if _running:
 		return true
 	if not MISSION_SCENES.has(mission):
 		return false
-	if not _assets_ready():
-		return false
-	var packed := load(CUTSCENE_SCENE)
-	if not (packed is PackedScene):
-		return false
+	var video_path := _video_for(mission)
+	var can_cutscene := _assets_ready()
+	if video_path == "" and not can_cutscene:
+		return false                  # nothing to play - caller does its plain fade
 	var scene := get_tree().current_scene
 	if scene == null:
 		return false
 
-	_cutscene = (packed as PackedScene).instantiate() as Node3D
-	if _cutscene == null:
-		return false
-	scene.add_child(_cutscene)
-	_running = true
-	state = State.FOLD
+	# Preload the destination NOW so the swap under the dissolve is instant (no load hitch -
+	# the old white screen was partly hiding that stall). The heavy runtime level build still
+	# runs on the swap, but the dark hold covers it.
+	_pending_path = MISSION_SCENES[mission]
+	ResourceLoader.load_threaded_request(_pending_path)
 
-	# Freeze the walking player so its camera/input can't fight the cinematic; it is
-	# discarded on the scene swap, so no restore is needed.
+	_running = true
+	_skipped = false
+	state = State.FOLD
+	_freeze_scene()
+
+	if video_path != "":
+		_begin_video(mission, video_path)
+	else:
+		_begin_cutscene(mission, scene)
+	return true
+
+
+## Freeze the walking player so its camera/input can't fight the fold; it is discarded on the
+## swap, so no restore is needed. Also hide the "[E] Deploy to X" crosshair prompt (its owner,
+## the player, is disabled for the fold).
+func _freeze_scene() -> void:
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	if player:
 		player.visible = false
 		player.process_mode = Node.PROCESS_MODE_DISABLED
-	# Hide the crosshair "[E] Deploy to X" prompt so it doesn't freeze on screen while the
-	# player (which owns the mission interactor) is disabled for the cutscene.
 	var prompt := get_tree().get_first_node_in_group("interact_prompt") as CanvasItem
 	if prompt:
 		prompt.visible = false
 
+
+# --- Video-fold path -------------------------------------------------------
+
+## The baked fold clip for a mission, or "" if none is present.
+func _video_for(mission: String) -> String:
+	var p := FOLD_DIR + mission.to_lower() + ".ogv"
+	return p if ResourceLoader.exists(p) else ""
+
+
+## Play the pre-baked Seedance fold clip full-screen, with the realistic title card over it,
+## and hand off to the mission when it finishes (or when skipped).
+func _begin_video(mission: String, path: String) -> void:
+	var stream := load(path)
+	if not (stream is VideoStream):
+		_begin_cutscene(mission, get_tree().current_scene)   # corrupt/missing import -> fallback
+		return
+	_video = VideoStreamPlayer.new()
+	_video.stream = stream
+	_video.expand = true
+	_video.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_video.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_video.audio_track = 0
+	add_child(_video)
+	_video.finished.connect(_on_video_finished.bind(mission))
+	_video.play()
+
+	_build_video_ui(mission)
+	_fade.move_to_front()             # keep the dissolve above the video + card
+	set_process_unhandled_input(true)
+	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	_fold_audio()
+	state = State.APPROACH
+
+
+## Letterbox bars + the realistic title card over the video (mirrors the in-engine cutscene's
+## styling), fading up a beat after the clip starts.
+func _build_video_ui(mission: String) -> void:
+	_video_ui = Control.new()
+	_video_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_video_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_video_ui)
+
+	var bar_top := _mk_bar()
+	bar_top.anchor_right = 1.0
+	bar_top.offset_bottom = 96.0
+	_video_ui.add_child(bar_top)
+	var bar_bottom := _mk_bar()
+	bar_bottom.anchor_right = 1.0
+	bar_bottom.anchor_top = 1.0
+	bar_bottom.anchor_bottom = 1.0
+	bar_bottom.offset_top = -96.0
+	_video_ui.add_child(bar_bottom)
+
+	var t: Dictionary = FOLD_TEXT.get(mission, {"site": mission.to_upper(), "designation": mission.to_upper(), "readout": ""})
+	var title := Label.new()
+	title.text = t["site"]
+	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", Color(0.90, 0.96, 1.0))
+	title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	title.add_theme_constant_override("outline_size", 6)
+	title.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	title.position = Vector2(56, -128)
+	title.modulate.a = 0.0
+	_video_ui.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "%s      %s" % [t["designation"], t["readout"]]
+	sub.add_theme_font_size_override("font_size", 15)
+	sub.add_theme_color_override("font_color", Color(0.6, 0.82, 0.98))
+	sub.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	sub.add_theme_constant_override("outline_size", 4)
+	sub.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	sub.position = Vector2(58, -92)
+	sub.modulate.a = 0.0
+	_video_ui.add_child(sub)
+
+	var skip := Label.new()
+	skip.text = "[E] SKIP"
+	skip.add_theme_font_size_override("font_size", 14)
+	skip.add_theme_color_override("font_color", Color(0.7, 0.75, 0.82))
+	skip.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	skip.add_theme_constant_override("outline_size", 4)
+	skip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	skip.position = Vector2(-96, -40)
+	_video_ui.add_child(skip)
+
+	var tw := create_tween()
+	tw.tween_interval(0.6)
+	tw.tween_property(title, "modulate:a", 1.0, 0.6)
+	tw.parallel().tween_property(sub, "modulate:a", 1.0, 0.6).set_delay(0.2)
+
+
+func _mk_bar() -> ColorRect:
+	var bar := ColorRect.new()
+	bar.color = Color(0, 0, 0, 1)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return bar
+
+
+func _on_video_finished(mission: String) -> void:
+	_on_handoff(mission)
+
+
+# --- In-engine cutscene path (fallback) ------------------------------------
+
+func _begin_cutscene(mission: String, scene: Node) -> void:
+	var packed := load(CUTSCENE_SCENE)
+	if not (packed is PackedScene):
+		# No fold at all - reveal straight into the mission via the dissolve.
+		_on_handoff(mission)
+		return
+	_cutscene = (packed as PackedScene).instantiate() as Node3D
+	if _cutscene == null:
+		_on_handoff(mission)
+		return
+	scene.add_child(_cutscene)
 	if _cutscene.has_signal("state_changed"):
 		_cutscene.state_changed.connect(func(s: int) -> void: state = s)
 	if _cutscene.has_signal("handoff"):
 		_cutscene.handoff.connect(_on_handoff)
 	if _cutscene.has_method("play"):
 		_cutscene.play(mission)
-	return true
 
 
-## Both the ship model and the cutscene scene must load, else we can't fly anything.
+## Both the ship model and the cutscene scene must load for the in-engine fold.
 func _assets_ready() -> bool:
 	return ResourceLoader.exists(SHIP_GLB) and ResourceLoader.exists(CUTSCENE_SCENE)
 
 
-## Descent done: flash white, swap to the mission, then clear the white so the surface
-## reveals through the fading brightness.
+# --- Seamless hand-off (shared) --------------------------------------------
+
+## Fold done: dissolve to black, swap to the preloaded mission under the dark (covering the
+## level build), then dissolve back up as the mission's own landing cinematic plays - no white
+## flash, no visible cut, straight into the interactive landing.
 func _on_handoff(mission: String) -> void:
+	if state == State.HANDOFF:
+		return
 	state = State.HANDOFF
 	var path: String = MISSION_SCENES.get(mission, "")
 	if path == "":
-		_running = false
+		_reset()
 		return
+	set_process_unhandled_input(false)
 	var tw := create_tween()
-	tw.tween_property(_white, "color:a", 1.0, 0.45)
+	tw.tween_property(_fade, "color:a", 1.0, 0.35)
 	tw.tween_callback(func() -> void: _swap(path))
-	tw.tween_interval(0.2)
-	tw.tween_property(_white, "color:a", 0.0, 0.7)
+	tw.tween_interval(0.55)           # hold black over the runtime level build
+	tw.tween_property(_fade, "color:a", 0.0, 0.7)
 	tw.tween_callback(_reset)
 
 
 func _swap(path: String) -> void:
-	_cutscene = null                  # freed with the old scene by change_scene_to_file
-	get_tree().change_scene_to_file(path)
+	# Free the video overlay before the scene change (the in-engine cutscene is freed with the
+	# old scene automatically).
+	if _video and is_instance_valid(_video):
+		_video.queue_free()
+	_video = null
+	if _video_ui and is_instance_valid(_video_ui):
+		_video_ui.queue_free()
+	_video_ui = null
+	_cutscene = null
+	_stop_audio()
+	var packed: PackedScene = null
+	if _pending_path == path and ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		packed = ResourceLoader.load_threaded_get(path) as PackedScene   # blocks only if not finished
+	if packed != null:
+		get_tree().change_scene_to_packed(packed)
+	else:
+		get_tree().change_scene_to_file(path)
+	_pending_path = ""
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _reset() -> void:
 	_running = false
 	state = State.IDLE
+	_skipped = false
+
+
+# --- Fold audio (video path; the in-engine cutscene runs its own) -----------
+
+func _fold_audio() -> void:
+	var am := get_node_or_null("/root/AudioManager")
+	if am == null:
+		return
+	if am.has_method("play_sfx"):
+		am.play_sfx("warp")
+	if am.has_method("play_music"):
+		am.play_music("travel")
+
+
+func _stop_audio() -> void:
+	pass
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _running or _skipped or state == State.HANDOFF:
+		return
+	# Only the video path listens here (the in-engine cutscene handles its own skip).
+	if _video == null:
+		return
+	if event.is_action_pressed("interact") or event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_skipped = true
+		var m := ""
+		for k in MISSION_SCENES.keys():
+			if _pending_path == MISSION_SCENES[k]:
+				m = k
+				break
+		_on_handoff(m)
