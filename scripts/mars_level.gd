@@ -169,7 +169,10 @@ func _on_checkpoint(body: Node, respawn: Vector3) -> void:
 
 
 func _build_kill_plane() -> void:
-	var a := _area(Vector3(0, -12, -54), Vector3(70, 2, 132))
+	# A TALL slab well below every platform and the start courtyard, reaching back past the
+	# parked ship (z ~ +46) so falling off the ship area is an instant death too - not only
+	# forward under the jump puzzle. Thick (30 m) so a fast fall can't tunnel through it.
+	var a := _area(Vector3(0, -25, -38), Vector3(80, 30, 168))
 	a.body_entered.connect(_on_kill_plane)
 
 

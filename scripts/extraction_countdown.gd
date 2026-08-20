@@ -38,7 +38,6 @@ func begin(seconds: float, return_scene: String) -> void:
 	_build_ui()
 	_land_ship()
 	set_process(true)
-	set_process_unhandled_input(true)
 
 
 func _build_ui() -> void:
@@ -106,51 +105,27 @@ func _land_ship() -> void:
 
 
 func _process(delta: float) -> void:
+	if _going:
+		return
 	_left -= delta
 	if _left <= 0.0:
-		_return_to_ship()
+		_extract()
 		return
-	if _boarding:
+	# The parked ship shows its own "[E] Board ship" prompt and runs the board/lift-off
+	# cinematic; this just nudges the player + auto-lifts if they idle.
+	_label.text = "AREA SECURED  -  loot up!\nBoard your ship to extract   (auto-lift in %d s)" % int(ceil(_left))
+
+
+## Timed out: leave. Prefer the parked ship's lift-off cinematic (it flies up and returns
+## home itself); if there's no cinematic ship, just fade home directly.
+func _extract() -> void:
+	if _going:
 		return
-	var near := _player_near_ship()
-	var line2 := ("[E] Board ship" if near else "Return to your ship")
-	_label.text = "AREA SECURED  -  loot up!\n%s   (auto in %d s)" % [line2, int(ceil(_left))]
-
-
-## True when the player is close enough to the landed ship to board it.
-func _player_near_ship() -> bool:
-	if not _has_ship:
-		return false
-	var p := get_tree().get_first_node_in_group("player") as Node3D
-	return p != null and p.global_position.distance_to(_ship_pos) <= BOARD_RANGE
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if _going or _boarding:
-		return
-	# [E] near the ship boards it (a 3rd-person view + [L] to lift off); [L] boards from
-	# anywhere as a shortcut.
-	if event.is_action_pressed("interact") and _player_near_ship():
-		get_viewport().set_input_as_handled()
-		_board()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_L:
-		get_viewport().set_input_as_handled()
-		_board()
-
-
-## Board the parked ship: hand off to its 3rd-person boarding cinematic (which waits for
-## [L] to lift off, then emits `lifted_off` -> we return to the hub). If the ship has no
-## cinematic (a fallback temp ship), just return home directly.
-func _board() -> void:
-	if _boarding or _going:
-		return
-	_boarding = true
-	if _label:
-		_label.visible = false
-	if _ship and is_instance_valid(_ship) and _ship.has_signal("lifted_off"):
-		if not _ship.lifted_off.is_connected(_return_to_ship):
-			_ship.lifted_off.connect(_return_to_ship)
-		_ship.begin_boarding()
+	if _ship and is_instance_valid(_ship) and _ship.has_method("begin_boarding"):
+		_going = true
+		if _label:
+			_label.visible = false
+		_ship.begin_boarding()          # no-op if the player is already boarding
 	else:
 		_return_to_ship()
 

@@ -140,7 +140,7 @@ func _world_aabb(root: Node3D) -> AABB:
 # --- ground: asphalt street strip over a concrete base, both triplanar-textured --
 
 func _build_ground() -> void:
-	_ground_box(Vector3(0, -0.3, -38), Vector3(44, 0.6, 108), "concrete", Color(0.85, 0.83, 0.80), 0.12)  # base/sidewalks
+	_ground_box(Vector3(0, -0.3, -25), Vector3(44, 0.6, 134), "concrete", Color(0.85, 0.83, 0.80), 0.12)  # base/sidewalks (extended back past the ship pad)
 	_ground_box(Vector3(0, 0.02, -34), Vector3(17, 0.5, 92), "asphalt", Color(0.9, 0.9, 0.92), 0.16)      # road
 	_ground_box(Vector3(0, 0.03, -72), Vector3(34, 0.5, 26), "rubble", Color(0.9, 0.85, 0.78), 0.2)       # plaza floor
 
@@ -352,8 +352,8 @@ func _skyline_box(center: Vector3, size: Vector3, rng: RandomNumberGenerator) ->
 ## are gone). Collision-only, no mesh - still parsed by the navmesh (static colliders)
 ## so enemies also stay in. Sides full length + end caps behind start and plaza.
 func _build_bounds() -> void:
-	_barrier(Vector3(-15.5, 6.5, -36), Vector3(0.6, 15, 112))
-	_barrier(Vector3(15.5, 6.5, -36), Vector3(0.6, 15, 112))
+	_barrier(Vector3(-15.5, 6.5, -25), Vector3(0.6, 15, 134))     # side walls, extended back past the ship pad
+	_barrier(Vector3(15.5, 6.5, -25), Vector3(0.6, 15, 134))
 	_barrier(Vector3(0, 6.5, 37), Vector3(48, 15, 0.6))      # behind start (moved back to fit the parked ship)
 	_barrier(Vector3(0, 6.5, -87), Vector3(34, 15, 0.6))     # behind plaza
 
@@ -414,10 +414,10 @@ func _build_spawns() -> void:
 
 func _build_kill_plane() -> void:
 	var a := Area3D.new()
-	a.position = Vector3(0, -10, -38)
+	a.position = Vector3(0, -10, -29)
 	a.collision_mask = 1
 	var col := CollisionShape3D.new()
-	var shape := BoxShape3D.new(); shape.size = Vector3(80, 3, 130)
+	var shape := BoxShape3D.new(); shape.size = Vector3(80, 16, 148)   # thick + reaches back under the ship pad
 	col.shape = shape
 	a.add_child(col)
 	a.body_entered.connect(_on_kill_plane)
