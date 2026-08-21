@@ -181,22 +181,20 @@ func _build_ascent() -> void:
 		var cz := -(seg_len * float(i) + seg_len * 0.5)
 		var cy := slope_y(cz) - sink
 		_box(Vector3(0, cy, cz), Vector3(ASCENT_WIDTH, T, slab), _rock, rot)
-		# Side containment: an INVISIBLE collision wall at the path edge (reliable movement)
-		# PLUS a tall SOLID opaque backing wall further out - so the gaps BETWEEN the
-		# generated cliff pieces show dark rock, not see-through void (the "you can see
-		# through the walls" bug). The generated cliffs sit in front as the detail.
+		# Side containment: an INVISIBLE collision wall at the path edge (reliable movement).
+		# The VISIBLE walls are the generated volcanic cliffs (_build_ascent_cliffs), which
+		# overlap into a continuous rampart - the old grey _rock_dark backing boxes are gone
+		# (they were the flat "wall behind the wall" showing through behind the cliffs).
 		_collision_box(Vector3(-ASCENT_WIDTH * 0.5, cy + 4.0, cz), Vector3(T, 10, slab), rot)
 		_collision_box(Vector3(ASCENT_WIDTH * 0.5, cy + 4.0, cz), Vector3(T, 10, slab), rot)
-		_box(Vector3(-(ASCENT_WIDTH * 0.5 + 3.0), cy + 9.0, cz), Vector3(1.0, 22, slab), _rock_dark, rot)
-		_box(Vector3(ASCENT_WIDTH * 0.5 + 3.0, cy + 9.0, cz), Vector3(1.0, 22, slab), _rock_dark, rot)
 
 	# Flat summit pad, joining the ascent to the cavern mouth.
 	_box(Vector3(0, _y_summit - T * 0.5, _z_cavern_start + 6.0),
 		Vector3(ASCENT_WIDTH, T, 12), _rock)
-	# Seal the summit pad sides too, so the gorge is continuous up to the cavern mouth.
+	# Seal the summit pad sides too (invisible collision only; the generated cliffs are the
+	# visible walls - no grey backing box).
 	for s in [-1.0, 1.0]:
 		_collision_box(Vector3(s * ASCENT_WIDTH * 0.5, _y_summit + 4.0, _z_cavern_start + 6.0), Vector3(T, 10, 14))
-		_box(Vector3(s * (ASCENT_WIDTH * 0.5 + 3.0), _y_summit + 9.0, _z_cavern_start + 6.0), Vector3(1.0, 22, 16), _rock_dark)
 
 	_build_ascent_cliffs()
 	_build_ascent_props()
@@ -790,17 +788,10 @@ func _build_start_area() -> void:
 	# (1) ONE continuous crater floor - the single source of ground for the whole flat area.
 	_box(Vector3(cx, -T * 0.5, cz), Vector3(CRATER_W, T, CRATER_D), _rock)
 
-	# Invisible containment around the crater rim (sides + back), leaving the -Z ascent mouth
-	# open. The player can't walk off the crater edge into the void.
-	_collision_box(Vector3(cx - half_w, 7.0, cz), Vector3(T, 16, CRATER_D))
-	_collision_box(Vector3(cx + half_w, 7.0, cz), Vector3(T, 16, CRATER_D))
-	_collision_box(Vector3(cx, 7.0, back_z), Vector3(CRATER_W, 16, T))
-	# Front: block the ground either side of the gorge mouth (beyond x +-aw), so the player is
-	# funnelled into the climb and can't step into the side void where the slope has no floor.
-	var side_w: float = half_w - aw
-	for s: float in [-1.0, 1.0]:
-		_collision_box(Vector3(cx + s * (aw + side_w * 0.5), 7.0, front_z + 1.5), Vector3(side_w, 16, 3.0))
-
+	# (2) The crater walls are now SOLID, opaque, outward-leaning volcanic walls (with their own
+	# collision) built in _build_crater_rim - they contain the player, block all see-through
+	# (behind the ascent / off the map), sit flush on the floor edge (no floating), and lean
+	# out so the crater "opens". No more invisible-box rim + floating scattered rocks.
 	_build_crater_rim(cx, cz, half_w, half_d, front_z, back_z)
 
 	# Distant backdrop peaks far beyond the crater (past the clear radius), a volcanic
@@ -813,33 +804,78 @@ func _build_start_area() -> void:
 		_place_rock(kinds[i % kinds.size()], spots[i], rng.randf_range(0.0, TAU), rng.randf_range(170.0, 220.0))
 
 
-## The crater rim: a ring of MIXED volcanic rocks (cliff / spire / boulder) placed JUST
-## OUTSIDE the play boundary along the sides + back, open at the -Z ascent mouth. Varied
-## kind / size / yaw so it reads as an organic crater wall, not a boxy corridor. Sized with
-## _place_rock (scale-to-largest-dim, bounded) - NOT _place_wall, whose scale-to-height
-## balloons the width and juts into the crater. Visual-only (invisible collision contains).
+## The crater walls: SOLID, opaque, outward-LEANING volcanic walls around the sides + back +
+## the two flanks of the -Z ascent mouth, plus grounded detail rocks in front of them. Solid
+## (with collision) so they contain the player and block ALL see-through (behind the ascent /
+## off the map); leaning outward so the crater "opens" toward the ship; seated flush on the
+## floor edge so nothing floats. Replaces the old floating scattered-rock rim.
 func _build_crater_rim(cx: float, cz: float, half_w: float, half_d: float, front_z: float, back_z: float) -> void:
+	var h := 26.0
+	var th := 8.0
+	var tilt := 16.0
+	var aw := ASCENT_WIDTH * 0.5
+	# Side walls (run along Z), lean outward (top away from centre).
+	_lean_wall(Vector3(cx - half_w, 0.0, cz), Vector3(0, 0, 1), Vector3(-1, 0, 0), half_d * 2.0 + 8.0, h, th, tilt)
+	_lean_wall(Vector3(cx + half_w, 0.0, cz), Vector3(0, 0, 1), Vector3(1, 0, 0), half_d * 2.0 + 8.0, h, th, tilt)
+	# Back wall (runs along X), leans outward (+Z).
+	_lean_wall(Vector3(cx, 0.0, back_z), Vector3(1, 0, 0), Vector3(0, 0, 1), half_w * 2.0 + 8.0, h, th, tilt)
+	# Front flanks either side of the ascent mouth (x beyond +-aw) - close off the view/route
+	# "behind the ascending area". Centred over x aw..half_w, leaning toward the ascent (-Z).
+	var flank_len: float = half_w - aw
+	for s: float in [-1.0, 1.0]:
+		_lean_wall(Vector3(s * (aw + flank_len * 0.5), 0.0, front_z), Vector3(s, 0, 0), Vector3(0, 0, -1), flank_len, h, th, tilt)
+	_build_rim_detail(cx, cz, half_w, half_d, front_z, back_z)
+
+
+## A few volcanic detail rocks against the crater walls, seated INTO the floor (base below the
+## surface) so they emerge from the ground with no gap/float, kept inside the boundary.
+func _build_rim_detail(cx: float, cz: float, half_w: float, half_d: float, front_z: float, back_z: float) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 33991
-	var kinds: Array[String] = ["venus_cliff", "venus_spire", "venus_cliff", "venus_boulder"]
+	var kinds: Array[String] = ["venus_cliff", "venus_boulder", "venus_spire", "venus_boulder"]
 	var ki := 0
-	# Sides (run along Z), seated just beyond the x boundary so the pieces frame the rim
-	# without reaching the open centre.
 	for s: float in [-1.0, 1.0]:
-		var n := 6
-		for i in n:
-			var z: float = lerpf(front_z + 5.0, back_z - 3.0, float(i) / float(n - 1))
-			var sz: float = rng.randf_range(16.0, 26.0)
-			var x: float = cx + s * (half_w + sz * 0.42)
-			_place_rock(kinds[ki % kinds.size()], Vector3(x, 0.0, z), rng.randf_range(0.0, TAU), sz)
+		for i in 5:
+			var z: float = lerpf(front_z + 9.0, back_z - 7.0, float(i) / 4.0)
+			var x: float = cx + s * (half_w - rng.randf_range(3.0, 8.0))
+			_place_rock(kinds[ki % kinds.size()], Vector3(x, -0.8, z), rng.randf_range(0.0, TAU), rng.randf_range(8.0, 15.0))
 			ki += 1
-	# Back (run along X), beyond the z boundary.
-	var m := 6
-	for i in m:
-		var x: float = lerpf(cx - half_w + 4.0, cx + half_w - 4.0, float(i) / float(m - 1))
-		var sz: float = rng.randf_range(16.0, 24.0)
-		_place_rock(kinds[ki % kinds.size()], Vector3(x, 0.0, back_z + sz * 0.42), rng.randf_range(0.0, TAU), sz)
+	for i in 4:
+		var x: float = lerpf(cx - half_w + 9.0, cx + half_w - 9.0, float(i) / 3.0)
+		_place_rock(kinds[ki % kinds.size()], Vector3(x, -0.8, back_z - rng.randf_range(3.0, 7.0)), rng.randf_range(0.0, TAU), rng.randf_range(8.0, 14.0))
 		ki += 1
+
+
+## Solid volcanic wall (mesh + collision) that leans OUTWARD by tilt_deg so the crater opens
+## upward, with its inner-bottom edge centred on `edge` (a point on the floor boundary).
+## `run` = unit along-wall direction; `out` = unit outward (horizontal) direction.
+func _lean_wall(edge: Vector3, run: Vector3, out: Vector3, length: float, height: float, thickness: float, tilt_deg: float) -> void:
+	var t := deg_to_rad(tilt_deg)
+	var up := (Vector3.UP * cos(t) + out * sin(t)).normalized()
+	var depth := run.cross(up).normalized()
+	if depth.dot(out) < 0.0:
+		depth = -depth
+	var basis := Basis(run.normalized(), up, depth)
+	var corner_local := Vector3(0.0, -height * 0.5, -thickness * 0.5)   # inner-bottom edge (-depth side)
+	var centre: Vector3 = edge - basis * corner_local
+	_box_t(Transform3D(basis, centre), Vector3(length, height, thickness), _rock_dark)
+
+
+## Box (mesh + collision) placed by an arbitrary Transform3D - for the tilted walls.
+func _box_t(xform: Transform3D, size: Vector3, mat: Material) -> void:
+	var mesh := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mesh.mesh = bm
+	mesh.material_override = mat
+	mesh.transform = xform
+	add_child(mesh)
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	col.shape = shape
+	col.transform = xform
+	add_child(col)
 
 
 # --- The active volcano (summit peak + magma bombardment) -------------------
