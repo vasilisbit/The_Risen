@@ -211,18 +211,23 @@ func _build_ascent_cliffs() -> void:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 33771
-	var pieces := 7
+	# DENSE, tall, deeply-seated cliff pieces so they overlap into a CONTINUOUS rampart with no
+	# gaps between pieces (the top) and no gap where the cliff meets the ground (the base) - the
+	# two gap kinds the user flagged. Same asset on both sides. (13 pieces at ~20-27 m tall are
+	# each far wider than the 17 m spacing, so they heavily overlap.)
+	# 13 pieces/side at the SAME per-piece size as before (~18 m) but nearly double the count,
+	# so they overlap ~2x and close the top gaps; base sunk ~3.5 m so they meet the ground with
+	# no base gap. (Kept at ~18 m - taller pieces balloon wide and jut into the crater.)
+	var span := ASCENT_LENGTH + 24.0
+	var pieces := 13
+	var step := span / float(pieces - 1)
 	for side in [-1.0, 1.0]:
 		var ex: float = side * (ASCENT_WIDTH * 0.5 + 0.5)
 		for i in pieces:
-			# Start at the slope base (z 0, the crater/ascent seam) and march up to the summit;
-			# the crater rim (_build_start_area) lines the flat area, these line the climb.
-			var z: float = 0.0 - (ASCENT_LENGTH + 20.0) / float(pieces - 1) * float(i)
+			var z: float = 0.0 - step * float(i)
 			var y := slope_y(z)
-			# Rotate so the wall's long axis runs along the path (Z). Height-scaled so it
-			# towers ~18 m over the walkway regardless of the model's raw proportions.
 			var yaw: float = (PI * 0.5) * side + rng.randf_range(-0.12, 0.12)
-			_place_wall("venus_cliff_wall", Vector3(ex, y - 2.5, z), yaw, 18.0 + rng.randf_range(-2.0, 3.0))
+			_place_wall("venus_cliff_wall", Vector3(ex, y - 3.5, z), yaw, 16.0 + rng.randf_range(0.0, 4.0))
 
 
 ## Rock formations (cover) and lava vents (hazards) dotted up the slope.
@@ -804,60 +809,48 @@ func _build_start_area() -> void:
 		_place_rock(kinds[i % kinds.size()], spots[i], rng.randf_range(0.0, TAU), rng.randf_range(170.0, 220.0))
 
 
-## The crater walls: SOLID, opaque, outward-LEANING volcanic walls around the sides + back +
-## the two flanks of the -Z ascent mouth, plus grounded detail rocks in front of them. Solid
-## (with collision) so they contain the player and block ALL see-through (behind the ascent /
-## off the map); leaning outward so the crater "opens" toward the ship; seated flush on the
-## floor edge so nothing floats. Replaces the old floating scattered-rock rim.
+## The crater walls: SOLID, opaque volcanic walls (with collision) around the sides + back +
+## the two flanks of the -Z ascent mouth. They contain the player and block ALL see-through
+## (behind the ascent / off the map), sit flush on the floor edge (no float), lean outward AND
+## the side walls run DIAGONALLY - wide at the front by the ship, toeing in toward the back -
+## so they turn to FACE the landing spot ("direction towards me") and the crater "opens" toward
+## the player. No loose boulders on the floor (removed - they read as clutter).
 func _build_crater_rim(cx: float, cz: float, half_w: float, half_d: float, front_z: float, back_z: float) -> void:
 	var h := 26.0
 	var th := 8.0
-	var tilt := 16.0
+	var tilt := 15.0
 	var aw := ASCENT_WIDTH * 0.5
-	# Side walls (run along Z), lean outward (top away from centre).
-	_lean_wall(Vector3(cx - half_w, 0.0, cz), Vector3(0, 0, 1), Vector3(-1, 0, 0), half_d * 2.0 + 8.0, h, th, tilt)
-	_lean_wall(Vector3(cx + half_w, 0.0, cz), Vector3(0, 0, 1), Vector3(1, 0, 0), half_d * 2.0 + 8.0, h, th, tilt)
+	var toe := 12.0   # how far each side wall angles inward from front -> back (turns to face the ship)
+	# Side walls: DIAGONAL (wide at the front near the ship, toeing in toward the back) so their
+	# faces turn toward the landing spot, plus the outward lean.
+	_lean_wall(Vector3(cx - half_w, 0.0, front_z), Vector3(cx - (half_w - toe), 0.0, back_z), Vector3(-1, 0, 0), h, th, tilt)
+	_lean_wall(Vector3(cx + half_w, 0.0, front_z), Vector3(cx + (half_w - toe), 0.0, back_z), Vector3(1, 0, 0), h, th, tilt)
 	# Back wall (runs along X), leans outward (+Z).
-	_lean_wall(Vector3(cx, 0.0, back_z), Vector3(1, 0, 0), Vector3(0, 0, 1), half_w * 2.0 + 8.0, h, th, tilt)
+	_lean_wall(Vector3(cx - half_w, 0.0, back_z), Vector3(cx + half_w, 0.0, back_z), Vector3(0, 0, 1), h, th, tilt)
 	# Front flanks either side of the ascent mouth (x beyond +-aw) - close off the view/route
-	# "behind the ascending area". Centred over x aw..half_w, leaning toward the ascent (-Z).
-	var flank_len: float = half_w - aw
+	# "behind the ascending area".
 	for s: float in [-1.0, 1.0]:
-		_lean_wall(Vector3(s * (aw + flank_len * 0.5), 0.0, front_z), Vector3(s, 0, 0), Vector3(0, 0, -1), flank_len, h, th, tilt)
-	_build_rim_detail(cx, cz, half_w, half_d, front_z, back_z)
+		_lean_wall(Vector3(s * aw, 0.0, front_z), Vector3(s * half_w, 0.0, front_z), Vector3(0, 0, -1), h, th, tilt)
 
 
-## A few volcanic detail rocks against the crater walls, seated INTO the floor (base below the
-## surface) so they emerge from the ground with no gap/float, kept inside the boundary.
-func _build_rim_detail(cx: float, cz: float, half_w: float, half_d: float, front_z: float, back_z: float) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 33991
-	var kinds: Array[String] = ["venus_cliff", "venus_boulder", "venus_spire", "venus_boulder"]
-	var ki := 0
-	for s: float in [-1.0, 1.0]:
-		for i in 5:
-			var z: float = lerpf(front_z + 9.0, back_z - 7.0, float(i) / 4.0)
-			var x: float = cx + s * (half_w - rng.randf_range(3.0, 8.0))
-			_place_rock(kinds[ki % kinds.size()], Vector3(x, -0.8, z), rng.randf_range(0.0, TAU), rng.randf_range(8.0, 15.0))
-			ki += 1
-	for i in 4:
-		var x: float = lerpf(cx - half_w + 9.0, cx + half_w - 9.0, float(i) / 3.0)
-		_place_rock(kinds[ki % kinds.size()], Vector3(x, -0.8, back_z - rng.randf_range(3.0, 7.0)), rng.randf_range(0.0, TAU), rng.randf_range(8.0, 14.0))
-		ki += 1
-
-
-## Solid volcanic wall (mesh + collision) that leans OUTWARD by tilt_deg so the crater opens
-## upward, with its inner-bottom edge centred on `edge` (a point on the floor boundary).
-## `run` = unit along-wall direction; `out` = unit outward (horizontal) direction.
-func _lean_wall(edge: Vector3, run: Vector3, out: Vector3, length: float, height: float, thickness: float, tilt_deg: float) -> void:
+## Solid volcanic wall (mesh + collision) between two inner-bottom edge points p0 -> p1,
+## leaning OUTWARD by tilt_deg (top toward `out`). Diagonal-capable so a wall can angle/face
+## inward. p0/p1 are the endpoints of the wall's inner-bottom edge, on the floor.
+func _lean_wall(p0: Vector3, p1: Vector3, out: Vector3, height: float, thickness: float, tilt_deg: float) -> void:
+	var run := p1 - p0
+	var length := run.length()
+	if length < 0.01:
+		return
+	run = run / length
+	var o := out.normalized()
 	var t := deg_to_rad(tilt_deg)
-	var up := (Vector3.UP * cos(t) + out * sin(t)).normalized()
+	var up := (Vector3.UP * cos(t) + o * sin(t)).normalized()
 	var depth := run.cross(up).normalized()
-	if depth.dot(out) < 0.0:
+	if depth.dot(o) < 0.0:
 		depth = -depth
-	var basis := Basis(run.normalized(), up, depth)
+	var basis := Basis(run, up, depth)
 	var corner_local := Vector3(0.0, -height * 0.5, -thickness * 0.5)   # inner-bottom edge (-depth side)
-	var centre: Vector3 = edge - basis * corner_local
+	var centre: Vector3 = (p0 + p1) * 0.5 - basis * corner_local
 	_box_t(Transform3D(basis, centre), Vector3(length, height, thickness), _rock_dark)
 
 

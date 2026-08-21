@@ -28,54 +28,60 @@ import os, sys, time, json, subprocess, urllib.request, urllib.error
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "assets", "generated", "fold")
 
-IMG_MODEL = "fal-ai/nano-banana-pro"
+IMG_MODEL = "fal-ai/nano-banana-pro/edit"   # edit so the exact hero ship is composed into each frame
 VID_MODEL = "bytedance/seedance-2.0/image-to-video"
+
+# The user's chosen hero ship (nano-banana request 019fcd3f-...): a black/gold hull with glowing
+# teal wing-blades. Every fold frame is composed FROM this image so the fold shows OUR ship.
+SHIP_REF = "https://v3b.fal.media/files/b/0aa4ff96/6H6Lp2ifD7jVbyPJly2af_KPxDEVFi.png"
+SHIP_DESC = ("this exact spaceship - a sleek black hard-surface hull with fine gold filigree "
+             "trim and two large curved glowing teal-cyan wing-blades - keep its design and "
+             "colours identical")
 
 DURATION = "5"          # seconds (Seedance supports 4-15)
 RESOLUTION = "720p"     # 480p / 720p / 1080p
 ASPECT = "16:9"         # matches the game viewport (fills the screen, no pillarbox)
 
-# Per-mission prompts. START = a wide shot of the ship in space with the world ahead; END =
-# the last frame the video should reach (diving through the atmosphere toward the surface the
-# real mission then loads); MOTION = the camera/action for Seedance to interpolate between.
+# Per-mission prompts. START = the hero ship in space with the world ahead; END = the ship
+# diving through the atmosphere toward the surface the real mission then loads; MOTION = the
+# camera/action Seedance interpolates between. START/END are nano-banana EDITS of SHIP_REF so
+# the fold always shows the correct ship.
 MISSIONS = {
     "earth": {
-        "start": ("Cinematic wide establishing shot, deep space. A lone angular hard-surface "
-                  "military spaceship, dark gunmetal hull with glowing blue engine trails, flying "
-                  "toward camera-right. Ahead, large in frame: the planet EARTH, deep blue oceans, "
-                  "green and brown continents, swirling white clouds, a thin blue atmosphere rim. "
-                  "Scattered stars, volumetric sunlight, subtle film grain, photoreal, no text."),
-        "end": ("Cinematic shot descending fast through broken grey storm clouds toward a ruined "
-                "Earth city far below, shattered skyscrapers and a scarred grey skyline in haze, "
-                "cold overcast light, dramatic, photoreal, no text."),
+        "start": (f"Cinematic wide establishing shot in deep space: {SHIP_DESC}, seen from behind "
+                  "and to the side, flying toward the planet EARTH ahead - deep blue oceans, green "
+                  "and brown continents, swirling white clouds, a thin blue atmosphere rim. "
+                  "Scattered stars, volumetric sunlight, film grain, photoreal, no text."),
+        "end": (f"Cinematic shot: {SHIP_DESC}, seen from behind, diving fast through broken grey "
+                "storm clouds toward a ruined Earth city far below - shattered skyscrapers, a scarred "
+                "grey skyline in haze, cold overcast light. Dramatic, photoreal, no text."),
         "motion": ("The spaceship accelerates and jumps to faster-than-light warp with long "
                    "streaks of light, then decelerates as Earth swells to fill the frame; the ship "
                    "banks and dives toward the planet, plunging through the clouds toward the ruined "
                    "city below. Smooth cinematic chase camera following the ship, epic, no text."),
     },
     "mars": {
-        "start": ("Cinematic wide establishing shot, deep space. A lone angular hard-surface "
-                  "military spaceship, dark gunmetal hull with glowing blue engine trails, flying "
-                  "toward camera-right. Ahead, large in frame: the planet MARS, a rusty red-orange "
-                  "desert world with pale dust storms and dark canyon scars, thin hazy atmosphere. "
-                  "Scattered stars, volumetric sunlight, subtle film grain, photoreal, no text."),
-        "end": ("Cinematic shot descending through thin rust-coloured dust haze toward a vast red "
-                "Martian canyon and a small mining outpost far below, butterscotch sky, blowing "
-                "dust, dramatic, photoreal, no text."),
+        "start": (f"Cinematic wide establishing shot in deep space: {SHIP_DESC}, seen from behind "
+                  "and to the side, flying toward the planet MARS ahead - a rusty red-orange desert "
+                  "world with pale dust storms and dark canyon scars, thin hazy atmosphere. "
+                  "Scattered stars, volumetric sunlight, film grain, photoreal, no text."),
+        "end": (f"Cinematic shot: {SHIP_DESC}, seen from behind, descending through thin rust-"
+                "coloured dust haze toward a vast red Martian canyon and a small mining outpost far "
+                "below, butterscotch sky, blowing dust. Dramatic, photoreal, no text."),
         "motion": ("The spaceship accelerates and jumps to faster-than-light warp with long "
                    "streaks of light, then decelerates as Mars swells to fill the frame; the ship "
                    "banks and dives toward the planet, plunging through the red dust haze toward the "
                    "canyon below. Smooth cinematic chase camera following the ship, epic, no text."),
     },
     "venus": {
-        "start": ("Cinematic wide establishing shot, deep space. A lone angular hard-surface "
-                  "military spaceship, dark gunmetal hull with glowing blue engine trails, flying "
-                  "toward camera-right. Ahead, large in frame: the planet VENUS, a pale sulfuric "
-                  "yellow-cream world completely veiled in thick swirling acid clouds, faint orange "
-                  "glow. Scattered stars, volumetric sunlight, subtle film grain, photoreal, no text."),
-        "end": ("Cinematic shot plunging down through thick swirling sulfuric yellow-orange "
-                "Venusian clouds toward a dark volcanic surface far below, glowing orange lava "
-                "cracks and a distant erupting volcano, oppressive haze, dramatic, photoreal, no text."),
+        "start": (f"Cinematic wide establishing shot in deep space: {SHIP_DESC}, seen from behind "
+                  "and to the side, flying toward the planet VENUS ahead - a pale sulfuric yellow-"
+                  "cream world veiled in thick swirling acid clouds, faint orange glow. Scattered "
+                  "stars, volumetric sunlight, film grain, photoreal, no text."),
+        "end": (f"Cinematic shot: {SHIP_DESC}, seen from behind, plunging through thick swirling "
+                "sulfuric yellow-orange Venusian clouds toward a dark volcanic surface far below - "
+                "glowing orange lava cracks, a distant erupting volcano, oppressive haze. Dramatic, "
+                "photoreal, no text."),
         "motion": ("The spaceship accelerates and jumps to faster-than-light warp with long "
                    "streaks of light, then decelerates as Venus swells to fill the frame; the ship "
                    "banks and dives toward the planet, plunging through the thick sulfuric clouds "
@@ -134,8 +140,9 @@ def _first_url(res, key):
 
 
 def gen_image(prompt, dest):
-    res = run(IMG_MODEL, {"prompt": prompt, "aspect_ratio": ASPECT, "resolution": "2K",
-                          "output_format": "png", "num_images": 1})
+    # EDIT the hero-ship reference into the framed scene so the fold shows OUR exact ship.
+    res = run(IMG_MODEL, {"prompt": prompt, "image_urls": [SHIP_REF], "aspect_ratio": ASPECT,
+                          "resolution": "2K", "output_format": "png", "num_images": 1})
     url = _first_url(res, "images")
     if not url:
         raise SystemExit(f"no image url in {json.dumps(res)[:400]}")
