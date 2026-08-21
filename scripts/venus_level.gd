@@ -28,15 +28,16 @@ const ASCENT_LENGTH := 200.0            # m of path (GDD §3.4)
 const ASCENT_SEGMENTS := 10
 const ASCENT_WIDTH := 16.0
 
-# --- Ship landing bay (behind the spawn) ---
-# A broad, open apron where the parked ship touches down. It is kept clear of the towering
-# horizon volcanoes (_build_environment skips its clear-radius) so the ship never lands
-# inside a mountain, and it is framed by low set-back cliffs (_build_ship_bay) so the
-# landing/lift-off camera sees the ship against open sky + distant peaks.
-const SHIP_BAY_CENTER := Vector3(0.0, 0.0, 34.0)
-const SHIP_BAY_W := 74.0                # apron width (x)
-const SHIP_BAY_D := 66.0                # apron depth (z)
-const SHIP_BAY_CLEAR := 200.0           # horizon volcanoes kept at least this far (xz) from the bay
+# --- Starting area: the landing crater (spawn + parked ship) ---
+# The whole flat starting region is ONE natural crater basin (a single ground slab -> no
+# z-fighting), ringed by staggered volcanic cliffs (not boxy parallel walls) and open at the
+# -Z ascent mouth, so the spawn, the ship bay and the climb read as one cohesive place. Kept
+# clear of the towering horizon volcanoes (_build_environment skips this clear-radius) so the
+# ship never lands inside a mountain. Built by _build_start_area().
+const SHIP_BAY_CENTER := Vector3(0.0, 0.0, 34.0)   # crater centre = where the ship sits
+const CRATER_W := 80.0                  # crater floor width  (x)
+const CRATER_D := 74.0                  # crater floor depth  (z)
+const SHIP_BAY_CLEAR := 200.0           # horizon volcanoes kept at least this far (xz) from the crater
 
 # --- Section 2: Interior Descent (sparse jump puzzle) ---
 # Platforms alternate hard left/right at PLATFORM_X, PLATFORM_PITCH apart along -Z and
@@ -109,20 +110,21 @@ func _ready() -> void:
 	_build_lights()
 	_build_atmosphere()
 	_build_environment()
-	_build_ship_bay()
+	_build_start_area()
 	_build_volcano()
 	_build_wind()
 	_build_spawns()
 	_build_kill_plane()
 
-	# The player's ship, parked in a wide OPEN landing bay behind the spawn (board it to
-	# extract). The bay (_build_ship_bay) is a broad apron framed by set-back cliffs, kept
-	# clear of the towering horizon volcanoes, so the ship sits in open space - not buried
-	# in a mountain. The cine camera watches from the SPAWN side (local -Z) so the landing/
-	# lift-off frames the ship against the open bay + distant peaks, never the narrow gorge.
+	# The player's ship, parked in the crater centre (board it to extract). The crater
+	# (_build_start_area) is one open basin kept clear of the horizon volcanoes, so the ship
+	# sits in open space on a walkable flush pad. Bigger + taller (scale 16, +50% height) so
+	# the flat hull reads as a real ~16 m ship next to the ~1.8 m Guardian. The cine camera
+	# watches from the SPAWN side (local -Z) so landing/lift-off frames it against the open
+	# crater + distant peaks, never a narrow wall.
 	var ship := preload("res://scripts/landed_ship.gd").new()
 	add_child(ship)
-	ship.configure(SHIP_BAY_CENTER, Vector3(0, 1.0, 6.0), 13.0, Vector3(-30.0, 12.0, 8.0))
+	ship.configure(SHIP_BAY_CENTER, Vector3(0, 1.0, 6.0), 16.0, Vector3(-14.0, 15.0, -12.0), 1.5)
 	ship.call_deferred("start_landing")     # arrival: the ship drops onto the pad
 
 	var region := get_parent()
@@ -170,19 +172,10 @@ func _build_ascent() -> void:
 	var slab := seg_len / cos(deg_to_rad(SLOPE_DEG))       # slab is longer than its z span
 	var sink := (T * 0.5) / cos(deg_to_rad(SLOPE_DEG))
 
-	# Flat staging pad at the foot of the volcano (player spawns here).
-	_box(Vector3(0, -T * 0.5, 6), Vector3(ASCENT_WIDTH, T, 12), _rock)
-	# Landing apron reaching BEHIND the spawn (into +z) - a broad, OPEN bay so the parked
-	# ship stands in clear space, not cramped against the spawn cliffs/gorge and not buried
-	# in the horizon volcanoes. Its top is at y 0, above the lethal void volume (top y -2),
-	# so it is safe to walk while stepping off its far/side edges is still a lethal fall.
-	# Continuous with the staging pad. The framing cliffs + backdrop are in _build_ship_bay.
-	_box(SHIP_BAY_CENTER - Vector3(0, T * 0.5, 0), Vector3(SHIP_BAY_W, T, SHIP_BAY_D), _rock)
-	# Gorge walls flank the flat staging pad too, seated at the pad level (y 0), so the
-	# cliffs are continuous from the spawn - no floating first wall / open gap at the foot.
-	for s in [-1.0, 1.0]:
-		_collision_box(Vector3(s * ASCENT_WIDTH * 0.5, 4.0, 6.0), Vector3(T, 10, 14))
-		_box(Vector3(s * (ASCENT_WIDTH * 0.5 + 3.0), 9.0, 6.0), Vector3(1.0, 22, 14), _rock_dark)
+	# The whole flat starting region (spawn + parked-ship bay) is built as ONE natural crater
+	# basin in _build_start_area() (called from _ready) - a single ground slab (no z-fighting)
+	# ringed by staggered cliffs, opening into this ascent gorge at z 0. Nothing boxy is built
+	# here at the foot any more; the slope segments below start at z 0 and rise up the volcano.
 
 	for i in ASCENT_SEGMENTS:
 		var cz := -(seg_len * float(i) + seg_len * 0.5)
@@ -224,9 +217,9 @@ func _build_ascent_cliffs() -> void:
 	for side in [-1.0, 1.0]:
 		var ex: float = side * (ASCENT_WIDTH * 0.5 + 0.5)
 		for i in pieces:
-			# Start over the staging pad (z +6) so the very first cliff is grounded there,
-			# then march up to the summit - no floating gap at the spawn.
-			var z: float = 6.0 - (ASCENT_LENGTH + 20.0) / float(pieces - 1) * float(i)
+			# Start at the slope base (z 0, the crater/ascent seam) and march up to the summit;
+			# the crater rim (_build_start_area) lines the flat area, these line the climb.
+			var z: float = 0.0 - (ASCENT_LENGTH + 20.0) / float(pieces - 1) * float(i)
 			var y := slope_y(z)
 			# Rotate so the wall's long axis runs along the path (Z). Height-scaled so it
 			# towers ~18 m over the walkway regardless of the model's raw proportions.
@@ -777,37 +770,76 @@ func _build_environment() -> void:
 		_place_rock(kinds[i % kinds.size()], pos, rng.randf_range(0.0, TAU), size)
 
 
-# --- Ship landing bay (framing the parked ship) ----------------------------
+# --- Starting area: the landing crater (spawn + parked ship) ---------------
 
-## Frame the open landing bay behind the spawn: low, set-back volcanic cliffs form a
-## horseshoe around the back and sides of the apron (open toward the spawn/-Z, where the
-## player walks in from the gorge), and a few distant peaks sit far beyond for silhouette
-## depth. The apron itself and the horizon-volcano clear radius are handled elsewhere; this
-## is the visual framing so the ship reads as landed in a real bay, not floating on void or
-## buried in a mountain. All visual-only (no collision) - the apron edge is the real bound.
-func _build_ship_bay() -> void:
+## Build the whole flat starting region as ONE cohesive natural crater basin, so the spawn,
+## the parked-ship bay and the foot of the climb read as one place (not a boxy apron bolted
+## onto a corridor). Fixes: (1) the z-fighting ground - a SINGLE floor slab replaces the old
+## overlapping staging pad + apron; (2) the boxy parallel walls + "wall behind the walls" -
+## the rim is staggered volcanic cliffs (varied height/pos/yaw), no _rock_dark backing boxes;
+## (3) harmony - same cliff asset as the ascent gorge, funnelling into the -Z climb.
+func _build_start_area() -> void:
 	var cx := SHIP_BAY_CENTER.x
 	var cz := SHIP_BAY_CENTER.z
-	var half_w := SHIP_BAY_W * 0.5
-	var half_d := SHIP_BAY_D * 0.5
+	var half_w := CRATER_W * 0.5
+	var half_d := CRATER_D * 0.5
+	var front_z := cz - half_d                 # crater front, ~z -3 (underlaps the slope base)
+	var back_z := cz + half_d                  # crater back, ~z 71
+	var aw := ASCENT_WIDTH * 0.5               # gorge half-width the crater funnels down to
+
+	# (1) ONE continuous crater floor - the single source of ground for the whole flat area.
+	_box(Vector3(cx, -T * 0.5, cz), Vector3(CRATER_W, T, CRATER_D), _rock)
+
+	# Invisible containment around the crater rim (sides + back), leaving the -Z ascent mouth
+	# open. The player can't walk off the crater edge into the void.
+	_collision_box(Vector3(cx - half_w, 7.0, cz), Vector3(T, 16, CRATER_D))
+	_collision_box(Vector3(cx + half_w, 7.0, cz), Vector3(T, 16, CRATER_D))
+	_collision_box(Vector3(cx, 7.0, back_z), Vector3(CRATER_W, 16, T))
+	# Front: block the ground either side of the gorge mouth (beyond x +-aw), so the player is
+	# funnelled into the climb and can't step into the side void where the slope has no floor.
+	var side_w: float = half_w - aw
+	for s: float in [-1.0, 1.0]:
+		_collision_box(Vector3(cx + s * (aw + side_w * 0.5), 7.0, front_z + 1.5), Vector3(side_w, 16, 3.0))
+
+	_build_crater_rim(cx, cz, half_w, half_d, front_z, back_z)
+
+	# Distant backdrop peaks far beyond the crater (past the clear radius), a volcanic
+	# silhouette on the horizon instead of bare haze.
+	var kinds: Array[String] = ["venus_volcano", "venus_cliff", "venus_volcano"]
+	var spots: Array[Vector3] = [Vector3(-140.0, -42.0, cz + 300.0), Vector3(20.0, -42.0, cz + 345.0), Vector3(160.0, -42.0, cz + 275.0)]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 90210
-
-	# Low, COMPACT boulders along the BACK edge only (venus_boulder, not the cliff-wall
-	# asset which balloons when scaled) - a natural grounded rim behind the ship so the bay
-	# doesn't look like a floating slab, while the whole approach + both flanks stay wide
-	# and open. Nothing tall or close: the landing/lift-off camera keeps a clean frame.
-	var back_z := cz + half_d - 3.0
-	for x: float in [-28.0, -10.0, 8.0, 26.0]:
-		_place_rock("venus_boulder", Vector3(cx + x, -0.4, back_z + rng.randf_range(-2.0, 2.0)),
-			rng.randf_range(0.0, TAU), 6.0 + rng.randf_range(-1.0, 2.5))
-
-	# Distant backdrop peaks far beyond the bay (past the clear radius), so there is a
-	# volcanic silhouette on the horizon behind the ship instead of bare haze.
-	var kinds: Array[String] = ["venus_volcano", "venus_cliff", "venus_volcano"]
-	var spots: Array[Vector3] = [Vector3(-120.0, -42.0, cz + 300.0), Vector3(20.0, -42.0, cz + 340.0), Vector3(150.0, -42.0, cz + 270.0)]
 	for i in spots.size():
 		_place_rock(kinds[i % kinds.size()], spots[i], rng.randf_range(0.0, TAU), rng.randf_range(170.0, 220.0))
+
+
+## The crater rim: a ring of MIXED volcanic rocks (cliff / spire / boulder) placed JUST
+## OUTSIDE the play boundary along the sides + back, open at the -Z ascent mouth. Varied
+## kind / size / yaw so it reads as an organic crater wall, not a boxy corridor. Sized with
+## _place_rock (scale-to-largest-dim, bounded) - NOT _place_wall, whose scale-to-height
+## balloons the width and juts into the crater. Visual-only (invisible collision contains).
+func _build_crater_rim(cx: float, cz: float, half_w: float, half_d: float, front_z: float, back_z: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 33991
+	var kinds: Array[String] = ["venus_cliff", "venus_spire", "venus_cliff", "venus_boulder"]
+	var ki := 0
+	# Sides (run along Z), seated just beyond the x boundary so the pieces frame the rim
+	# without reaching the open centre.
+	for s: float in [-1.0, 1.0]:
+		var n := 6
+		for i in n:
+			var z: float = lerpf(front_z + 5.0, back_z - 3.0, float(i) / float(n - 1))
+			var sz: float = rng.randf_range(16.0, 26.0)
+			var x: float = cx + s * (half_w + sz * 0.42)
+			_place_rock(kinds[ki % kinds.size()], Vector3(x, 0.0, z), rng.randf_range(0.0, TAU), sz)
+			ki += 1
+	# Back (run along X), beyond the z boundary.
+	var m := 6
+	for i in m:
+		var x: float = lerpf(cx - half_w + 4.0, cx + half_w - 4.0, float(i) / float(m - 1))
+		var sz: float = rng.randf_range(16.0, 24.0)
+		_place_rock(kinds[ki % kinds.size()], Vector3(x, 0.0, back_z + sz * 0.42), rng.randf_range(0.0, TAU), sz)
+		ki += 1
 
 
 # --- The active volcano (summit peak + magma bombardment) -------------------

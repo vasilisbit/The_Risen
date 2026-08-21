@@ -46,6 +46,7 @@ var _engine_player: AudioStreamPlayer3D
 const SHIP_SCALE := 13.0
 
 var _scale: float = SHIP_SCALE
+var _height_scale: float = 1.0          # extra VERTICAL scale so the flat hull reads as a real ship
 var _ship: Node3D
 var _footprint: float = 6.0
 var _cam_offset: Vector3 = CAM_OFFSET   # 3rd-person cine offset (level-overridable)
@@ -57,9 +58,10 @@ func _ready() -> void:
 
 ## Place the parked ship. `pad_center` is the ground point the pad sits on; the ship is
 ## turned so its nose faces `look_target` (the spawn), so it reads as "landed facing you".
-func configure(pad_center: Vector3, look_target: Vector3, ship_scale := SHIP_SCALE, cam_offset := CAM_OFFSET) -> void:
+func configure(pad_center: Vector3, look_target: Vector3, ship_scale := SHIP_SCALE, cam_offset := CAM_OFFSET, height_scale := 1.0) -> void:
 	_scale = ship_scale
 	_cam_offset = cam_offset
+	_height_scale = height_scale
 	global_position = pad_center
 	_build()
 	var to := look_target - global_position
@@ -85,7 +87,9 @@ func _build() -> void:
 		_fallback(); return
 	_ship = (packed as PackedScene).instantiate() as Node3D
 	add_child(_ship)
-	_ship.scale = Vector3.ONE * _scale
+	# Non-uniform: extra vertical scale gives the wide, flat hull real height so it reads as a
+	# ship next to a ~1.8 m human (height_scale 1.0 = uniform, unchanged for Earth/Mars).
+	_ship.scale = Vector3(_scale, _scale * _height_scale, _scale)
 	var ab := _aabb(_ship)
 	_footprint = maxf(ab.size.x, ab.size.z)
 	# Seat the hull's base just above the pad top (pad top sits at PAD_TOP).
@@ -156,6 +160,12 @@ func _return_home() -> void:
 			l.pickup()
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# After the in-engine climb, play the LIFT-OFF cinematic (the ship leaves the atmosphere
+	# and docks into the mothership where it rests); it then dissolves to the hub. Falls back
+	# to the plain transition if the clip / ShipTravel is missing, so extraction never stalls.
+	var st := get_node_or_null("/root/ShipTravel")
+	if st and st.has_method("play_liftoff") and st.play_liftoff(HUB_SCENE):
+		return
 	var gs := get_node_or_null("/root/GameState")
 	if gs and gs.has_method("transition_to"):
 		gs.transition_to(HUB_SCENE)
@@ -287,18 +297,21 @@ func _hide_prompt() -> void:
 		_prompt.visible = false
 
 
-## Pad surface height (local). Kept a touch above 0 so the pad + ship never z-fight with
-## the ground/apron they rest on (the coplanar cylinder was the source of the flicker).
-const PAD_TOP := 0.15
+## Pad COLLISION top height (local). FLUSH with the surrounding ground (which sits at the
+## ship's y) so there is NO step/lip to jump over - you just walk on. The visual pad is
+## lifted PAD_VISUAL_LIFT above it so the two meshes never z-fight.
+const PAD_TOP := 0.0
+const PAD_VISUAL_LIFT := 0.06
 
 
-## A landing pad the player can stand on: a solid collision disc (so you never fall
-## through it) topped with the generated pad asset (or a plain disc if it is missing).
+## A landing pad the player can walk straight onto: a solid collision disc FLUSH with the
+## ground (no lip) topped with the generated pad asset (or a plain disc if it is missing),
+## lifted a few cm so it never z-fights the ground.
 func _build_pad(radius: float) -> void:
 	var pad := StaticBody3D.new()
 	pad.name = "Pad"
 	add_child(pad)
-	# Solid collision cylinder, its TOP at PAD_TOP.
+	# Solid collision cylinder, its TOP flush at PAD_TOP (= ground level -> walkable, no jump).
 	var col := CollisionShape3D.new()
 	var cs := CylinderShape3D.new()
 	cs.radius = radius
@@ -307,8 +320,8 @@ func _build_pad(radius: float) -> void:
 	col.position.y = PAD_TOP - 0.6
 	pad.add_child(col)
 
-	# Visual: the generated fal.ai landing pad asset, scaled to the pad radius and seated
-	# with its top at PAD_TOP; falls back to a simple bevelled disc if the GLB is missing.
+	# Visual: the generated fal.ai landing pad asset, scaled to the pad radius and seated with
+	# its top just above the ground; falls back to a simple bevelled disc if the GLB is missing.
 	if ResourceLoader.exists(PAD_GLB):
 		var packed := load(PAD_GLB)
 		if packed is PackedScene:
@@ -319,7 +332,7 @@ func _build_pad(radius: float) -> void:
 			if d > 0.01:
 				m.scale = Vector3.ONE * (radius * 2.0 / d)
 			var fit := _child_aabb(m)
-			m.position = Vector3(-fit.get_center().x, PAD_TOP - (fit.position.y + fit.size.y), -fit.get_center().z)
+			m.position = Vector3(-fit.get_center().x, PAD_TOP + PAD_VISUAL_LIFT - (fit.position.y + fit.size.y), -fit.get_center().z)
 			return
 	var mesh := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
@@ -333,7 +346,7 @@ func _build_pad(radius: float) -> void:
 	mat.metallic = 0.7
 	mat.roughness = 0.5
 	mesh.material_override = mat
-	mesh.position.y = PAD_TOP - 0.5
+	mesh.position.y = PAD_TOP + PAD_VISUAL_LIFT - 0.5
 	pad.add_child(mesh)
 
 

@@ -28,6 +28,9 @@ enum State { IDLE, FOLD, APPROACH, DESCENT, HANDOFF }
 const CUTSCENE_SCENE := "res://scenes/hub/travel_cutscene.tscn"
 const SHIP_GLB := "res://assets/generated/ship/hero_ship.glb"
 const FOLD_DIR := "res://assets/generated/fold/"
+## The generic lift-off clip (ship leaves atmosphere -> docks into the mothership), reused on
+## every planet. Played by play_liftoff() after the in-engine lift-off climb.
+const LIFTOFF_VIDEO := "res://assets/generated/fold/liftoff.ogv"
 
 ## Mission planet -> level scene (same map the helm/table interactors keep locally).
 const MISSION_SCENES := {
@@ -229,8 +232,80 @@ func _mk_bar() -> ColorRect:
 	return bar
 
 
-func _on_video_finished(mission: String) -> void:
-	_on_handoff(mission)
+func _on_video_finished(_mission: String) -> void:
+	_finish_to(_pending_path)
+
+
+## Play the pre-baked LIFT-OFF clip (the ship leaves the atmosphere and docks into the
+## mothership where it rests), then dissolve into `next_scene` (the hub). Called by
+## landed_ship AFTER its in-engine lift-off climb, so the sequence is: in-engine climb ->
+## this video -> hub. Returns false if there is no clip (caller then does its plain
+## transition). ONE generic clip, reused on every planet. Skippable.
+func play_liftoff(next_scene: String) -> bool:
+	if _running:
+		return false
+	if not ResourceLoader.exists(LIFTOFF_VIDEO):
+		return false
+	var stream := load(LIFTOFF_VIDEO)
+	if not (stream is VideoStream):
+		return false
+	_running = true
+	_skipped = false
+	state = State.APPROACH
+	_pending_path = next_scene
+	ResourceLoader.load_threaded_request(next_scene)
+	_video = VideoStreamPlayer.new()
+	_video.stream = stream
+	_video.expand = true
+	_video.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_video.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_video.modulate.a = 0.0
+	add_child(_video)
+	_video.finished.connect(_on_video_finished.bind(""))
+	_video.play()
+	create_tween().tween_property(_video, "modulate:a", 1.0, 0.4)   # ease in from the in-engine climb
+	_build_liftoff_ui()
+	_fade.move_to_front()
+	set_process_unhandled_input(true)
+	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	_fold_audio()
+	return true
+
+
+## Minimal overlay for the lift-off clip: letterbox bars + a small caption + skip hint.
+func _build_liftoff_ui() -> void:
+	_video_ui = Control.new()
+	_video_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_video_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_video_ui)
+	var bar_top := _mk_bar()
+	bar_top.anchor_right = 1.0
+	bar_top.offset_bottom = 90.0
+	_video_ui.add_child(bar_top)
+	var bar_bottom := _mk_bar()
+	bar_bottom.anchor_right = 1.0
+	bar_bottom.anchor_top = 1.0
+	bar_bottom.anchor_bottom = 1.0
+	bar_bottom.offset_top = -90.0
+	_video_ui.add_child(bar_bottom)
+	var cap := Label.new()
+	cap.text = "RETURNING TO ORBIT"
+	cap.add_theme_font_size_override("font_size", 26)
+	cap.add_theme_color_override("font_color", Color(0.90, 0.96, 1.0))
+	cap.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	cap.add_theme_constant_override("outline_size", 6)
+	cap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	cap.position = Vector2(56, -110)
+	_video_ui.add_child(cap)
+	var skip := Label.new()
+	skip.text = "[E] SKIP"
+	skip.add_theme_font_size_override("font_size", 14)
+	skip.add_theme_color_override("font_color", Color(0.7, 0.75, 0.82))
+	skip.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	skip.add_theme_constant_override("outline_size", 4)
+	skip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	skip.position = Vector2(-96, -40)
+	_video_ui.add_child(skip)
 
 
 # --- In-engine cutscene path (fallback) ------------------------------------
@@ -261,14 +336,18 @@ func _assets_ready() -> bool:
 
 # --- Seamless hand-off (shared) --------------------------------------------
 
-## Fold done: dissolve to black, swap to the preloaded mission under the dark (covering the
-## level build), then dissolve back up as the mission's own landing cinematic plays - no white
-## flash, no visible cut, straight into the interactive landing.
+## Fold done (in-engine cutscene path): resolve the mission scene and finish into it.
 func _on_handoff(mission: String) -> void:
+	_finish_to(MISSION_SCENES.get(mission, ""))
+
+
+## Dissolve to black, swap to the preloaded `path` under the dark (covering the level build),
+## then dissolve back up as the destination's own cinematic plays - no white flash, no visible
+## cut. Shared by the fold (-> mission + its landing) and the lift-off (-> hub).
+func _finish_to(path: String) -> void:
 	if state == State.HANDOFF:
 		return
 	state = State.HANDOFF
-	var path: String = MISSION_SCENES.get(mission, "")
 	if path == "":
 		_reset()
 		return
@@ -334,9 +413,4 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		_skipped = true
-		var m := ""
-		for k in MISSION_SCENES.keys():
-			if _pending_path == MISSION_SCENES[k]:
-				m = k
-				break
-		_on_handoff(m)
+		_finish_to(_pending_path)
