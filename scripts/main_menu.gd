@@ -46,6 +46,7 @@ var _entries: Array[Dictionary] = []
 var _hovered: int = -1
 var _confirm: Control
 var _settings: Control
+var _picker: Control
 var _status: Label
 var _stars: Array[Vector3] = []      # x, y, speed
 var _time: float = 0.0
@@ -253,6 +254,9 @@ func _activate(index: int) -> void:
 			_new_game()
 		"continue":
 			_continue()
+		"load":
+			if _picker:
+				_picker.open("load", "LOAD GAME", _do_load)
 		"settings":
 			if _settings:
 				_settings.open()
@@ -260,16 +264,30 @@ func _activate(index: int) -> void:
 			_show_confirm()
 
 
-## Start fresh: wipe the save so the class picker runs again in the hub.
+## New Game: pick a slot (confirming an overwrite), start it fresh, and enter the
+## hub - where the class picker runs because the new save has no class chosen yet.
 func _new_game() -> void:
+	if _picker:
+		_picker.open("new", "NEW GAME", _do_new)
+
+
+func _do_new(slot: int) -> void:
 	var sm := get_node_or_null("/root/SaveManager")
-	if sm and sm.has_method("reset"):
-		sm.reset()
+	if sm and sm.has_method("new_game_in_slot"):
+		sm.new_game_in_slot(slot)
 	_go(HUB)
 
 
-## Continue: load whatever is on disk and drop straight into the hub. If the
-## save has no class yet the hub's picker will still catch it.
+## Load a chosen slot and drop into the hub.
+func _do_load(slot: int) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.has_method("load_slot"):
+		sm.load_slot(slot)
+	_go(HUB)
+
+
+## Continue: load the last-played slot and drop straight into the hub. If that slot
+## has no class yet the hub's picker will still catch it.
 func _continue() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("load_game"):
@@ -320,9 +338,10 @@ func _build_ui() -> void:
 	add_child(subtitle)
 
 	var defs := [
-		{"id": "new", "text": "NEW GAME", "hint": "Choose a class and begin"},
-		{"id": "continue", "text": "CONTINUE", "hint": "Resume your saved Guardian"},
-		{"id": "settings", "text": "SETTINGS", "hint": "Audio levels"},
+		{"id": "new", "text": "NEW GAME", "hint": "Pick a slot, choose a class, begin"},
+		{"id": "continue", "text": "CONTINUE", "hint": "Resume your last-played slot"},
+		{"id": "load", "text": "LOAD GAME", "hint": "Choose a saved slot"},
+		{"id": "settings", "text": "SETTINGS", "hint": "Audio, graphics, controls"},
 		{"id": "quit", "text": "QUIT", "hint": "Leave the game"},
 	]
 	for i in defs.size():
@@ -350,6 +369,10 @@ func _build_ui() -> void:
 	_settings = Control.new()
 	_settings.set_script(load("res://scripts/settings_panel.gd"))
 	add_child(_settings)
+
+	_picker = Control.new()
+	_picker.set_script(load("res://scripts/slot_picker.gd"))
+	add_child(_picker)
 
 	_build_confirm()
 	_layout()

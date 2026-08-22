@@ -1,9 +1,26 @@
 extends Node
 ## SaveManager (autoload): JSON persistence for The Risen.
 ## Schema is aligned verbatim with TDD v2.0 §4.7 (= GDD §6.3).
-## File: user://risen_save_01.json (FileAccess + JSON).
+##
+## SAVE SLOTS: progress lives in one of SLOT_COUNT slots
+## (user://risen_save_slot_%d.json). `active_slot` is the slot every auto-save and
+## manual save writes to, and it is remembered across launches in a small meta
+## file. On the first run of the slot system the old single-file save
+## (user://risen_save_01.json) is copied into slot 0 WITHOUT deleting the original,
+## so no existing progress is ever lost. Player OPTIONS (audio/graphics/controls)
+## are NOT here - they are global, in GameSettings.
 
-const SAVE_PATH := "user://risen_save_01.json"
+## Number of save slots the game exposes (shown as "Slot 1..N" in the UI).
+const SLOT_COUNT := 3
+## Per-slot progress file. `active_slot` selects which one is live.
+const SLOT_PATH := "user://risen_save_slot_%d.json"
+## Remembers which slot was last played, so a relaunch resumes it.
+const META_PATH := "user://risen_save_meta.json"
+## The pre-slots single-file save, migrated into slot 0 on first run (left intact).
+const LEGACY_PATH := "user://risen_save_01.json"
+
+## Which slot save/load act on. 0-based internally; the UI labels it "Slot N+1".
+var active_slot: int = 0
 
 ## Mission order for unlock gating - each unlocks when the previous completes.
 const MISSION_ORDER: Array[String] = ["Earth", "Mars", "Venus"]
@@ -48,8 +65,57 @@ var data: Dictionary = {}
 
 
 func _ready() -> void:
-	# Autoload runs before the hub scene, so this covers "load on hub start".
+	# Resolve which slot is live (migrating the legacy single-file save on the very
+	# first run), then load it. Autoload runs before the hub scene, so this covers
+	# "load on hub start".
+	var slot := _read_meta_slot()
+	if slot < 0:
+		_migrate_legacy()
+	else:
+		active_slot = slot
 	load_game()
+
+
+## Pointer file -> the slot to resume. Returns -1 when the slot system has never
+## run (no meta), which triggers legacy migration.
+func _read_meta_slot() -> int:
+	if not FileAccess.file_exists(META_PATH):
+		return -1
+	var f := FileAccess.open(META_PATH, FileAccess.READ)
+	if f == null:
+		return -1
+	var text := f.get_as_text()
+	f.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return -1
+	return clampi(int((parsed as Dictionary).get("active_slot", 0)), 0, SLOT_COUNT - 1)
+
+
+func _write_meta() -> void:
+	var f := FileAccess.open(META_PATH, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(JSON.stringify({"active_slot": active_slot}, "\t"))
+	f.close()
+
+
+## First run of the slot system: adopt slot 0 as active and, if the old single-file
+## save exists and slot 0 does not yet, COPY it in (the original is left untouched,
+## so migration can never lose progress). Then stamp the meta so this runs once.
+func _migrate_legacy() -> void:
+	active_slot = 0
+	var slot0 := SLOT_PATH % 0
+	if FileAccess.file_exists(LEGACY_PATH) and not FileAccess.file_exists(slot0):
+		var src := FileAccess.open(LEGACY_PATH, FileAccess.READ)
+		if src:
+			var text := src.get_as_text()
+			src.close()
+			var dst := FileAccess.open(slot0, FileAccess.WRITE)
+			if dst:
+				dst.store_string(text)
+				dst.close()
+	_write_meta()
 
 
 ## A fresh default save (first launch). Field names match TDD §4.7 exactly.
@@ -87,17 +153,19 @@ func _default_data() -> Dictionary:
 	}
 
 
-## Load the save, or create defaults on first launch / unreadable / corrupt file.
-## Missing keys are backfilled from defaults so older saves stay compatible.
+## Load the active slot, or fall back to in-memory defaults on an empty / unreadable
+## / corrupt slot. Missing keys are backfilled from defaults so older saves stay
+## compatible. An empty slot is NOT written to disk here (it stays "Empty" in the
+## slot picker until New Game or the first real save).
 func load_game() -> void:
 	var defaults := _default_data()
-	if not FileAccess.file_exists(SAVE_PATH):
+	var path := SLOT_PATH % active_slot
+	if not FileAccess.file_exists(path):
 		data = defaults
-		save_game()
 		game_loaded.emit()
 		return
 
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
 		push_warning("SaveManager: cannot open save; using defaults.")
 		data = defaults
@@ -157,16 +225,89 @@ func _normalize_loadout() -> void:
 	data["equipped_armor"] = eq_armor
 
 
-## Write the current data to disk as pretty JSON. Returns true on success.
+## Write the current data to the active slot as pretty JSON, stamping the save
+## time (used by the slot picker). Returns true on success.
 func save_game() -> bool:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	data["saved_at"] = int(Time.get_unix_time_from_system())
+	var f := FileAccess.open(SLOT_PATH % active_slot, FileAccess.WRITE)
 	if f == null:
-		push_error("SaveManager: cannot write save to %s" % SAVE_PATH)
+		push_error("SaveManager: cannot write save to slot %d" % active_slot)
 		return false
 	f.store_string(JSON.stringify(data, "\t"))
 	f.close()
+	_write_meta()
 	game_saved.emit()
 	return true
+
+
+# --- save slots --------------------------------------------------------------
+
+## True if slot `i` holds a parseable save (i.e. not "Empty").
+func slot_exists(i: int) -> bool:
+	return FileAccess.file_exists(SLOT_PATH % i)
+
+
+## A lightweight peek at a slot for the picker UI, WITHOUT loading it into `data`.
+## Returns {"exists": false, "slot": i} for an empty/corrupt slot, otherwise a
+## summary (level, class, flux, missions cleared, last mission, saved_at).
+func slot_summary(i: int) -> Dictionary:
+	var path := SLOT_PATH % i
+	if not FileAccess.file_exists(path):
+		return {"exists": false, "slot": i}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {"exists": false, "slot": i}
+	var text := f.get_as_text()
+	f.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {"exists": false, "slot": i}
+	var d := parsed as Dictionary
+	var flags: Dictionary = d.get("mission_completion_flags", {})
+	var done := 0
+	for m in MISSION_ORDER:
+		if bool(flags.get(m, false)):
+			done += 1
+	return {
+		"exists": true,
+		"slot": i,
+		"level": int(d.get("player_level", 1)),
+		"class": String(d.get("selected_class", "Assault")),
+		"class_chosen": bool(d.get("class_chosen", false)),
+		"flux": int(d.get("flux_currency", 0)),
+		"missions_done": done,
+		"missions_total": MISSION_ORDER.size(),
+		"last_mission": String(d.get("last_mission", "Earth")),
+		"playtime": float(d.get("total_playtime", 0.0)),
+		"saved_at": int(d.get("saved_at", 0)),
+	}
+
+
+## Point future saves/loads at slot `i` and persist the choice.
+func set_active_slot(i: int) -> void:
+	active_slot = clampi(i, 0, SLOT_COUNT - 1)
+	_write_meta()
+
+
+## Switch to slot `i` and load it (used by the Load menu).
+func load_slot(i: int) -> void:
+	set_active_slot(i)
+	load_game()
+
+
+## Write the current progress into slot `i`, making it active (used by manual Save
+## and Save-As from the pause menu). Returns true on success.
+func save_to_slot(i: int) -> bool:
+	active_slot = clampi(i, 0, SLOT_COUNT - 1)
+	return save_game()
+
+
+## Begin a fresh game in slot `i`: reset to defaults, make it active, and persist
+## (used by New Game from the main menu).
+func new_game_in_slot(i: int) -> void:
+	active_slot = clampi(i, 0, SLOT_COUNT - 1)
+	data = _default_data()
+	save_game()
 
 
 ## Award Flux. Returns the new balance. Kills and mission completions are the

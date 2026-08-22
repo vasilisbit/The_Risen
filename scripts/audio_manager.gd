@@ -150,7 +150,11 @@ func set_volume(bus_name: String, linear: float) -> void:
 	# Mute outright at zero: linear_to_db(0) is -inf and some drivers dislike it.
 	AudioServer.set_bus_mute(idx, v <= 0.001)
 	AudioServer.set_bus_volume_db(idx, linear_to_db(maxf(v, 0.001)))
-	_save_volumes()
+	# Persist to the global options file (GameSettings), not the per-slot save -
+	# volume is a machine preference, not game progress.
+	var gs := get_node_or_null("/root/GameSettings")
+	if gs and gs.has_method("set_audio_volume"):
+		gs.set_audio_volume(bus_name, v)
 
 
 func get_volume(bus_name: String) -> float:
@@ -163,25 +167,15 @@ func get_volume(bus_name: String) -> float:
 
 
 func _load_volumes() -> void:
-	var sm := get_node_or_null("/root/SaveManager")
-	var vols: Dictionary = sm.data.get("audio_volumes", {}) if sm else {}
+	# Global options file (GameSettings) is the source of truth for volumes.
+	var gs := get_node_or_null("/root/GameSettings")
 	for bus_name in ["Master", MUSIC_BUS, SFX_BUS]:
 		var idx := AudioServer.get_bus_index(bus_name)
 		if idx == -1:
 			continue
-		var v := float(vols.get(bus_name, 1.0))
+		var v := float(gs.audio_volume(bus_name)) if gs else 1.0
 		AudioServer.set_bus_mute(idx, v <= 0.001)
 		AudioServer.set_bus_volume_db(idx, linear_to_db(maxf(v, 0.001)))
-
-
-func _save_volumes() -> void:
-	var sm := get_node_or_null("/root/SaveManager")
-	if sm == null:
-		return
-	var vols: Dictionary = {}
-	for bus_name in ["Master", MUSIC_BUS, SFX_BUS]:
-		vols[bus_name] = get_volume(bus_name)
-	sm.data["audio_volumes"] = vols
 
 
 # --- music director ---------------------------------------------------------
