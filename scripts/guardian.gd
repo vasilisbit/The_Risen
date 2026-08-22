@@ -13,7 +13,13 @@ const JUMP_HEIGHT := 2.0         # m (peak); jump velocity derived from gravity
                                  # feedback that the jump felt far too floaty.
 
 # --- Camera / look ---
+## Fallback sensitivity when GameSettings is absent. The live value is read from
+## GameSettings (Controls slider) into _look_sens, refreshed on change.
 const MOUSE_SENSITIVITY := 0.003
+## Live look tuning, mirrored from GameSettings so the settings menu adjusts the
+## feel without touching a const. _invert_look is +1 normal, -1 for invert-Y.
+var _look_sens: float = MOUSE_SENSITIVITY
+var _invert_look: float = 1.0
 const PITCH_MIN := -1.2          # rad, look down limit
 const PITCH_MAX := 0.6           # rad, look up limit
 
@@ -158,13 +164,25 @@ func _ready() -> void:
 	health = max_hp()          # spawn at full, including the Support bonus
 	health_changed.emit(health, max_hp())
 	shield_changed.emit(shield, MAX_SHIELD)
+	_refresh_look_settings()
+	var gs := get_node_or_null("/root/GameSettings")
+	if gs and gs.has_signal("changed"):
+		gs.changed.connect(_refresh_look_settings)
+
+
+## Mirror mouse sensitivity + invert-Y from the Controls settings into the live
+## look, so the settings menu changes the feel immediately.
+func _refresh_look_settings() -> void:
+	var gs := get_node_or_null("/root/GameSettings")
+	_look_sens = gs.mouse_sensitivity() if gs else MOUSE_SENSITIVITY
+	_invert_look = -1.0 if (gs and gs.invert_y()) else 1.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
-		rotate_y(-motion.relative.x * MOUSE_SENSITIVITY)
-		_look_pitch = clampf(_look_pitch - motion.relative.y * MOUSE_SENSITIVITY,
+		rotate_y(-motion.relative.x * _look_sens)
+		_look_pitch = clampf(_look_pitch - _invert_look * motion.relative.y * _look_sens,
 			PITCH_MIN, PITCH_MAX)
 	elif event.is_action_pressed("ui_cancel"):
 		# Toggle mouse capture so the run can be inspected / closed.
