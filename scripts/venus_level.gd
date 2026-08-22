@@ -35,8 +35,8 @@ const ASCENT_WIDTH := 16.0
 # clear of the towering horizon volcanoes (_build_environment skips this clear-radius) so the
 # ship never lands inside a mountain. Built by _build_start_area().
 const SHIP_BAY_CENTER := Vector3(0.0, 0.0, 34.0)   # crater centre = where the ship sits
-const CRATER_W := 80.0                  # crater floor width  (x)
-const CRATER_D := 74.0                  # crater floor depth  (z)
+const CRATER_W := 96.0                  # crater floor width  (x) - wide so the walls sit well clear of the pad
+const CRATER_D := 76.0                  # crater floor depth  (z)
 const SHIP_BAY_CLEAR := 200.0           # horizon volcanoes kept at least this far (xz) from the crater
 
 # --- Section 2: Interior Descent (sparse jump puzzle) ---
@@ -816,13 +816,13 @@ func _build_start_area() -> void:
 ## so they turn to FACE the landing spot ("direction towards me") and the crater "opens" toward
 ## the player. No loose boulders on the floor (removed - they read as clutter).
 func _build_crater_rim(cx: float, cz: float, half_w: float, half_d: float, front_z: float, back_z: float) -> void:
-	var h := 26.0
+	var h := 28.0
 	var th := 8.0
-	var tilt := 15.0
+	var tilt := 28.0   # strong outward lean so the walls splay well OUTSIDE the landing pad
 	var aw := ASCENT_WIDTH * 0.5
-	var toe := 12.0   # how far each side wall angles inward from front -> back (turns to face the ship)
-	# Side walls: DIAGONAL (wide at the front near the ship, toeing in toward the back) so their
-	# faces turn toward the landing spot, plus the outward lean.
+	var toe := 6.0     # mild toe-in so the walls still face the landing spot without crowding it
+	# Side walls: DIAGONAL (wide at the front, mild toe-in toward the back) with a STRONG outward
+	# lean so they clearly open away from the pad.
 	_lean_wall(Vector3(cx - half_w, 0.0, front_z), Vector3(cx - (half_w - toe), 0.0, back_z), Vector3(-1, 0, 0), h, th, tilt)
 	_lean_wall(Vector3(cx + half_w, 0.0, front_z), Vector3(cx + (half_w - toe), 0.0, back_z), Vector3(1, 0, 0), h, th, tilt)
 	# Back wall (runs along X), leans outward (+Z).
@@ -831,6 +831,24 @@ func _build_crater_rim(cx: float, cz: float, half_w: float, half_d: float, front
 	# "behind the ascending area".
 	for s: float in [-1.0, 1.0]:
 		_lean_wall(Vector3(s * aw, 0.0, front_z), Vector3(s * half_w, 0.0, front_z), Vector3(0, 0, -1), h, th, tilt)
+	# Fill the 4 rim corners (where the leaning walls diverge at the top, leaving a V of sky) with
+	# a tall volcanic rock each, seated sunk into the floor so it plugs the corner gap.
+	_build_corner_fills(cx, half_w, front_z, back_z, h)
+
+
+## A tall volcanic rock in each of the 4 crater corners, plugging the top V-gaps left where the
+## outward-leaning walls meet. Seated sunk into the floor (no float), sized to overtop the walls.
+func _build_corner_fills(cx: float, half_w: float, front_z: float, back_z: float, wall_h: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 71010
+	var corners: Array[Vector3] = [
+		Vector3(cx - half_w + 3.0, -2.0, front_z + 3.0),
+		Vector3(cx + half_w - 3.0, -2.0, front_z + 3.0),
+		Vector3(cx - half_w + 3.0, -2.0, back_z - 3.0),
+		Vector3(cx + half_w - 3.0, -2.0, back_z - 3.0),
+	]
+	for c in corners:
+		_place_rock("venus_cliff", c, rng.randf_range(0.0, TAU), wall_h + rng.randf_range(6.0, 12.0))
 
 
 ## Solid volcanic wall (mesh + collision) between two inner-bottom edge points p0 -> p1,
