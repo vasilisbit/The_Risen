@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://djnlfigyuxqun"
+path.s3tc="res://.godot/imported/shotgun_Color_67165eb5-d725-40ca-a7ba-07894f39830d.jpg-bd5fec5f6808c70b058996b526c147e2.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "a1a160eea0684d7f140a585c6de39ecc"
+}
+
+[deps]
+
+source_file="res://assets/generated/weapons/shotgun_Color_67165eb5-d725-40ca-a7ba-07894f39830d.jpg"
+dest_files=["res://.godot/imported/shotgun_Color_67165eb5-d725-40ca-a7ba-07894f39830d.jpg-bd5fec5f6808c70b058996b526c147e2.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

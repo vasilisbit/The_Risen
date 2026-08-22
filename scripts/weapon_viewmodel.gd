@@ -15,7 +15,7 @@ const RECOVER := 14.0        # recovery speed
 ## spaces -> underscores) here - e.g. `auto_rifle.glb` from the CC0 Kenney
 ## Blaster Kit, or your own Fab export - and it is used automatically. Supported
 ## extensions in priority order:
-const EXTERNAL_DIR := "res://assets/thirdparty/weapons/"
+const EXTERNAL_DIR := "res://assets/generated/weapons/"
 const EXTERNAL_EXTS := ["glb", "gltf", "tscn", "scn"]
 
 ## Per-weapon fit for imported models - imported meshes arrive at all sizes and

@@ -35,7 +35,7 @@ const CLIPS := {
 	"turn_left": "Idle/M_Neutral_Idle_turn_left_Rifle.FBX",
 	"turn_right": "Idle/M_Neutral_Idle_turn_right_Rifle.FBX",
 }
-const WEAPON_DIR := "res://assets/thirdparty/weapons/"
+const WEAPON_DIR := "res://assets/generated/weapons/"
 
 const WALK_SPEED := 0.4      # above this = walk
 const RUN_SPEED := 4.8       # above this = sprint
@@ -108,29 +108,19 @@ const ARM_KEEP := ["lowerarm", "hand", "thumb", "index",
 
 ## Grip transform in the weapon_r socket. The socket's axes are unusual (its
 ## local X points along the character's forward and its Z points up), and the
-## gun wrappers' barrels run along their own -X; a +90 deg pitch aligns the
-## barrel with the aim and stands the gun upright in the grip. Measured against
-## the socket so the two hands land on the weapon. Per-weapon scale only, since
-## the guns are different lengths.
+## gun models' barrels run along their own -X; a +90 deg pitch aligns the barrel
+## with the aim and stands the gun upright in the grip. Measured against the
+## socket so the two hands land on the weapon. The generated guns (T-0041) are
+## all canonicalised the same way by tools/orient_weapons.py (barrel -X, sight
+## +Y, origin at the grip, sized in metres), so they share one grip transform -
+## only per-gun scale/nudges differ.
 const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0}
 const GRIPS := {
 	"Auto Rifle": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
-	# The shotgun is the one FBX (the others are glTF), so it imports on the OPPOSITE
-	# barrel axis: measuring the meshes, the auto rifle's barrel runs down model -X
-	# while the shotgun's runs down model +X (both are Y-up). The rifle grip
-	# rot(90,0,0) sends its -X barrel to socket -X and +Y up to socket +Z; matching
-	# that exact socket orientation for the shotgun's +X/+Y frame gives this basis.
-	# Result: barrel points forward like the rifle AND, because the shotgun is nearly
-	# the same length (0.62 m vs 0.64 m), the forestock lands where the rifle-idle's
-	# support hand sits, so BOTH hands grip. (Earlier hand-tuned Eulers aimed the
-	# barrel at the player and dropped the support hand.)
-	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(-90, -180, 0), "scale": 1.0},
-	"Sniper": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 0.9},
+	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
+	"Sniper": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
 	"Hand Cannon": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
 }
-## Weapons whose model needs recolouring to the dark gunmetal look (the shotgun is
-## a bare FBX; the Sci-Fi glTF guns already carry their own dark materials).
-const RECOLOR := {"Shotgun": true}
 
 ## Put the gun in the character's hand instead of drawing the camera viewmodel.
 ## Needs a per-weapon grip transform first - see set_weapon().
@@ -357,20 +347,29 @@ func set_weapon(name_: String) -> void:
 			_weapon_model.rotation_degrees = grip["rot"]
 			_weapon_model.scale = Vector3.ONE * float(grip["scale"])
 			_weapon_model.visible = weapon_drawn
-			if RECOLOR.has(name_):
-				_recolor_weapon(_weapon_model)
+			_metalize_weapon(_weapon_model)
 		return
 
 
-## Paint a weapon's meshes gunmetal so a bare/odd-textured model (the shotgun FBX)
-## matches the dark Sci-Fi look of the auto rifle instead of rendering pale.
-func _recolor_weapon(model: Node3D) -> void:
-	var metal := StandardMaterial3D.new()
-	metal.albedo_color = Color(0.14, 0.15, 0.17)
-	metal.metallic = 0.8
-	metal.roughness = 0.34
+## Punch the metal on a generated weapon (T-0041 / FAL_PIPELINE 10.3: the raw
+## roughness/metalness a 3D gen ships is weak - never shiny enough). Keeps the
+## generated Color/Normal textures but drives the metallic channel to full and
+## trims the roughness so the gunmetal catches light, via a per-surface override
+## (so the shared imported material isn't mutated for every instance).
+func _metalize_weapon(model: Node3D) -> void:
 	for m in model.find_children("*", "MeshInstance3D", true, false):
-		(m as MeshInstance3D).material_override = metal
+		var mi := m as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var base := mi.get_active_material(s)
+			if not (base is BaseMaterial3D):
+				continue                             # keep whatever the GLB shipped
+			var mat: BaseMaterial3D = base.duplicate()
+			mat.metallic = 1.0                       # use the full ORM metallic map
+			mat.roughness = clampf(mat.roughness * 0.7, 0.08, 1.0)
+			mat.metallic_specular = 0.6
+			mi.set_surface_override_material(s, mat)
 
 
 ## Holster/draw the held weapon (the Guardian is unarmed in the hub).
