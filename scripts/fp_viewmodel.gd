@@ -32,6 +32,8 @@ const CHARACTER := "res://scripts/player_character.gd"
 ## scale. The auto rifle is the baseline; the shotgun rides a touch higher and
 ## level, the long sniper is pulled back to fit, and the one-handed hand cannon is
 ## brought in closer so it isn't lost in the corner. Applied by set_weapon().
+## The generated T-0041 guns are all canonicalised to the same grip, so the
+## baseline framing carries over unchanged.
 const FRAMING := {
 	"Auto Rifle":  {"pos": Vector3(-0.22, 1.47, 0.56), "look": Vector3(-0.22, 1.47, -1.0), "fov": 48.0},
 	"Shotgun":     {"pos": Vector3(-0.20, 1.50, 0.50), "look": Vector3(-0.20, 1.44, -1.0), "fov": 47.0},

@@ -36,6 +36,9 @@ var _prompt: Label3D
 var _spin: float = 0.0
 
 const CHEST_PATH := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Prop_Chest.gltf"
+## Generated weapon models (T-0041) - a weapon drop shows the actual gun spinning
+## on its rarity beacon instead of a chest. Armour drops keep the chest.
+const WEAPON_MODEL_DIR := "res://assets/generated/weapons/"
 
 
 func _ready() -> void:
@@ -72,24 +75,32 @@ func _roll_kind() -> String:
 
 func _build_visual() -> void:
 	var c: Color = RARITY_COLORS.get(rarity, Color.WHITE)
-	# A little loot chest instead of a coloured box.
-	var scene := load(CHEST_PATH)
-	if scene is PackedScene:
-		_visual = (scene as PackedScene).instantiate() as Node3D
-		_visual.scale = Vector3.ONE * 0.5
+	# A weapon drop shows the actual generated gun; armour (or a missing model)
+	# falls back to the loot chest, then to a coloured box.
+	var gun := _load_weapon_model() if category != "armor" else null
+	if gun != null:
+		_visual = gun
+		_visual.scale = Vector3.ONE * 0.9
+		_visual.rotation = Vector3(0.35, 0.0, 0.25)   # cant it so it reads in the air
+		_visual.position = Vector3(0, 0.55, 0)
 	else:
-		var mi := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.35, 0.35, 0.35)
-		mi.mesh = box
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = c
-		mat.emission_enabled = true
-		mat.emission = c
-		mat.emission_energy_multiplier = 2.5
-		mi.material_override = mat
-		_visual = mi
-	_visual.position = Vector3(0, 0.28, 0)
+		var scene := load(CHEST_PATH)
+		if scene is PackedScene:
+			_visual = (scene as PackedScene).instantiate() as Node3D
+			_visual.scale = Vector3.ONE * 0.5
+		else:
+			var mi := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(0.35, 0.35, 0.35)
+			mi.mesh = box
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = c
+			mat.emission_enabled = true
+			mat.emission = c
+			mat.emission_energy_multiplier = 2.5
+			mi.material_override = mat
+			_visual = mi
+		_visual.position = Vector3(0, 0.28, 0)
 	add_child(_visual)
 
 	# Rarity beacon so drops read at range: a coloured point light and a glowing
@@ -134,6 +145,16 @@ func _build_visual() -> void:
 	_prompt.position = Vector3(0, 1.0, 0)
 	_prompt.visible = false
 	add_child(_prompt)
+
+
+## Load the generated GLB for this weapon kind, or null if it isn't present yet.
+func _load_weapon_model() -> Node3D:
+	var file := kind.to_lower().replace(" ", "_")
+	var path := "%s%s.glb" % [WEAPON_MODEL_DIR, file]
+	if not ResourceLoader.exists(path):
+		return null
+	var res := load(path)
+	return (res as PackedScene).instantiate() as Node3D if res is PackedScene else null
 
 
 func _process(delta: float) -> void:
