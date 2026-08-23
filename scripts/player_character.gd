@@ -91,8 +91,8 @@ const ARM_KEEP := ["forearm", "hand"]
 ## it, so an unscaled weapon would render 100x too small).
 const GRIP_SCALE := 100.0
 ## Solved in-engine against the frozen gun_idle hand pose so the barrel (-X) points
-## down the FP camera's forward and the sight (+Y) points up.
-const GRIP_ROT := Vector3(-25.1, 117.6, -103.6)
+## down the FP camera's forward and the sight (+Y) points up (lower-right framing).
+const GRIP_ROT := Vector3(-29.7, 119.5, -108.2)
 const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": GRIP_ROT, "scale": GRIP_SCALE}
 const GRIPS := {
 	"Auto Rifle": {"pos": Vector3.ZERO, "rot": GRIP_ROT, "scale": GRIP_SCALE},
@@ -113,11 +113,11 @@ var weapon_drawn: bool = true
 
 ## Body material tuning: the gen ships one StandardMaterial3D (albedo texture only,
 ## metallic=1/roughness=1). Meshy lightened the albedo vs the dark concept, so tint
-## it back toward black/gunmetal and keep metalness modest so it doesn't blow out
-## bright under the hub lights / in the mirror.
-const BODY_METALLIC := 0.3
-const BODY_ROUGHNESS := 0.55
-const BODY_TINT := Color(0.42, 0.43, 0.48)
+## it hard back toward near-black gunmetal; keep metalness modest + roughness high
+## so it doesn't blow out bright under the hub lights / in the mirror.
+const BODY_METALLIC := 0.15
+const BODY_ROUGHNESS := 0.7
+const BODY_TINT := Color(0.19, 0.2, 0.25)
 
 var _anim: AnimationPlayer
 var _skeleton: Skeleton3D
@@ -226,9 +226,9 @@ func _mask_to_arms(hero: Node3D) -> void:
 shader_type spatial;
 render_mode cull_disabled;
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap;
-uniform vec3 tint = vec3(0.42, 0.43, 0.48);
-uniform float metallic_v = 0.3;
-uniform float roughness_v = 0.55;
+uniform vec3 tint = vec3(0.19, 0.2, 0.25);
+uniform float metallic_v = 0.15;
+uniform float roughness_v = 0.7;
 void fragment() {
 	if (COLOR.r < 0.5) { discard; }
 	ALBEDO = texture(albedo_tex, UV).rgb * tint;
@@ -403,13 +403,15 @@ func _process(_delta: float) -> void:
 		return
 	# Advance the (manual-mode) mixer first, so everything below layers on top of
 	# the freshly written animated pose rather than being overwritten by it. The FP
-	# arms hold a frozen pose (seeked once in _ready), so they don't advance.
+	# arms normally hold a frozen pose (seeked once in _ready); a reload temporarily
+	# unfreezes and plays the reload clip (time-scaled to the weapon's reload_time),
+	# then returns to the frozen hold.
 	if _anim and not _frozen:
 		_anim.advance(_delta)
-	# The camera lives inside the head, so shrink the head bone away. Scaled rather
-	# than zeroed: an exact zero collapses the head vertices into a degenerate spike.
-	if _head_bone >= 0:
-		_skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.01)
+	# NOTE: the head is NOT collapsed here. The main first-person camera already skips
+	# the body's render layer (guardian.gd), so the head is never in the player's own
+	# view - and collapsing it left the hub MIRROR reflection headless. The FP arms
+	# rig discards the head via the arms-only mask, so it needs no collapse either.
 
 	# Aim offset, applied ADDITIVELY on top of the animated pose. Spreading it over
 	# the upper spine carries the chest, arms and gun with the camera.
@@ -434,8 +436,13 @@ func _process(_delta: float) -> void:
 	# One-handed weapons (Hand Cannon) collapse the whole left arm so no support arm
 	# is drawn; every other weapon must RESTORE the scale to 1 each frame (the clips
 	# carry no scale track, so a leftover collapse would strip later weapons' hands).
+	# The FP arms viewmodel ALWAYS collapses the left arm: the Meshy gun-hold pose
+	# leaves the left hand back off the gun (and there are no finger bones to grip a
+	# foregrip), so a lone right hand + gun reads as a clean FPS viewmodel. The
+	# third-person body (arms_only=false, seen in the mirror) keeps both arms.
 	if _left_arm_root >= 0:
-		var arm_scale := 0.01 if (_hide_left_arm and weapon_drawn) else 1.0
+		var hide_left := _hide_left_arm or arms_only
+		var arm_scale := 0.01 if (hide_left and weapon_drawn) else 1.0
 		_skeleton.set_bone_pose_scale(_left_arm_root, Vector3.ONE * arm_scale)
 	# Optional per-weapon support-hand nudge (only while the support arm is shown).
 	if not _hide_left_arm and _support_lower != 0.0 and weapon_drawn and not _left_arm_bones.is_empty():

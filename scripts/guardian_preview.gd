@@ -10,9 +10,9 @@ extends SubViewportContainer
 const GUARDIAN := "res://assets/generated/guardian/guardian.glb"
 ## Kept in sync with player_character.gd's body tuning so the preview matches the
 ## body seen in the hub mirror / first person.
-const BODY_TINT := Color(0.42, 0.43, 0.48)
-const BODY_METALLIC := 0.3
-const BODY_ROUGHNESS := 0.55
+const BODY_TINT := Color(0.19, 0.2, 0.25)
+const BODY_METALLIC := 0.15
+const BODY_ROUGHNESS := 0.7
 
 var _viewport: SubViewport
 var _pivot: Node3D

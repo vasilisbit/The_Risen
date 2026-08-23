@@ -108,6 +108,10 @@ func _process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("reload"):
 		w.start_reload()
+		if w.is_reloading():                 # only if it actually began (mag not full)
+			var fpvm := get_parent().get_node_or_null("FPViewmodel")
+			if fpvm and fpvm.has_method("play_reload"):
+				fpvm.play_reload(w.reload_time)
 
 	var wants_fire := Input.is_action_pressed("fire") if w.automatic else Input.is_action_just_pressed("fire")
 	if wants_fire:
