@@ -433,11 +433,13 @@ func _character_panel() -> Control:
 	panel.add_theme_stylebox_override("panel", s)
 	box.add_child(panel)
 
+	# The custom Guardian (T-0042): the rig playing its idle, tinted to match the
+	# in-game body, with equipped armour plates attached (updates on loadout_changed).
 	var disp := SubViewportContainer.new()
-	disp.set_script(load("res://scripts/model_display.gd"))
+	disp.set_script(load("res://scripts/guardian_preview.gd"))
+	disp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	disp.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panel.add_child(disp)
-	disp.call("setup", "res://assets/thirdparty/Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf",
-		1.0, 2.9, 1.0, 0.0, null, 0.4)
 
 	var band := Label.new()
 	band.text = "GUARDIAN"

@@ -706,9 +706,9 @@ func _build_character() -> void:
 	_character.name = "PlayerCharacter"
 	_character.set_script(load("res://scripts/player_character.gd"))
 	_character.rotation.y = PI                 # face the body's forward (-Z)
-	# The raw model stands ~2.05 m; scale it to the 1.8 m collision capsule so the
-	# body reads at the right size from inside it.
-	_character.scale = Vector3.ONE * (1.8 / 2.05)
+	# The custom Guardian (T-0042) is generated at ~1.8 m with its feet at the model
+	# origin, matching the 1.8 m collision capsule, so it needs no rescale.
+	_character.scale = Vector3.ONE * 1.0
 	add_child(_character)
 	# Sit the camera at the eyes, slightly in front of the neck (EYE_BACK is
 	# negative) so it is true first person - the head/neck/back never show.
