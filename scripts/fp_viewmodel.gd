@@ -17,8 +17,8 @@ const CHARACTER := "res://scripts/player_character.gd"
 ## the gun's barrel (which points -Z) reads parallel to the ground; the near plane
 ## then clips away the neck/torso between the camera and the gun, leaving just the
 ## forearm and gun in the lower-right. Tuned in-engine.
-@export var cam_position: Vector3 = Vector3(-0.06, 1.60, 0.62)
-@export var cam_look_at: Vector3 = Vector3(-0.19, 1.42, -0.9)
+@export var cam_position: Vector3 = Vector3(-0.42, 1.60, 0.40)
+@export var cam_look_at: Vector3 = Vector3(-0.42, 1.53, -1.0)
 @export var cam_fov: float = 55.0
 ## Near plane. The torso is now removed by the arms-only vertex mask (no hard
 ## cut), so this only needs to stay off the very closest geometry.
@@ -38,10 +38,10 @@ const CHARACTER := "res://scripts/player_character.gd"
 ## guns share the grip and this framing (look direction fixed so the one grip keeps
 ## every barrel on the crosshair); longer guns just sit a touch further back.
 const FRAMING := {
-	"Auto Rifle":  {"pos": Vector3(-0.06, 1.60, 0.70), "look": Vector3(-0.19, 1.42, -0.9), "fov": 55.0},
-	"Shotgun":     {"pos": Vector3(-0.06, 1.60, 0.66), "look": Vector3(-0.19, 1.42, -0.9), "fov": 55.0},
-	"Sniper":      {"pos": Vector3(-0.06, 1.60, 0.80), "look": Vector3(-0.19, 1.42, -0.9), "fov": 53.0},
-	"Hand Cannon": {"pos": Vector3(-0.06, 1.60, 0.62), "look": Vector3(-0.19, 1.42, -0.9), "fov": 55.0},
+	"Auto Rifle":  {"pos": Vector3(-0.42, 1.60, 0.40), "look": Vector3(-0.42, 1.53, -1.0), "fov": 55.0},
+	"Shotgun":     {"pos": Vector3(-0.42, 1.60, 0.38), "look": Vector3(-0.42, 1.53, -1.0), "fov": 55.0},
+	"Sniper":      {"pos": Vector3(-0.42, 1.60, 0.48), "look": Vector3(-0.42, 1.53, -1.0), "fov": 53.0},
+	"Hand Cannon": {"pos": Vector3(-0.42, 1.60, 0.34), "look": Vector3(-0.42, 1.53, -1.0), "fov": 55.0},
 }
 
 ## Per-weapon recoil impulse (metres back/up + radians of muzzle rise). The rig
@@ -63,6 +63,8 @@ var _tex: TextureRect
 var _pitch: float = 0.0
 var _recoil: Vector3 = Vector3.ZERO     # current rig offset (back/up) from recoil
 var _recoil_rot: float = 0.0            # current muzzle rise from recoil
+var _reload_left: float = 0.0           # seconds remaining in the reload dip
+var _reload_dur: float = 1.0            # total reload duration
 
 
 func _ready() -> void:
@@ -134,10 +136,19 @@ func _process(delta: float) -> void:
 	var t := clampf(RECOIL_RECOVER * delta, 0.0, 1.0)
 	_recoil = _recoil.lerp(Vector3.ZERO, t)
 	_recoil_rot = lerpf(_recoil_rot, 0.0, t)
+	# Reload dip: the whole viewmodel lowers, pulls back toward the camera and tilts
+	# as the gun is brought down to swap the mag, then rises back - a clean procedural
+	# reload the Meshy rig can't do with clips (no finger bones). sin() = down then up.
+	var dip := 0.0
+	if _reload_left > 0.0:
+		_reload_left -= delta
+		var pr := clampf(1.0 - _reload_left / maxf(_reload_dur, 0.05), 0.0, 1.0)
+		dip = sin(pr * PI)
 	if _rig:
-		# Back (+Z toward the camera) and up (+Y); rotate the muzzle up.
-		_rig.position = _recoil
-		_rig.rotation = Vector3(-_recoil_rot, PI, 0.0)
+		# Back (+Z toward the camera) and up (+Y); rotate the muzzle up. Reload adds a
+		# downward + back dip and a tilt on top.
+		_rig.position = _recoil + Vector3(0.0, -0.06 * dip, 0.03 * dip)
+		_rig.rotation = Vector3(-_recoil_rot - 0.45 * dip, PI, 0.5 * dip)
 	_aim_camera()
 
 
@@ -172,6 +183,12 @@ func _apply_framing(name_: String) -> void:
 
 func set_pitch(pitch: float) -> void:
 	_pitch = pitch
+
+
+## Reload feedback: dip the viewmodel down/back for `duration` seconds (see _process).
+func play_reload(duration: float) -> void:
+	_reload_dur = maxf(duration, 0.05)
+	_reload_left = _reload_dur
 
 
 ## Recoil impulse on fire: snap the gun back and up, then _process eases it home.
