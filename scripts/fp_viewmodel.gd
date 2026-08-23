@@ -17,9 +17,9 @@ const CHARACTER := "res://scripts/player_character.gd"
 ## the gun's barrel (which points -Z) reads parallel to the ground; the near plane
 ## then clips away the neck/torso between the camera and the gun, leaving just the
 ## forearm and gun in the lower-right. Tuned in-engine.
-@export var cam_position: Vector3 = Vector3(-0.22, 1.47, 0.56)
-@export var cam_look_at: Vector3 = Vector3(-0.22, 1.47, -1.0)
-@export var cam_fov: float = 48.0
+@export var cam_position: Vector3 = Vector3(-0.06, 1.60, 0.62)
+@export var cam_look_at: Vector3 = Vector3(-0.19, 1.42, -0.9)
+@export var cam_fov: float = 55.0
 ## Near plane. The torso is now removed by the arms-only vertex mask (no hard
 ## cut), so this only needs to stay off the very closest geometry.
 @export var cam_near: float = 0.05
@@ -34,11 +34,14 @@ const CHARACTER := "res://scripts/player_character.gd"
 ## brought in closer so it isn't lost in the corner. Applied by set_weapon().
 ## The generated T-0041 guns are all canonicalised to the same grip, so the
 ## baseline framing carries over unchanged.
+## Re-tuned for the Meshy Guardian's frozen gun_idle hold. All four canonicalised
+## guns share the grip and this framing (look direction fixed so the one grip keeps
+## every barrel on the crosshair); longer guns just sit a touch further back.
 const FRAMING := {
-	"Auto Rifle":  {"pos": Vector3(-0.22, 1.47, 0.56), "look": Vector3(-0.22, 1.47, -1.0), "fov": 48.0},
-	"Shotgun":     {"pos": Vector3(-0.20, 1.50, 0.50), "look": Vector3(-0.20, 1.44, -1.0), "fov": 47.0},
-	"Sniper":      {"pos": Vector3(-0.26, 1.47, 0.70), "look": Vector3(-0.26, 1.46, -1.0), "fov": 45.0},
-	"Hand Cannon": {"pos": Vector3(-0.15, 1.46, 0.46), "look": Vector3(-0.15, 1.41, -1.0), "fov": 50.0},
+	"Auto Rifle":  {"pos": Vector3(-0.06, 1.60, 0.70), "look": Vector3(-0.19, 1.42, -0.9), "fov": 55.0},
+	"Shotgun":     {"pos": Vector3(-0.06, 1.60, 0.66), "look": Vector3(-0.19, 1.42, -0.9), "fov": 55.0},
+	"Sniper":      {"pos": Vector3(-0.06, 1.60, 0.80), "look": Vector3(-0.19, 1.42, -0.9), "fov": 53.0},
+	"Hand Cannon": {"pos": Vector3(-0.06, 1.60, 0.62), "look": Vector3(-0.19, 1.42, -0.9), "fov": 55.0},
 }
 
 ## Per-weapon recoil impulse (metres back/up + radians of muzzle rise). The rig

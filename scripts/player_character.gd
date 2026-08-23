@@ -3,130 +3,121 @@ extends Node3D
 ## look down and you see your chest, hips and legs, and the gun is held in the
 ## character's own hands rather than floating in front of the camera.
 ##
-## Model: the UEFN mannequin (88-bone UE rig) that ships inside the animation pack.
-## Animation: the Fab "Pistol and Rifle Locomotion" rifle loops, which pose the
-## arms around a rifle. They animate this exact rig, so every bone matches. Their
-## track paths are "Skeleton3D:<bone>", so the AnimationPlayer's root_node is the
-## Armature. The mixer runs in MANUAL mode and is advanced at the top of _process,
-## so the additive aim offset below lands on top of the animated pose instead of
-## being overwritten by it (auto mode wrote the spine AFTER _process, killing it).
+## Model (T-0042): a CUSTOM Guardian generated on the fal.ai pipeline and rigged
+## with Meshy (route 2 - docs/FAL_PIPELINE.md 6/9A/10). It replaces the placeholder
+## UEFN mannequin. The rig is a 24-bone Mixamo-style humanoid; the GLB ships its own
+## AnimationPlayer with idle/walk/run (Meshy's basic set + the idle preset, root
+## motion stripped so the loops play in place - tools/gen_guardian.py + a Blender
+## merge). We drive that shipped mixer in MANUAL mode and advance it at the top of
+## _process, so the additive aim offset below lands on top of the animated pose
+## instead of being overwritten by it.
 ##
 ## The head bone is scaled to nothing every frame, because the camera sits inside
 ## the head - otherwise you would be looking at the inside of the skull.
 
-## The UEFN mannequin ships INSIDE the rifle-animation pack, so its rig is the
-## exact one those clips animate - every bone matches, unlike the Quaternius
-## Superhero (65 bones, only a partial match) which also had no clothing.
-const MODEL := "res://assets/thirdparty/fab/Pistol and Rifle Locomotion Animations 1700/Characters/UEFN_Mannequin/Meshes/SKM_UEFN_Mannequin.FBX"
-const RIFLE_DIR := "res://assets/thirdparty/fab/Pistol and Rifle Locomotion Animations 1700/_FixedRifle/"
-## state -> clip file. Each FBX holds a single animation called "Unreal Take".
-const CLIPS := {
-	"idle": "Idle/M_Neutral_Stand_Idle_Loop_Rifle.FBX",
-	"walk": "Walk/M_Neutral_Walk_Loop_F_Rifle.FBX",
-	"walk_back": "Walk/M_Neutral_Walk_Loop_B_Rifle.FBX",
-	"walk_left": "Walk/M_Neutral_Walk_Loop_LL_Rifle.FBX",
-	"walk_right": "Walk/M_Neutral_Walk_Loop_RR_Rifle.FBX",
-	"run": "Run/M_Neutral_Run_Loop_F_Rifle.FBX",
-	"run_back": "Run/M_Neutral_Run_Loop_B_Rifle.FBX",
-	"sprint": "Sprint/M_Neutral_Sprint_Loop_F_Rifle.FBX",
-	"jump": "Jump/M_Neutral_Jump_Loop_Fall_Rifle.FBX",
-	# Turn-in-place: the feet step round instead of the whole body pivoting rigidly
-	# while standing still. Played when the player yaws without translating.
-	"turn_left": "Idle/M_Neutral_Idle_turn_left_Rifle.FBX",
-	"turn_right": "Idle/M_Neutral_Idle_turn_right_Rifle.FBX",
+## The custom Guardian GLB (mesh + Meshy rig + idle/walk/run), built by
+## tools/gen_guardian.py -> Blender merge. Its AnimationPlayer is used as-is.
+const MODEL := "res://assets/generated/guardian/guardian.glb"
+## The Meshy rig ships a small generic locomotion set (idle/walk/run). Every game
+## locomotion state maps onto the nearest available clip until a fuller moveset is
+## baked (Meshy multi-animation, docs/FAL_PIPELINE 6.1). Strafe/back reuse walk,
+## sprint/jump reuse run, turn-in-place reuses idle.
+const STATE_MAP := {
+	"idle": "idle", "gun_idle": "gun_idle",
+	"walk": "walk", "walk_back": "walk", "walk_left": "walk", "walk_right": "walk",
+	"run": "run", "run_back": "run", "sprint": "run", "jump": "run",
+	"turn_left": "idle", "turn_right": "idle",
 }
 const WEAPON_DIR := "res://assets/generated/weapons/"
 
 const WALK_SPEED := 0.4      # above this = walk
 const RUN_SPEED := 4.8       # above this = sprint
 
-## Bones we drive directly. The Superhero rig capitalises the head ("Head") while
-## the hands are lower-case, so the head is looked up case-insensitively.
-## Head AND neck are collapsed: with only the head hidden, looking down put the
-## Guardian's own neck stub in the middle of the view. Hiding both leaves the
-## chest, belly and legs, which is what you should see looking down.
+## Bones we drive directly, on the Meshy humanoid rig (24 bones). The head is
+## collapsed (the camera sits inside it); the single "neck" bone is left alone so
+## looking down still shows the upper chest.
 const HEAD_BONE := "Head"
-const NECK_BONES := ["neck_01", "neck_02"]
-## The UEFN rig carries a dedicated weapon socket bone, already placed and
-## oriented in the grip - far better than hanging the gun off hand_r by eye.
-const HAND_BONE := "weapon_r"
-## Upper-spine bones the aim offset is spread across, so the chest (and with it
-## the arms and the gun) tilts toward wherever the camera is looking. Without
-## this the body stays level and the rifle sits below the screen.
-const AIM_BONES := ["spine_02", "spine_03"]
-## How much of the look pitch the torso takes (spread across the aim bones), so
-## the gun rises and dips with the camera.
+const NECK_BONES := ["neck"]
+## The Meshy rig has no dedicated weapon socket, so the gun hangs off the right
+## HAND bone; the grip transform (GRIPS) seats it in the palm.
+const HAND_BONE := "RightHand"
+## Upper-spine bones the aim offset is spread across, so the chest (and with it the
+## arms and the gun) tilts toward wherever the camera is looking. On this rig the
+## chain runs Hips -> Spine02 -> Spine01 -> Spine, so the UPPER two (nearest the
+## shoulders) are Spine and Spine01.
+const AIM_BONES := ["Spine", "Spine01"]
+## How much of the look pitch the torso takes (spread across the aim bones).
 @export var aim_strength: float = 1.0
-## Constant upper-body lean added on top of the pitch tracking. Left at 0: with
-## the camera at the eyes (see guardian.gd) the natural rifle-idle pose already
-## sits the gun in the lower-right like a first-person viewmodel, and leaning it
-## up only pushed the gun into the camera (the hand is ~8 cm from the eye).
+## Constant upper-body lean added on top of the pitch tracking (see the old note:
+## the natural pose already reads as a viewmodel, so kept 0 by default).
 @export var aim_base_lift: float = 0.0
-## The aim lean is applied about this axis in SKELETON space (not the bone's own
-## frame): the spine bones are twisted ~45 deg about the vertical, so no single
-## local axis is a clean pitch. This axis is converted into each bone's local
-## frame every frame. Skeleton +X is the character's left-right, so a rotation
-## about it leans the torso forward/back and lifts the gun. Sign/axis tuned live.
+## The aim lean axis in SKELETON space, converted into each bone's local frame every
+## frame. Skeleton +X is the character's left-right, so a rotation about it leans the
+## torso forward/back. Sign/axis tuned live per rig.
 @export var aim_axis: Vector3 = Vector3(1, 0, 0)
-## Optional shoulder-raise (swing both upper arms up about the skeleton's
-## left-right axis). Left at 0: because the hand sits only ~8 cm from a first-
-## person eye, raising the gun toward eye level just made it fill the screen. The
-## natural pose already reads as a lower-right viewmodel. Kept as a tuning knob;
-## a real always-eye-level ADS look needs a dedicated FP arms rig, not this.
-const ARM_BONES := ["upperarm_l", "upperarm_r"]
+## Optional shoulder-raise (swing both upper arms up). Kept 0 by default.
+const ARM_BONES := ["LeftArm", "RightArm"]
 @export var arm_lift: float = 0.0
 
 ## Left (support) arm bones, swung DOWN off the gun for weapons that need the
 ## support hand adjusted. Amount per weapon in SUPPORT_LOWER (set in set_weapon).
-const LEFT_ARM_BONES := ["upperarm_l", "lowerarm_l"]
+const LEFT_ARM_BONES := ["LeftArm", "LeftForeArm"]
 ## Per-weapon support-hand lower (radians about the skeleton left-right axis).
-## 0 = keep the animation's two-handed grip.
 const SUPPORT_LOWER := {}
 ## Weapons held in ONE hand: the whole left arm is collapsed to nothing (its root
-## bone scaled to ~0), so no support arm shows at all - cleaner than swinging it
-## down, which the arms-only mask would still draw.
+## bone scaled to ~0), so no support arm shows at all.
 const HIDE_LEFT_ARM := {"Hand Cannon": true}
-const LEFT_ARM_ROOT := "clavicle_l"
+const LEFT_ARM_ROOT := "LeftShoulder"
 
 ## Render layer the real body sits on so the main camera can exclude it (true
 ## first person - no own neck/back) while the mirror camera still shows it.
-## Kept distinct from the mirror's own no-reflect layer (1<<19).
 const BODY_LAYER := 1 << 18
 
-## Dedicated first-person arms: when true this instance shows ONLY the forearms
-## and hands of the mannequin - the torso/legs/head are discarded per-vertex, so
-## the viewmodel needs no near-plane clip and has no hard cut. The same nice hands
-## the player already had, just isolated. Set on the viewmodel rig, not the body.
+## Dedicated first-person arms: when true this instance shows ONLY the forearms and
+## hands (armoured gauntlets) - the torso/legs/head are discarded per-vertex, so the
+## viewmodel needs no near-plane clip and has no hard cut. Set on the viewmodel rig.
 @export var arms_only: bool = false
 ## Bone-name fragments whose vertices are KEPT for arms_only; everything weighted
-## mainly to any other bone (spine/pelvis/leg/neck/head/UPPER arm/shoulder) is
-## discarded. Deliberately only the FOREARMS and hands - keeping the upper arms and
-## clavicles put big bulky shoulder masses right next to the camera, which read as
-## deformed blobs. Forearms+hands reaching to the gun is the real viewmodel look.
-const ARM_KEEP := ["lowerarm", "hand", "thumb", "index",
-	"middle", "ring", "pinky", "wrist", "weapon"]
+## mainly to any other bone is discarded. The Meshy rig names the lower arms
+## LeftForeArm/RightForeArm and the hands LeftHand/RightHand (no finger bones - the
+## gauntlets are rigid), so "forearm" + "hand" keep exactly the forearms + gauntlets.
+const ARM_KEEP := ["forearm", "hand"]
 
-## Grip transform in the weapon_r socket. The socket's axes are unusual (its
-## local X points along the character's forward and its Z points up), and the
-## gun models' barrels run along their own -X; a +90 deg pitch aligns the barrel
-## with the aim and stands the gun upright in the grip. Measured against the
-## socket so the two hands land on the weapon. The generated guns (T-0041) are
-## all canonicalised the same way by tools/orient_weapons.py (barrel -X, sight
-## +Y, origin at the grip, sized in metres), so they share one grip transform -
-## only per-gun scale/nudges differ.
-const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0}
+## Grip transform for the weapon on the RightHand bone. The Meshy hand bone's axes
+## differ from the old UEFN weapon socket, so this is re-derived for this rig. The
+## generated guns (T-0041) are canonicalised (barrel -X, sight +Y, origin at the
+## grip, metres) by tools/orient_weapons.py, so they share ONE grip orientation.
+## GRIP_SCALE counters the Meshy armature's 0.01 scale (the BoneAttachment inherits
+## it, so an unscaled weapon would render 100x too small).
+const GRIP_SCALE := 100.0
+## Solved in-engine against the frozen gun_idle hand pose so the barrel (-X) points
+## down the FP camera's forward and the sight (+Y) points up.
+const GRIP_ROT := Vector3(-25.1, 117.6, -103.6)
+const GRIP_DEFAULT := {"pos": Vector3.ZERO, "rot": GRIP_ROT, "scale": GRIP_SCALE}
 const GRIPS := {
-	"Auto Rifle": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
-	"Shotgun": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
-	"Sniper": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
-	"Hand Cannon": {"pos": Vector3.ZERO, "rot": Vector3(90, 0, 0), "scale": 1.0},
+	"Auto Rifle": {"pos": Vector3.ZERO, "rot": GRIP_ROT, "scale": GRIP_SCALE},
+	"Shotgun": {"pos": Vector3.ZERO, "rot": GRIP_ROT, "scale": GRIP_SCALE},
+	"Sniper": {"pos": Vector3.ZERO, "rot": GRIP_ROT, "scale": GRIP_SCALE},
+	"Hand Cannon": {"pos": Vector3.ZERO, "rot": GRIP_ROT, "scale": GRIP_SCALE},
 }
 
+## The first-person arms hold a STATIC gun pose (the gun_idle clip animates the
+## hand, which would swing the weapon), frozen at this normalised time so the grip
+## stays put. fp_viewmodel adds the recoil/sway on top.
+const FP_POSE_T := 0.5
+
 ## Put the gun in the character's hand instead of drawing the camera viewmodel.
-## Needs a per-weapon grip transform first - see set_weapon().
 @export var hand_weapon_enabled: bool = true
 ## Whether the held weapon is drawn (false in the hub - see set_weapon_visible).
 var weapon_drawn: bool = true
+
+## Body material tuning: the gen ships one StandardMaterial3D (albedo texture only,
+## metallic=1/roughness=1). Meshy lightened the albedo vs the dark concept, so tint
+## it back toward black/gunmetal and keep metalness modest so it doesn't blow out
+## bright under the hub lights / in the mirror.
+const BODY_METALLIC := 0.3
+const BODY_ROUGHNESS := 0.55
+const BODY_TINT := Color(0.42, 0.43, 0.48)
 
 var _anim: AnimationPlayer
 var _skeleton: Skeleton3D
@@ -138,10 +129,11 @@ var _current: String = ""
 var _aim_bones: Array[int] = []
 var _arm_bones: Array[int] = []
 var _left_arm_bones: Array[int] = []
-var _left_arm_root: int = -1        # clavicle_l, collapsed for one-handed weapons
+var _left_arm_root: int = -1        # LeftShoulder, collapsed for one-handed weapons
 var _support_lower: float = 0.0     # how far to drop the support arm (per weapon)
 var _hide_left_arm: bool = false    # true for one-handed weapons (Hand Cannon)
 var _aim_pitch: float = 0.0
+var _frozen: bool = false           # FP arms: hold a single frozen gun pose
 
 
 func _ready() -> void:
@@ -154,7 +146,6 @@ func _ready() -> void:
 		return
 	var hero := (hero_scene as PackedScene).instantiate() as Node3D
 	add_child(hero)
-	_apply_suit(hero)
 
 	var skels := hero.find_children("*", "Skeleton3D", true, false)
 	if skels.is_empty():
@@ -181,35 +172,47 @@ func _ready() -> void:
 
 	if arms_only:
 		_mask_to_arms(hero)
+	else:
+		_prep_body(hero)
 
-	_build_animation(_skeleton.get_parent())
+	_setup_animation(hero)
 	_build_hand_attachment()
-	_play("idle")
+	# The first-person arms rig holds the gun (a rifle-hold pose); the full body
+	# in the hub is unarmed, so it idles. The FP hold is FROZEN at one frame so the
+	# grip stays steady (the clip turns the hand otherwise).
+	_play("gun_idle" if arms_only else "idle")
+	if arms_only and _anim and _anim.has_animation("gun_idle"):
+		_frozen = true
+		_anim.seek(_anim.get_animation("gun_idle").length * FP_POSE_T, true)
 
 
-## The CC0 base character is an UNCLOTHED body in a single skin tone, which from
-## inside the first-person camera reads as indistinguishable flesh-coloured
-## shapes. Painting it a dark suit at least gives the limbs a readable silhouette
-## until a properly clothed/armoured character model replaces it.
-func _apply_suit(hero: Node3D) -> void:
-	var suit := StandardMaterial3D.new()
-	suit.albedo_color = Color(0.13, 0.15, 0.20)
-	suit.metallic = 0.35
-	suit.roughness = 0.55
+## Keep the generated Guardian textures, but put the body on its own render layer
+## (so the main first-person camera skips it while the hub mirror still shows it)
+## and punch the flat gen material toward armoured plate. Runs on the real body,
+## not the arms-only viewmodel (which uses the discard mask below).
+func _prep_body(hero: Node3D) -> void:
 	for m in hero.find_children("*", "MeshInstance3D", true, false):
-		var mesh := m as MeshInstance3D
-		mesh.material_override = suit
-		# Put the real body on its own render layer so the main first-person camera
-		# can skip it (you never see your own neck/back/legs), while the hub mirror's
-		# camera still renders it. In the viewmodel's own viewport this is harmless.
-		mesh.layers = BODY_LAYER
+		var mi := m as MeshInstance3D
+		mi.layers = BODY_LAYER
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var base := mi.get_active_material(s)
+			if not (base is BaseMaterial3D):
+				continue
+			var mat: BaseMaterial3D = base.duplicate()
+			mat.albedo_color = BODY_TINT          # multiplies the (too-light) gen texture
+			mat.metallic = BODY_METALLIC
+			mat.roughness = BODY_ROUGHNESS
+			mat.metallic_specular = 0.55
+			mi.set_surface_override_material(s, mat)
 
 
-## Turn the full mannequin into an arms-only viewmodel mesh WITHOUT losing the
-## nice hands: bake a per-vertex keep/drop mask into vertex colours (a vertex is
-## "arm" when its dominant skin bone is an arm bone) and swap in a material that
-## discards the dropped fragments. The skin (bones + weights) is preserved, so the
-## arms still animate. This replaces the near-plane clip - no hard cut, no torso.
+## Turn the full Guardian into an arms-only viewmodel mesh WITHOUT losing the
+## gauntlet textures: bake a per-vertex keep/drop mask into vertex colours (a
+## vertex is "arm" when its dominant skin bone is a forearm/hand bone) and swap in
+## a shader that samples the original albedo texture and discards dropped fragments.
+## The skin (bones + weights) is preserved, so the gauntlets still animate.
 func _mask_to_arms(hero: Node3D) -> void:
 	var keep := {}
 	for i in _skeleton.get_bone_count():
@@ -222,23 +225,35 @@ func _mask_to_arms(hero: Node3D) -> void:
 	shader.code = """
 shader_type spatial;
 render_mode cull_disabled;
-uniform vec3 arm_albedo : source_color = vec3(0.12, 0.13, 0.17);
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap;
+uniform vec3 tint = vec3(0.42, 0.43, 0.48);
+uniform float metallic_v = 0.3;
+uniform float roughness_v = 0.55;
 void fragment() {
 	if (COLOR.r < 0.5) { discard; }
-	ALBEDO = arm_albedo;
-	METALLIC = 0.0;
-	ROUGHNESS = 0.8;
+	ALBEDO = texture(albedo_tex, UV).rgb * tint;
+	METALLIC = metallic_v;
+	ROUGHNESS = roughness_v;
 }
 """
-	var mat := ShaderMaterial.new()
-	mat.shader = shader
-	mat.set_shader_parameter("arm_albedo", Color(0.12, 0.13, 0.17))
-
 	for m in hero.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D
 		var mesh := mi.mesh
 		if mesh == null or mesh.get_surface_count() == 0:
 			continue
+		# Pull the generated albedo texture off the imported material so the
+		# gauntlets read with their real armour texture (falls back to flat).
+		var albedo_tex: Texture2D = null
+		var src := mi.get_active_material(0)
+		if src is BaseMaterial3D:
+			albedo_tex = (src as BaseMaterial3D).albedo_texture
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("albedo_tex", albedo_tex)
+		mat.set_shader_parameter("tint", Vector3(BODY_TINT.r, BODY_TINT.g, BODY_TINT.b))
+		mat.set_shader_parameter("metallic_v", BODY_METALLIC)
+		mat.set_shader_parameter("roughness_v", BODY_ROUGHNESS)
+
 		var new_mesh := ArrayMesh.new()
 		for s in mesh.get_surface_count():
 			var arrays: Array = mesh.surface_get_arrays(s)
@@ -266,7 +281,7 @@ void fragment() {
 		mi.material_override = mat
 
 
-## Bone lookup that tolerates the rig's inconsistent capitalisation.
+## Bone lookup that tolerates inconsistent capitalisation across rigs.
 func _find_bone_ci(bone: String) -> int:
 	var idx := _skeleton.find_bone(bone)
 	if idx >= 0:
@@ -278,63 +293,44 @@ func _find_bone_ci(bone: String) -> int:
 	return -1
 
 
-## Collect the rifle loops into one library on an AnimationPlayer whose root is
-## the Armature, so the clips' "Skeleton3D:<bone>" tracks resolve.
-func _build_animation(armature: Node) -> void:
-	var lib := AnimationLibrary.new()
-	for state in CLIPS:
-		var scene: Resource = load(RIFLE_DIR + String(CLIPS[state]))
-		if not (scene is PackedScene):
-			continue
-		var inst := (scene as PackedScene).instantiate()
-		var aps := inst.find_children("*", "AnimationPlayer", true, false)
-		if not aps.is_empty():
-			var src := aps[0] as AnimationPlayer
-			var names := src.get_animation_list()
-			if names.size() > 0:
-				var clip: Animation = src.get_animation(names[0]).duplicate()
-				clip.loop_mode = Animation.LOOP_LINEAR
-				lib.add_animation(state, clip)
-		inst.queue_free()
-	if lib.get_animation_list().is_empty():
+## Use the AnimationPlayer that ships inside the imported Guardian GLB (its tracks
+## and root_node are already wired to the rig). Driven manually and advanced at the
+## top of _process so the additive aim offset survives.
+func _setup_animation(hero: Node3D) -> void:
+	var aps := hero.find_children("*", "AnimationPlayer", true, false)
+	if aps.is_empty():
 		return
-	_anim = AnimationPlayer.new()
-	armature.add_child(_anim)
-	_anim.root_node = NodePath("..")          # the Armature; "Skeleton3D:bone" resolves
-	_anim.add_animation_library("loco", lib)
-	# Drive the mixer manually (advanced at the top of _process) instead of letting
-	# it auto-update. Otherwise it writes the spine pose AFTER our _process runs and
-	# wipes out the additive aim offset below - the offset simply never showed.
+	_anim = aps[0] as AnimationPlayer
 	_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	# glTF import leaves animations non-looping, so the cyclic states would play once
+	# and freeze. Loop the locomotion + hold clips (reload/shoot stay one-shot).
+	for a in ["idle", "walk", "run", "gun_idle"]:
+		if _anim.has_animation(a):
+			_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 
 
 ## Hang the equipped weapon off the right hand, so the arms actually hold it.
 func _build_hand_attachment() -> void:
-	if _skeleton == null or _skeleton.find_bone(HAND_BONE) < 0:
+	if _skeleton == null or _find_bone_ci(HAND_BONE) < 0:
 		return
 	_hand_attach = BoneAttachment3D.new()
-	_hand_attach.bone_name = HAND_BONE
+	_hand_attach.bone_name = _skeleton.get_bone_name(_find_bone_ci(HAND_BONE))
 	_skeleton.add_child(_hand_attach)
 	_hand_attach.set_use_external_skeleton(false)
 
 
 ## Show the weapon `name_` in the character's hand (mirrors the viewmodel's
-## naming: "Auto Rifle" -> weapons/auto_rifle.tscn).
+## naming: "Auto Rifle" -> weapons/auto_rifle.glb).
 func set_weapon(name_: String) -> void:
-	# Off by default: the weapon wrappers are built and sized for the camera
-	# viewmodel, so dropping one straight onto the hand bone put the gun through
-	# the Guardian's torso and pointing at his own head. Until each weapon has a
-	# proper per-weapon grip transform, the camera viewmodel draws the gun.
 	if not hand_weapon_enabled or _hand_attach == null:
 		return
-	# One-handed weapons collapse the left arm; others may nudge the support hand.
 	_support_lower = float(SUPPORT_LOWER.get(name_, 0.0))
 	_hide_left_arm = HIDE_LEFT_ARM.has(name_)
 	if _weapon_model and is_instance_valid(_weapon_model):
 		_weapon_model.queue_free()
 		_weapon_model = null
 	var file := name_.to_lower().replace(" ", "_")
-	for ext in ["tscn", "glb", "gltf", "scn"]:
+	for ext in ["glb", "gltf", "tscn", "scn"]:
 		var path := "%s%s.%s" % [WEAPON_DIR, file, ext]
 		if not ResourceLoader.exists(path):
 			continue
@@ -352,10 +348,9 @@ func set_weapon(name_: String) -> void:
 
 
 ## Punch the metal on a generated weapon (T-0041 / FAL_PIPELINE 10.3: the raw
-## roughness/metalness a 3D gen ships is weak - never shiny enough). Keeps the
-## generated Color/Normal textures but drives the metallic channel to full and
-## trims the roughness so the gunmetal catches light, via a per-surface override
-## (so the shared imported material isn't mutated for every instance).
+## roughness/metalness a 3D gen ships is weak). Keeps the generated Color/Normal
+## textures but drives metallic to full and trims roughness, via a per-surface
+## override so the shared imported material isn't mutated for every instance.
 func _metalize_weapon(model: Node3D) -> void:
 	for m in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D
@@ -364,9 +359,9 @@ func _metalize_weapon(model: Node3D) -> void:
 		for s in mi.mesh.get_surface_count():
 			var base := mi.get_active_material(s)
 			if not (base is BaseMaterial3D):
-				continue                             # keep whatever the GLB shipped
+				continue
 			var mat: BaseMaterial3D = base.duplicate()
-			mat.metallic = 1.0                       # use the full ORM metallic map
+			mat.metallic = 1.0
 			mat.roughness = clampf(mat.roughness * 0.7, 0.08, 1.0)
 			mat.metallic_specular = 0.6
 			mi.set_surface_override_material(s, mat)
@@ -379,19 +374,26 @@ func set_weapon_visible(shown: bool) -> void:
 		_weapon_model.visible = shown
 
 
+## Resolve a game locomotion state to a clip the Meshy rig actually ships. Falls
+## back to idle if the mapped clip isn't present (e.g. gun_idle before the moveset
+## is merged in).
+func _resolve(state: String) -> String:
+	var clip := String(STATE_MAP.get(state, "idle"))
+	if _anim and not _anim.has_animation(clip):
+		return "idle"
+	return clip
+
+
 func _play(state: String) -> void:
 	if _anim == null:
 		return
-	var key := "loco/" + state
-	if _current != key and _anim.has_animation(key):
-		_anim.play(key, 0.18)                  # short cross-fade between states
-		_current = key
+	var clip := _resolve(state)
+	if _current != clip and _anim.has_animation(clip):
+		_anim.play(clip, 0.18)                  # short cross-fade between states
+		_current = clip
 
 
-## Kept for the Guardian's call site. The earlier version rewrote the spine bones
-## from their REST pose every frame, which threw away the animation's own torso
-## rotation and mangled the upper body - so the aim offset is off until it can be
-## done properly (additively, on top of the animated pose).
+## Kept for the Guardian's call site.
 func set_aim_pitch(pitch: float) -> void:
 	_aim_pitch = pitch
 
@@ -399,41 +401,29 @@ func set_aim_pitch(pitch: float) -> void:
 func _process(_delta: float) -> void:
 	if _skeleton == null:
 		return
-	# Advance the (manual-mode) locomotion mixer first, so everything below layers
-	# on top of the freshly written animated pose rather than being overwritten by
-	# it. process_priority alone did not guarantee this order.
-	if _anim:
+	# Advance the (manual-mode) mixer first, so everything below layers on top of
+	# the freshly written animated pose rather than being overwritten by it. The FP
+	# arms hold a frozen pose (seeked once in _ready), so they don't advance.
+	if _anim and not _frozen:
 		_anim.advance(_delta)
-	# The camera lives inside the head, so shrink the head bone away. This runs
-	# after the AnimationPlayer (process_priority above) so it isn't overwritten.
-	# Scaled rather than zeroed: an exact zero collapses the head vertices into a
-	# degenerate spike of triangles right in front of the camera.
+	# The camera lives inside the head, so shrink the head bone away. Scaled rather
+	# than zeroed: an exact zero collapses the head vertices into a degenerate spike.
 	if _head_bone >= 0:
 		_skeleton.set_bone_pose_scale(_head_bone, Vector3.ONE * 0.01)
-	# The neck is deliberately left alone - hiding it took away part of the body
-	# you should see when you look down.
 
-	# Aim offset, applied ADDITIVELY: the animated pose rotation is kept and the
-	# look pitch is layered on top of it. (The first attempt built the rotation
-	# from the bone's REST pose, which threw the animation away and mangled the
-	# torso.) Spreading it over the upper spine carries the chest, arms and the
-	# gun they hold with the camera, so the weapon points where you look instead
-	# of hanging down.
+	# Aim offset, applied ADDITIVELY on top of the animated pose. Spreading it over
+	# the upper spine carries the chest, arms and gun with the camera.
 	var sk_axis := aim_axis.normalized()
 	if not _aim_bones.is_empty():
 		var per := (-_aim_pitch * aim_strength + aim_base_lift) / float(_aim_bones.size())
 		for idx in _aim_bones:
-			# Express the skeleton-space lean axis in this bone's local frame, so
-			# each twisted spine bone still leans about the same world direction.
 			var b := _skeleton.get_bone_global_pose(idx).basis.orthonormalized()
 			var local_axis := (b.transposed() * sk_axis).normalized()
 			var posed := _skeleton.get_bone_pose_rotation(idx)
 			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, per))
 
-	# Shoulder lift: swing both upper arms up about the same skeleton axis, which
-	# raises the forearms, hands and the gun they hold into the forward view. Only
-	# while the weapon is drawn - in the hub it is holstered, so raising the arms
-	# would leave the Guardian aiming an invisible rifle at the vendor.
+	# Shoulder lift (optional): swing both upper arms up. Only while the weapon is
+	# drawn - in the hub it is holstered.
 	if arm_lift != 0.0 and weapon_drawn and not _arm_bones.is_empty():
 		for idx in _arm_bones:
 			var b := _skeleton.get_bone_global_pose(idx).basis.orthonormalized()
@@ -441,12 +431,9 @@ func _process(_delta: float) -> void:
 			var posed := _skeleton.get_bone_pose_rotation(idx)
 			_skeleton.set_bone_pose_rotation(idx, posed * Quaternion(local_axis, arm_lift))
 
-	# One-handed weapons (Hand Cannon) collapse the whole left arm to nothing so no
-	# support arm is drawn (scaling its root bone shrinks every child - forearm and
-	# hand too). EVERY OTHER weapon must actively RESTORE that scale to 1: the idle
-	# clip carries no scale track, so a collapse left over from a previous one-handed
-	# weapon persists and would strip the support hand off every later weapon. So set
-	# the scale explicitly each frame rather than only when hiding.
+	# One-handed weapons (Hand Cannon) collapse the whole left arm so no support arm
+	# is drawn; every other weapon must RESTORE the scale to 1 each frame (the clips
+	# carry no scale track, so a leftover collapse would strip later weapons' hands).
 	if _left_arm_root >= 0:
 		var arm_scale := 0.01 if (_hide_left_arm and weapon_drawn) else 1.0
 		_skeleton.set_bone_pose_scale(_left_arm_root, Vector3.ONE * arm_scale)
@@ -460,30 +447,25 @@ func _process(_delta: float) -> void:
 
 
 ## Above this yaw rate (rad/s) while standing still, the feet step round with a
-## turn-in-place clip instead of the whole body pivoting rigidly under a static
-## idle. Roughly a slow-to-medium mouse turn.
+## turn-in-place clip instead of the whole body pivoting under a static idle.
 const TURN_RATE := 1.2
 
 ## Drive the locomotion state from the Guardian's movement. `local_dir` is the
 ## travel direction in the body's own space (x = right, z = forward is -z), so
-## strafing and backing up play their own clips instead of a forward walk.
-## `yaw_rate` (rad/s) drives turn-in-place while stationary.
+## strafing and backing up play their own clips. `yaw_rate` (rad/s) drives
+## turn-in-place while stationary.
 func set_speed(speed: float, local_dir := Vector2.ZERO, airborne := false,
 		yaw_rate := 0.0) -> void:
-	if airborne and _anim and _anim.has_animation("loco/jump"):
+	if airborne and _anim and _anim.has_animation(_resolve("jump")):
 		_play("jump")
 		return
 	if speed < WALK_SPEED:
-		# Standing still: if the player is turning, step the feet round rather than
-		# spinning the planted body. Godot yaw increases counter-clockwise (turning
-		# left), so a positive rate is a left turn.
 		if absf(yaw_rate) > TURN_RATE:
 			_play("turn_left" if yaw_rate > 0.0 else "turn_right")
 		else:
 			_play("idle")
 		return
 	var running: bool = speed >= RUN_SPEED
-	# Sideways only when it clearly dominates the forward component.
 	if absf(local_dir.x) > absf(local_dir.y) * 1.4:
 		_play("walk_right" if local_dir.x > 0.0 else "walk_left")
 	elif local_dir.y > 0.35:                       # travelling backwards
