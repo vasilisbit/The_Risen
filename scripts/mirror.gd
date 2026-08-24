@@ -90,6 +90,7 @@ func _build_glass() -> void:
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 uniform sampler2D reflection : filter_linear;
+uniform float dim = 0.4;
 void fragment() {
 	// The reflection camera shares the scene's ACES environment, so its texture is
 	// the finished, sRGB-encoded display image. This unshaded material skips the
@@ -98,7 +99,12 @@ void fragment() {
 	// re-encode then lands the reflection at exactly the room's brightness.
 	// (The dark-reflection bug was separately fixed by making the hull single-sided.)
 	vec3 c = texture(reflection, SCREEN_UV).rgb;
-	ALBEDO = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+	vec3 lin = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+	// The hub OmniLights are very strong at the mirror, so the reflected Guardian
+	// blows out bright while the same material reads dark gunmetal in the controlled
+	// inventory preview. Dim the reflection in linear space so the mirror matches the
+	// inventory look (the whole reflection darkens a touch, like a slightly tinted glass).
+	ALBEDO = lin * dim;
 }
 """
 	var mat := ShaderMaterial.new()

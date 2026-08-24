@@ -406,8 +406,10 @@ func _process(_delta: float) -> void:
 	# arms normally hold a frozen pose (seeked once in _ready); a reload temporarily
 	# unfreezes and plays the reload clip (time-scaled to the weapon's reload_time),
 	# then returns to the frozen hold.
-	if _anim and not _frozen:
-		_anim.advance(_delta)
+	# Frozen FP arms re-apply their static pose each frame (advance 0) so the aim /
+	# support-hand deltas below layer on fresh, non-accumulating; a live body advances.
+	if _anim:
+		_anim.advance(0.0 if _frozen else _delta)
 	# NOTE: the head is NOT collapsed here. The main first-person camera already skips
 	# the body's render layer (guardian.gd), so the head is never in the player's own
 	# view - and collapsing it left the hub MIRROR reflection headless. The FP arms
@@ -440,6 +442,12 @@ func _process(_delta: float) -> void:
 	# leaves the left hand back off the gun (and there are no finger bones to grip a
 	# foregrip), so a lone right hand + gun reads as a clean FPS viewmodel. The
 	# third-person body (arms_only=false, seen in the mirror) keeps both arms.
+	# The FP arms viewmodel collapses the left arm for a clean right-hand + gun read.
+	# A true two-handed grip is not possible on this auto-rig: the arms are too short
+	# to reach the handguard (measured 0.57 m reach vs ~0.67 m needed) AND the Meshy
+	# hand is a single bone with no fingers, so a support hand only ever splays open
+	# at the camera. A CS-style two-handed hold needs a bespoke finger-modelled FP
+	# arms+gun viewmodel (a separate asset), not this shared body rig.
 	if _left_arm_root >= 0:
 		var hide_left := _hide_left_arm or arms_only
 		var arm_scale := 0.01 if (hide_left and weapon_drawn) else 1.0
