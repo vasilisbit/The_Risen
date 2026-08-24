@@ -1,120 +1,111 @@
 extends Node
-## First-person weapon viewmodel, the way an FPS actually does it: the arms and
-## gun are rendered in their OWN isolated SubViewport and composited on top of the
-## main view. The real body can't serve as the viewmodel because the gun rides on
-## the chest, ~8 cm from an eye-level camera, so it fills the screen and bobs; in
-## an isolated viewport the arms+gun are placed at a comfortable distance in the
-## lower-right and never clip into the world.
+## First-person weapon viewmodel. Renders a dedicated ARMS+GUN mesh (two armoured
+## gauntlets modelled already gripping the weapon - T-0042, tools/gen_viewmodel.py)
+## in its own isolated SubViewport, composited on top of the main view.
 ##
-## The rig is a second copy of the same PlayerCharacter (same mannequin + rifle
-## idle + weapon socket), so it holds whatever weapon is equipped, in the same
-## hands, for free. A dedicated viewmodel camera frames just the arms and gun.
+## Why a bespoke mesh and not the player body rig: the Meshy-rigged Guardian can't
+## hold a gun two-handed - the arms are too short to reach the handguard and the
+## auto-rig hands are a single fingerless bone, so a support hand only splays open.
+## Real FPS viewmodels are purpose-built arm+gun meshes, which is what this shows.
+## The world/inventory keep the T-0041 gun models (separate view vs world models).
 
-const CHARACTER := "res://scripts/player_character.gd"
+const VM_DIR := "res://assets/generated/viewmodels/"
+## Fallback: the bare world gun (no arms) if a weapon has no viewmodel mesh yet.
+const WEAPON_DIR := "res://assets/generated/weapons/"
 
-## Where the viewmodel camera sits and looks, in the rig's space. The rig stands
-## at origin facing -Z. The camera sits BEHIND the body looking level along -Z, so
-## the gun's barrel (which points -Z) reads parallel to the ground; the near plane
-## then clips away the neck/torso between the camera and the gun, leaving just the
-## forearm and gun in the lower-right. Tuned in-engine.
-@export var cam_position: Vector3 = Vector3(-0.42, 1.60, 0.40)
-@export var cam_look_at: Vector3 = Vector3(-0.42, 1.53, -1.0)
+## Where the viewmodel camera sits and looks (fixed; the mesh is placed in front of
+## it, lower-right, barrel forward). The mesh transform per weapon does the framing.
+@export var cam_position: Vector3 = Vector3(0, 0, 0)
+@export var cam_look_at: Vector3 = Vector3(0, 0, -1)
 @export var cam_fov: float = 55.0
-## Near plane. The torso is now removed by the arms-only vertex mask (no hard
-## cut), so this only needs to stay off the very closest geometry.
-@export var cam_near: float = 0.05
-## Aim: the viewmodel dips/rises a touch with the look pitch. Small - too much and
-## looking down slides the clipped body edge into view.
-@export var pitch_follow: float = 0.05
+## The viewmodel dips/rises a touch with the look pitch.
+@export var pitch_follow: float = 0.04
 
-## Per-weapon viewmodel framing (camera pos/look/fov in the rig's space), tuned
-## in-engine so each gun frames right - barrel forward, both hands on it, sensible
-## scale. The auto rifle is the baseline; the shotgun rides a touch higher and
-## level, the long sniper is pulled back to fit, and the one-handed hand cannon is
-## brought in closer so it isn't lost in the corner. Applied by set_weapon().
-## The generated T-0041 guns are all canonicalised to the same grip, so the
-## baseline framing carries over unchanged.
-## Re-tuned for the Meshy Guardian's frozen gun_idle hold. All four canonicalised
-## guns share the grip and this framing (look direction fixed so the one grip keeps
-## every barrel on the crosshair); longer guns just sit a touch further back.
-const FRAMING := {
-	"Auto Rifle":  {"pos": Vector3(-0.42, 1.60, 0.40), "look": Vector3(-0.42, 1.53, -1.0), "fov": 55.0},
-	"Shotgun":     {"pos": Vector3(-0.42, 1.60, 0.38), "look": Vector3(-0.42, 1.53, -1.0), "fov": 55.0},
-	"Sniper":      {"pos": Vector3(-0.42, 1.60, 0.48), "look": Vector3(-0.42, 1.53, -1.0), "fov": 53.0},
-	"Hand Cannon": {"pos": Vector3(-0.42, 1.60, 0.34), "look": Vector3(-0.42, 1.53, -1.0), "fov": 55.0},
+## Per-weapon viewmodel placement in the holder's space: position (m), rotation
+## (deg) and uniform scale, so the gun sits lower-right with the barrel pointing
+## forward (-Z), arms coming up from the bottom - the reference viewmodel look.
+## Tuned in-engine; the auto rifle is the baseline (others reuse it until tuned).
+const VM_BASE := {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), "scale": 0.47}
+const VM_XFORM := {
+	"Auto Rifle": {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), "scale": 0.47},
+	"Shotgun": {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), "scale": 0.47},
+	"Sniper": {"pos": Vector3(0.14, -0.24, -0.66), "rot": Vector3(2, 6, -8), "scale": 0.44},
+	"Hand Cannon": {"pos": Vector3(0.13, -0.18, -0.52), "rot": Vector3(2, 6, -8), "scale": 0.55},
+}
+const VM_FILE := {
+	"Auto Rifle": "auto_rifle_vm.glb", "Shotgun": "shotgun_vm.glb",
+	"Sniper": "sniper_vm.glb", "Hand Cannon": "hand_cannon_vm.glb",
 }
 
-## Per-weapon recoil impulse (metres back/up + radians of muzzle rise). The rig
-## snaps by this when fired and eases back, so the gun kicks toward you and up -
-## the heavy guns shove harder.
+## Per-weapon recoil impulse (metres back/up + radians of muzzle rise).
 const KICK := {
 	"Auto Rifle": {"back": 0.03, "up": 0.018, "rot": 0.05},
 	"Shotgun": {"back": 0.075, "up": 0.045, "rot": 0.11},
 	"Sniper": {"back": 0.065, "up": 0.04, "rot": 0.10},
 	"Hand Cannon": {"back": 0.05, "up": 0.03, "rot": 0.08},
 }
-const RECOIL_RECOVER := 12.0        # how fast the kick eases back to rest
+const RECOIL_RECOVER := 12.0
 
 var _viewport: SubViewport
 var _cam: Camera3D
-var _rig: Node3D
+var _holder: Node3D           # recoil/dip move this; the VM mesh hangs under it
+var _model: Node3D
 var _layer: CanvasLayer
 var _tex: TextureRect
 var _pitch: float = 0.0
-var _recoil: Vector3 = Vector3.ZERO     # current rig offset (back/up) from recoil
-var _recoil_rot: float = 0.0            # current muzzle rise from recoil
-var _reload_left: float = 0.0           # seconds remaining in the reload dip
-var _reload_dur: float = 1.0            # total reload duration
+var _recoil: Vector3 = Vector3.ZERO
+var _recoil_rot: float = 0.0
+var _reload_left: float = 0.0
+var _reload_dur: float = 1.0
+var _base_pos: Vector3 = Vector3.ZERO      # current weapon's rest holder position
 
 
 func _ready() -> void:
 	_viewport = SubViewport.new()
-	_viewport.own_world_3d = true                      # isolated from the level
-	_viewport.transparent_bg = true                    # composite over the game
+	_viewport.own_world_3d = true
+	_viewport.transparent_bg = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.msaa_3d = Viewport.MSAA_2X
 	add_child(_viewport)
 
 	_build_lighting()
 
-	var scene: Resource = load(CHARACTER)
-	if scene is GDScript:
-		_rig = Node3D.new()
-		_rig.set_script(scene)
-		_rig.set("arms_only", true)                     # show only the forearms+hands
-		_rig.rotation.y = PI                            # face -Z like the real body
-		_viewport.add_child(_rig)
-
 	_cam = Camera3D.new()
 	_cam.fov = cam_fov
-	_cam.near = cam_near
+	_cam.near = 0.02
 	_viewport.add_child(_cam)
 	_aim_camera()
+
+	_holder = Node3D.new()
+	_viewport.add_child(_holder)
 
 	_build_overlay()
 
 
-## A key light and fill so the dark suit arms read, plus a little ambient. The
-## isolated world is otherwise pitch black.
+## Key + fill so the dark gauntlets read, plus a little ambient. The isolated world
+## is otherwise pitch black.
 func _build_lighting() -> void:
 	var key := DirectionalLight3D.new()
-	key.rotation = Vector3(deg_to_rad(-50), deg_to_rad(35), 0)
-	key.light_energy = 1.0
+	key.rotation = Vector3(deg_to_rad(-45), deg_to_rad(30), 0)
+	key.light_energy = 1.2
 	_viewport.add_child(key)
+	var fill := DirectionalLight3D.new()
+	fill.rotation = Vector3(deg_to_rad(-10), deg_to_rad(-140), 0)
+	fill.light_energy = 0.5
+	fill.light_color = Color(0.75, 0.82, 1.0)
+	_viewport.add_child(fill)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0, 0, 0, 0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.42, 0.46, 0.55)
-	env.ambient_light_energy = 0.35
+	env.ambient_light_energy = 0.4
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	var we := WorldEnvironment.new()
 	we.environment = env
 	_viewport.add_child(we)
 
 
-## Full-screen overlay that draws the viewmodel render on top of the world. On a
-## CanvasLayer below the HUD's own layers so HUD text stays on top of the gun.
 func _build_overlay() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 1
@@ -131,71 +122,103 @@ func _process(delta: float) -> void:
 	var win := get_window().size
 	if _viewport.size != win:
 		_viewport.size = win
-	# Ease the recoil back to rest. The kick itself is an instant snap; this is the
-	# recovery, so the gun jumps then settles.
+	# Ease the recoil back to rest.
 	var t := clampf(RECOIL_RECOVER * delta, 0.0, 1.0)
 	_recoil = _recoil.lerp(Vector3.ZERO, t)
 	_recoil_rot = lerpf(_recoil_rot, 0.0, t)
-	# Reload dip: the whole viewmodel lowers, pulls back toward the camera and tilts
-	# as the gun is brought down to swap the mag, then rises back - a clean procedural
-	# reload the Meshy rig can't do with clips (no finger bones). sin() = down then up.
+	# Reload dip: the viewmodel lowers + cants over reload_time, then rises back.
 	var dip := 0.0
 	if _reload_left > 0.0:
 		_reload_left -= delta
 		var pr := clampf(1.0 - _reload_left / maxf(_reload_dur, 0.05), 0.0, 1.0)
 		dip = sin(pr * PI)
-	if _rig:
-		# Back (+Z toward the camera) and up (+Y); rotate the muzzle up. Reload adds a
-		# downward + back dip and a tilt on top.
-		_rig.position = _recoil + Vector3(0.0, -0.06 * dip, 0.03 * dip)
-		_rig.rotation = Vector3(-_recoil_rot - 0.45 * dip, PI, 0.5 * dip)
+	if _holder:
+		var lift := _pitch * pitch_follow
+		_holder.position = _base_pos + _recoil + Vector3(0.0, lift - 0.06 * dip, 0.03 * dip)
+		_holder.rotation = Vector3(-_recoil_rot - 0.45 * dip, 0.0, 0.5 * dip)
 	_aim_camera()
 
 
 func _aim_camera() -> void:
 	if _cam == null:
 		return
-	_cam.near = cam_near
 	_cam.fov = cam_fov
-	var lift := _pitch * pitch_follow
-	_cam.position = cam_position + Vector3(0, lift, 0)
-	_cam.look_at(cam_look_at + Vector3(0, lift, 0), Vector3.UP)
+	_cam.position = cam_position
+	_cam.look_at(cam_look_at, Vector3.UP)
 
 
-## Match the equipped weapon (mirrors WeaponManager naming, e.g. "Auto Rifle").
+## Match the equipped weapon: load its arms+gun viewmodel mesh (mirrors the naming,
+## e.g. "Auto Rifle" -> viewmodels/auto_rifle_vm.glb).
 func set_weapon(name_: String) -> void:
-	if _rig and _rig.has_method("set_weapon"):
-		_rig.set_weapon(name_)
-		if _rig.has_method("set_weapon_visible"):
-			_rig.set_weapon_visible(true)
-	_apply_framing(name_)
+	if _holder == null:
+		return
+	if _model and is_instance_valid(_model):
+		_model.queue_free()
+		_model = null
+	var xf: Dictionary = VM_XFORM.get(name_, VM_BASE)
+	_base_pos = xf["pos"]
+	var vm_path := VM_DIR + String(VM_FILE.get(name_, ""))
+	var scene: Resource = null
+	if ResourceLoader.exists(vm_path):
+		scene = load(vm_path)
+	if scene is PackedScene:
+		_model = (scene as PackedScene).instantiate() as Node3D
+		_holder.add_child(_model)
+		_model.position = Vector3.ZERO
+		_model.rotation_degrees = xf["rot"]
+		_model.scale = Vector3.ONE * float(xf["scale"])
+		_metalize(_model, false)
+	else:
+		_fallback_weapon(name_)
 
 
-## Reframe the viewmodel camera for the equipped weapon (see FRAMING); unknown
-## weapons fall back to the auto-rifle baseline.
-func _apply_framing(name_: String) -> void:
-	var f: Dictionary = FRAMING.get(name_, FRAMING["Auto Rifle"])
-	cam_position = f["pos"]
-	cam_look_at = f["look"]
-	cam_fov = f["fov"]
-	_aim_camera()
+## No viewmodel mesh yet: show the bare world gun (no arms) so something is drawn.
+func _fallback_weapon(name_: String) -> void:
+	var file := name_.to_lower().replace(" ", "_")
+	var path := "%s%s.glb" % [WEAPON_DIR, file]
+	if not ResourceLoader.exists(path):
+		return
+	var scene: Resource = load(path)
+	if scene is PackedScene:
+		_model = (scene as PackedScene).instantiate() as Node3D
+		_holder.add_child(_model)
+		_model.rotation_degrees = Vector3(0, 90, 0)
+		_model.position = Vector3(0.12, -0.2, -0.5)
+		_metalize(_model, true)
+
+
+## Punch the metal a touch (Tripo ORM ships dull). The full arms+gun mesh keeps its
+## generated Color/Normal; the bare fallback gun gets a stronger metal punch.
+func _metalize(model: Node3D, hard: bool) -> void:
+	for m in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var base := mi.get_active_material(s)
+			if not (base is BaseMaterial3D):
+				continue
+			var mat: BaseMaterial3D = base.duplicate()
+			mat.metallic = 1.0 if hard else 0.5
+			mat.roughness = clampf(mat.roughness * (0.7 if hard else 0.85), 0.1, 1.0)
+			mat.metallic_specular = 0.6 if hard else 0.5
+			mi.set_surface_override_material(s, mat)
 
 
 func set_pitch(pitch: float) -> void:
 	_pitch = pitch
 
 
-## Reload feedback: dip the viewmodel down/back for `duration` seconds (see _process).
-func play_reload(duration: float) -> void:
-	_reload_dur = maxf(duration, 0.05)
-	_reload_left = _reload_dur
-
-
-## Recoil impulse on fire: snap the gun back and up, then _process eases it home.
 func kick(weapon_name := "Auto Rifle") -> void:
 	var k: Dictionary = KICK.get(weapon_name, KICK["Auto Rifle"])
 	_recoil = Vector3(0.0, float(k["up"]), float(k["back"]))
 	_recoil_rot = float(k["rot"])
+
+
+## Reload feedback: dip the viewmodel down/back for `duration` seconds (see _process).
+func play_reload(duration: float) -> void:
+	_reload_dur = maxf(duration, 0.05)
+	_reload_left = _reload_dur
 
 
 func set_shown(shown: bool) -> void:
