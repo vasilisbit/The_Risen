@@ -26,11 +26,15 @@ const WEAPON_DIR := "res://assets/generated/weapons/"
 ## forward (-Z), arms coming up from the bottom - the reference viewmodel look.
 ## Tuned in-engine; the auto rifle is the baseline (others reuse it until tuned).
 const VM_BASE := {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), "scale": 0.47}
+## NOTE on per-weapon rotation: each Tripo mesh keeps its own native barrel axis.
+## Auto Rifle / Shotgun / Sniper already model the barrel along -Z, so their rot is
+## a small cosmetic cant. The Hand Cannon mesh models the barrel along +X, so it
+## needs a ~+90 deg Y turn (barrel +X -> -Z) or it points back at the player.
 const VM_XFORM := {
 	"Auto Rifle": {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), "scale": 0.47},
-	"Shotgun": {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), "scale": 0.47},
-	"Sniper": {"pos": Vector3(0.14, -0.24, -0.66), "rot": Vector3(2, 6, -8), "scale": 0.44},
-	"Hand Cannon": {"pos": Vector3(0.13, -0.18, -0.52), "rot": Vector3(2, 6, -8), "scale": 0.55},
+	"Shotgun": {"pos": Vector3(0.13, -0.18, -0.55), "rot": Vector3(3, 8, -7), "scale": 0.53},
+	"Sniper": {"pos": Vector3(0.14, -0.21, -0.62), "rot": Vector3(2, 6, -8), "scale": 0.46},
+	"Hand Cannon": {"pos": Vector3(0.14, -0.25, -0.53), "rot": Vector3(5, 101, 6), "scale": 0.55},
 }
 const VM_FILE := {
 	"Auto Rifle": "auto_rifle_vm.glb", "Shotgun": "shotgun_vm.glb",
