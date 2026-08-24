@@ -18,7 +18,6 @@ var _viewport: SubViewport
 var _pivot: Node3D
 var _guardian: Node3D
 var _skeleton: Skeleton3D
-var _armor_root: Node3D          # holds the attached plate meshes, cleared on refresh
 var _spin: float = 0.0
 var _spin_rate: float = 0.4
 
@@ -29,7 +28,8 @@ func _ready() -> void:
 	_build()
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_signal("loadout_changed"):
-		sm.loadout_changed.connect(_refresh_armor)
+		# Deferred so the rebuild runs after the frame's tree changes settle.
+		sm.loadout_changed.connect(_refresh_armor, CONNECT_DEFERRED)
 
 
 func _build() -> void:
@@ -83,9 +83,6 @@ func _build() -> void:
 			var ap := aps[0] as AnimationPlayer
 			ap.get_animation("idle").loop_mode = Animation.LOOP_LINEAR   # glTF import leaves it non-looping
 			ap.play("idle")
-	_armor_root = Node3D.new()
-	if _skeleton:
-		_skeleton.add_child(_armor_root)
 	_refresh_armor()
 
 
@@ -107,14 +104,14 @@ func _tint_body(root: Node3D) -> void:
 			mi.set_surface_override_material(s, mat)
 
 
-## Rebuild the attached armour plates from the equipped loadout. Wired in T-0042
-## part (b) once the plate assets exist; for the base Guardian it is a no-op.
+## Rebuild the attached armour plates from the equipped loadout (T-0042 b), so the
+## preview shows the base Guardian + whatever plates are equipped, updating live.
 func _refresh_armor() -> void:
-	if _armor_root == null:
+	if _skeleton == null:
 		return
-	for c in _armor_root.get_children():
-		c.queue_free()
-	# Placeholder for the armour-plate attachment pass (BoneAttachment3D per slot).
+	var sm := get_node_or_null("/root/SaveManager")
+	var equipped: Dictionary = sm.data.get("equipped_armor", {}) if sm else {}
+	GuardianArmor.refresh(_skeleton, equipped, sm)
 
 
 func _process(delta: float) -> void:
