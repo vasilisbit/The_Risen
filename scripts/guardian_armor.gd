@@ -43,11 +43,15 @@ const PLACEMENT := {
 	},
 }
 
-## Rarity accent (the game's loot colours). Common stays neutral; higher rarities
-## take a subtle hue so the loadout reads at a glance, like the character screen.
-const RARITY_TINT := {
-	"Common": Color(1, 1, 1), "Rare": Color(0.2, 0.5, 1.0),
-	"Epic": Color(0.6, 0.25, 1.0), "Exotic": Color(1.0, 0.8, 0.1),
+## Rarity overlay, meant to read at a glance (not a subtle hue): Common stays a
+## neutral gunmetal grey with no overlay; Rare gets a clear BLUE wash + glow; Epic
+## and Exotic (the "legendary" tier) both get a clear PURPLE wash + glow.
+## `mix` = how far the albedo is pushed toward `col`; `emit` = emission energy.
+const RARITY_STYLE := {
+	"Common": {"col": Color(0.74, 0.76, 0.80), "mix": 0.25, "emit": 0.0},
+	"Rare":   {"col": Color(0.15, 0.45, 1.0),  "mix": 0.72, "emit": 0.55},
+	"Epic":   {"col": Color(0.60, 0.18, 1.0),  "mix": 0.72, "emit": 0.60},
+	"Exotic": {"col": Color(0.60, 0.18, 1.0),  "mix": 0.72, "emit": 0.60},
 }
 
 
@@ -67,7 +71,7 @@ static func refresh(skeleton: Skeleton3D, equipped: Dictionary, sm: Node) -> voi
 			var item: Dictionary = sm.armor_by_id(equipped[slot])
 			rarity = String(item.get("rarity", "Common"))
 		var pl: Dictionary = PLACEMENT[slot]
-		var tint: Color = RARITY_TINT.get(rarity, Color.WHITE)
+		var style: Dictionary = RARITY_STYLE.get(rarity, RARITY_STYLE["Common"])
 		var i := 0
 		for a in pl["attach"]:
 			var path := PLATE_DIR + String(a["file"])
@@ -93,13 +97,17 @@ static func refresh(skeleton: Skeleton3D, equipped: Dictionary, sm: Node) -> voi
 			mesh.position = a.get("pos", pl["pos"])
 			mesh.rotation_degrees = a.get("rot", pl["rot"])
 			mesh.scale = Vector3.ONE * float(a.get("scale", pl["scale"]))
-			_finish(mesh, tint)
+			_finish(mesh, style)
 			i += 1
 
 
-## Punch the metal (Tripo ORM ships dull) and apply the subtle rarity albedo hue.
-static func _finish(model: Node3D, tint: Color) -> void:
-	var hue := Color.WHITE.lerp(tint, 0.35)   # Common -> neutral; higher rarities hued
+## Punch the metal (Tripo ORM ships dull) and apply the rarity overlay: push the
+## albedo toward the rarity colour and add a matching emission glow so Rare (blue)
+## and Epic/Exotic (purple) read at a glance, while Common stays neutral gunmetal.
+static func _finish(model: Node3D, style: Dictionary) -> void:
+	var col: Color = style.get("col", Color(0.74, 0.76, 0.80))
+	var mix: float = float(style.get("mix", 0.25))
+	var emit: float = float(style.get("emit", 0.0))
 	for m in model.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D
 		if mi.mesh == null:
@@ -109,10 +117,14 @@ static func _finish(model: Node3D, tint: Color) -> void:
 			if not (base is BaseMaterial3D):
 				continue
 			var mat: BaseMaterial3D = base.duplicate()
-			mat.albedo_color = hue
+			mat.albedo_color = Color(0.55, 0.57, 0.6).lerp(col, mix)
 			mat.metallic = 0.6
 			mat.roughness = clampf(mat.roughness * 0.8, 0.15, 1.0)
 			mat.metallic_specular = 0.55
+			if emit > 0.0:
+				mat.emission_enabled = true
+				mat.emission = col
+				mat.emission_energy_multiplier = emit
 			mi.set_surface_override_material(s, mat)
 		# Same render layer as the body: the main first-person camera skips it, the
 		# hub mirror shows it. (Ignored by the inventory preview's isolated world.)
