@@ -270,9 +270,10 @@ def stage_rig(force=False):
     print("[rig] anims:", anims, flush=True)
 
 
-def stage_moveset(force=False):
+def stage_moveset(force=False, ids=None, tag=None):
     """Meshy multi-animation: several gun poses on the same rig ($0.08). Downloads
-    each clip GLB to raw/ for a Blender merge into guardian.glb."""
+    each clip GLB to raw/ for a Blender merge into guardian.glb. Pass ids=[..] to
+    fetch arbitrary action IDs (named move_<tag>_<id>.glb) for pose scouting."""
     os.makedirs(OUT_DIR, exist_ok=True)
     raw = os.path.join(OUT_DIR, "raw")
     mesh = os.path.join(raw, "guardian_mesh.glb")
@@ -280,30 +281,35 @@ def stage_moveset(force=False):
         mesh = os.path.join(OUT_DIR, "guardian_mesh.glb")
     if not os.path.exists(mesh):
         print("no mesh -- run --stage mesh first", flush=True); return
-    marker = os.path.join(raw, "move_walk_shoot_fwd.glb")
-    if os.path.exists(marker) and not force:
-        print(f"SKIP moveset: {marker} exists (use --force)", flush=True); return
+    custom = ids is not None
+    use_ids = ids if custom else MOVESET_IDS
+    if not custom:
+        marker = os.path.join(raw, "move_walk_shoot_fwd.glb")
+        if os.path.exists(marker) and not force:
+            print(f"SKIP moveset: {marker} exists (use --force)", flush=True); return
     mu = upload(mesh, "model/gltf-binary")
-    print(f"[moveset] multi-animation ids={MOVESET_IDS} ($0.08) ...", flush=True)
+    print(f"[moveset] multi-animation ids={use_ids} ($0.08) ...", flush=True)
     res = run(MULTIANIM, {"model_url": mu, "height_meters": 1.8,
-                          "animation_action_ids": MOVESET_IDS})
+                          "animation_action_ids": use_ids})
     if "__error__" in res:
         print("MOVESET-FAILED", res["__error__"], flush=True); return
     with open(os.path.join(raw, "moveset_response.json"), "w") as f:
+        json.dump(res, f, indent=2)
+    with open(os.path.join(raw, "moveset_response%s.json" % (("_"+tag) if tag else "")), "w") as f:
         json.dump(res, f, indent=2)
     anims = res.get("animations")
     if not isinstance(anims, list):
         print("MOVESET-NO-ANIMS", json.dumps(res)[:500], flush=True); return
     saved = []
-    for i, a in enumerate(anims):
-        u = _url_of(a)
+    for a in anims:
+        aid = a.get("action_id") if isinstance(a, dict) else None
+        u = _url_of(a.get("animation_glb")) if isinstance(a, dict) else None
         if not (u and u.endswith(".glb")):
-            # entry may be an object with a glb field
-            u = _url_of(a.get("glb")) if isinstance(a, dict) else None
-        if not u:
             continue
-        aid = MOVESET_IDS[i] if i < len(MOVESET_IDS) else i
-        name = MOVESET_NAMES.get(aid, "id%d" % aid)
+        if custom:
+            name = "%s_%s" % (tag or "id", aid)
+        else:
+            name = MOVESET_NAMES.get(aid, "id%d" % aid)
         dst = os.path.join(raw, "move_%s.glb" % name)
         urllib.request.urlretrieve(u, dst)
         saved.append(dst)
@@ -315,7 +321,10 @@ def main():
     ap.add_argument("--stage", default="concept",
                     help="concept|mesh|rig|moveset|all")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--ids", default="", help="comma action IDs for moveset scouting")
+    ap.add_argument("--tag", default="scout", help="name prefix for --ids clips")
     a = ap.parse_args()
+    ids = [int(x) for x in a.ids.split(",") if x.strip()] if a.ids else None
     stages = ["concept", "mesh", "rig"] if a.stage == "all" else [a.stage]
     for s in stages:
         if s == "concept":
@@ -325,7 +334,7 @@ def main():
         elif s == "rig":
             stage_rig(a.force)
         elif s == "moveset":
-            stage_moveset(a.force)
+            stage_moveset(a.force, ids=ids, tag=a.tag)
         else:
             print("unknown stage", s); return
 
