@@ -10,25 +10,36 @@ class_name GuardianArmor
 
 const PLATE_DIR := "res://assets/generated/armor/"
 
-## Per slot: which mesh attaches to which bone, plus a shared placement (position/
-## rotation in the bone's local space + uniform scale). Tuned in-engine. Gauntlets
-## attach one split half to each forearm.
-## Placement is in the bone's local space (which carries the rig's ~100x internal
-## scale, so scale ~3-5 and positions in the same units). rot -90 X stands the Tripo
-## plate upright to face forward. Tuned in-engine on the inventory preview / mirror.
+## Per slot: which mesh attaches to which bone, plus placement (position/rotation in
+## the bone's LOCAL space + uniform scale). Gauntlets attach one split half to each
+## forearm, and each half carries its OWN pos/rot/scale (the left/right forearm bones
+## are mirrored, so a shared offset lands the two halves in different places).
+##
+## IMPORTANT scale note: the Meshy auto-rig's armature scale is ~0.0117 (a ~85x
+## shrink), and a BoneAttachment3D inherits that scale, so a plate mesh needs a big
+## local scale (~20-55) or it renders as an invisible ~3 cm speck. The bone-local
+## positions are in that same shrunk space (~85 local units per world metre), so the
+## offsets read large too. rot -90 X stands the upright Tripo plate to face forward;
+## the chest adds -90 Y to turn its opening toward the front. All tuned in-engine on
+## the inventory preview, then read back as bone-local values (pose-invariant, so they
+## hold on the mission body + hub mirror too).
 const PLACEMENT := {
 	"Helmet": {
 		"attach": [{"bone": "Head", "file": "helmet.glb"}],
-		"pos": Vector3(0, 1.0, 0.5), "rot": Vector3(-90, 0, 0), "scale": 3.0,
+		"pos": Vector3(-14.74, -9.6, -5.96), "rot": Vector3(-90, 0, 0), "scale": 20.0,
 	},
 	"Chest Plate": {
 		"attach": [{"bone": "Spine", "file": "chest.glb"}],
-		"pos": Vector3(0, 1.5, 1.2), "rot": Vector3(-90, 0, 0), "scale": 4.5,
+		"pos": Vector3(-1.46, -15.02, -6.59), "rot": Vector3(-90, -90, 0), "scale": 52.0,
 	},
 	"Gauntlets": {
-		"attach": [{"bone": "LeftForeArm", "file": "gauntlet_l.glb"},
-				   {"bone": "RightForeArm", "file": "gauntlet_r.glb"}],
-		"pos": Vector3(0, -2.0, 0), "rot": Vector3(-90, 0, 0), "scale": 2.2,
+		"attach": [
+			{"bone": "LeftForeArm", "file": "gauntlet_l.glb",
+				"pos": Vector3(0, 16.02, 0), "rot": Vector3(-90, 5, 0), "scale": 33.0},
+			{"bone": "RightForeArm", "file": "gauntlet_r.glb",
+				"pos": Vector3(0, 15.83, 0), "rot": Vector3(-90, 21.1, 0), "scale": 33.0},
+		],
+		"pos": Vector3(0, 16.0, 0), "rot": Vector3(-90, 0, 0), "scale": 33.0,
 	},
 }
 
@@ -77,9 +88,11 @@ static func refresh(skeleton: Skeleton3D, equipped: Dictionary, sm: Node) -> voi
 			skeleton.add_child(att)
 			var mesh := (scene as PackedScene).instantiate() as Node3D
 			att.add_child(mesh)
-			mesh.position = pl["pos"]
-			mesh.rotation_degrees = pl["rot"]
-			mesh.scale = Vector3.ONE * float(pl["scale"])
+			# Per-attach placement overrides the slot default (needed for the mirrored
+			# left/right gauntlet halves), falling back to the slot's shared values.
+			mesh.position = a.get("pos", pl["pos"])
+			mesh.rotation_degrees = a.get("rot", pl["rot"])
+			mesh.scale = Vector3.ONE * float(a.get("scale", pl["scale"]))
 			_finish(mesh, tint)
 			i += 1
 
