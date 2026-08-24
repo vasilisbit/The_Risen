@@ -110,6 +110,7 @@ var _ability_hud: Control
 var _weapon_hud: Control
 var _character: Node3D          # Phase 3 animated body (true first-person)
 var _fp_viewmodel: Node         # first-person arms+gun viewmodel (combat only)
+var _body_skeleton: Skeleton3D  # the body's rig, for attaching equipped armour plates
 
 ## Camera height: the body's eye line, so looking down shows your own torso.
 ## Eye line. TRUE first person: the camera sits at the eyes, slightly IN FRONT of
@@ -159,6 +160,7 @@ func _ready() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_signal("loadout_changed"):
 		sm.loadout_changed.connect(refresh_armor_bonus)
+		sm.loadout_changed.connect(refresh_armor_visual, CONNECT_DEFERRED)
 	_apply_combat_mode()
 	_build_character()
 	health = max_hp()          # spawn at full, including the Support bonus
@@ -354,6 +356,16 @@ func max_hp() -> float:
 func refresh_armor_bonus() -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	armor_damage_reduction = sm.armor_reduction_total() if sm and sm.has_method("armor_reduction_total") else 0.0
+
+
+## Re-attach the equipped armour plates on the real body (hub mirror). Called at
+## spawn and on loadout_changed, so equipping a piece in the inventory shows it.
+func refresh_armor_visual() -> void:
+	if _body_skeleton == null:
+		return
+	var sm := get_node_or_null("/root/SaveManager")
+	var equipped: Dictionary = sm.data.get("equipped_armor", {}) if sm else {}
+	GuardianArmor.refresh(_body_skeleton, equipped, sm)
 
 
 ## Apply the saved class's passive (T-0022, GDD §2.4). Called at spawn.
@@ -743,6 +755,10 @@ func _build_character() -> void:
 	var wm := get_node_or_null("WeaponManager")
 	if wm and wm.has_method("refresh_weapon_visual"):
 		wm.call_deferred("refresh_weapon_visual")
+	# Equipped armour plates on the real body (seen in the hub mirror; T-0042 b).
+	var skels := _character.find_children("*", "Skeleton3D", true, false)
+	_body_skeleton = skels[0] as Skeleton3D if not skels.is_empty() else null
+	refresh_armor_visual()
 
 
 ## Feed the character its horizontal speed so it picks idle / walk / run.
