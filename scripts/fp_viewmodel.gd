@@ -31,10 +31,10 @@ const VM_BASE := {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), 
 ## a small cosmetic cant. The Hand Cannon mesh models the barrel along +X, so it
 ## needs a ~+90 deg Y turn (barrel +X -> -Z) or it points back at the player.
 const VM_XFORM := {
-	"Auto Rifle": {"pos": Vector3(0.14, -0.24, -0.60), "rot": Vector3(2, 6, -8), "scale": 0.47},
-	"Shotgun": {"pos": Vector3(0.13, -0.18, -0.55), "rot": Vector3(3, 8, -7), "scale": 0.53},
-	"Sniper": {"pos": Vector3(0.14, -0.21, -0.62), "rot": Vector3(2, 6, -8), "scale": 0.46},
-	"Hand Cannon": {"pos": Vector3(0.14, -0.25, -0.53), "rot": Vector3(5, 101, 6), "scale": 0.55},
+	"Auto Rifle": {"pos": Vector3(0.14, -0.2, -0.50), "rot": Vector3(0, -22, -5), "scale": 0.6},
+	"Shotgun": {"pos": Vector3(0.14, -0.18, -0.35), "rot": Vector3(5, 50, -7), "scale": 0.6},
+	"Sniper": {"pos": Vector3(0.14, -0.21, -0.62), "rot": Vector3(2, -20, -7), "scale": 0.85},
+	"Hand Cannon": {"pos": Vector3(0.14, -0.25, -0.53), "rot": Vector3(2, 170, 6), "scale": 0.6},
 }
 const VM_FILE := {
 	"Auto Rifle": "auto_rifle_vm.glb", "Shotgun": "shotgun_vm.glb",
