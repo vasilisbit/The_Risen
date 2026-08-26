@@ -538,7 +538,20 @@ func _build_backdrop() -> Control:
 
 	# Stall geometry (a recreation of the bay corner the vendor stands in).
 	_stage_box(vp, Vector3(0, -0.05, -1.5), Vector3(16, 0.1, 9), Color(0.13, 0.14, 0.17), 0.6)
-	_stage_box(vp, Vector3(0, 2.4, -4.2), Vector3(16, 7, 0.3), Color(0.19, 0.21, 0.27), 0.9)
+	# Back wall behind the clerk: the SAME grungy hull panelling the hub bay uses, so
+	# the staged shot matches the room he stands in. Falls back to a flat box if the
+	# texture set is missing.
+	var wall_mat := _panel_mat()
+	if wall_mat:
+		var wall := MeshInstance3D.new()
+		var wm := BoxMesh.new()
+		wm.size = Vector3(16, 7, 0.3)
+		wall.mesh = wm
+		wall.material_override = wall_mat
+		wall.position = Vector3(0, 2.4, -4.2)
+		vp.add_child(wall)
+	else:
+		_stage_box(vp, Vector3(0, 2.4, -4.2), Vector3(16, 7, 0.3), Color(0.19, 0.21, 0.27), 0.9)
 	# The fal.ai forge counter as the trade desk in the staged shot (replaces the
 	# plain box; falls back to it if the asset is missing).
 	var fc_scene: Resource = load("res://assets/generated/interior/forge_counter.glb")
@@ -609,6 +622,31 @@ func _stage_box(vp: SubViewport, center: Vector3, size: Vector3, color: Color, r
 	mi.material_override = mat
 	mi.position = center
 	vp.add_child(mi)
+
+
+## The hub's grungy hull panelling material (kept in sync with hub_structure._panel_mat)
+## so the vendor-screen back wall matches the wall behind the clerk in the actual bay.
+## Returns null if the texture set isn't present, so callers can fall back to a box.
+func _panel_mat() -> StandardMaterial3D:
+	var albedo := load("res://assets/generated/interior/wall_panel_albedo.png") as Texture2D
+	if albedo == null:
+		return null
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = albedo
+	m.metallic = 0.5
+	m.roughness = 1.0
+	var nrm := load("res://assets/generated/interior/wall_panel_normal.png") as Texture2D
+	if nrm:
+		m.normal_enabled = true
+		m.normal_texture = nrm
+	var rgh := load("res://assets/generated/interior/wall_panel_roughness.png") as Texture2D
+	if rgh:
+		m.roughness_texture = rgh
+		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GRAYSCALE
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * 0.35
+	return m
 
 
 ## Global-space AABB enclosing a staged node's visuals (for scaling/seating a GLB).
