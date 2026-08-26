@@ -202,6 +202,11 @@ func _build_worlds() -> void:
 		var tint: Color = w["tint"]
 		label.modulate = tint if unlocked else tint.darkened(0.5)
 		label.text = ("◈ %s" % mission.to_upper()) if unlocked else "◈ %s\nLOCKED" % mission.to_upper()
+		# Markers are the seated targeting UI, NOT ambient space labels: hidden by
+		# default (so the planets read as plain worlds through the canopy while you
+		# walk the hub) and shown one-at-a-time only for the world you point at while
+		# seated (see _update_marker_visibility).
+		label.visible = false
 		add_child(label)                # in-tree before setting the world position
 		label.global_position = pos + Vector3(0.0, radius + 1.5, 0.0)
 		_labels[mission] = label
@@ -441,6 +446,7 @@ func _update_seated(delta: float) -> void:
 	_seat_cam.global_transform.basis = Basis(Vector3.UP, _yaw) * base * Basis(Vector3.RIGHT, _pitch)
 
 	_target = _pick_target()
+	_update_marker_visibility(_target)
 	var sm := get_node_or_null("/root/SaveManager")
 	var locked := false
 	if _target != "" and sm and sm.has_method("is_mission_unlocked"):
@@ -566,6 +572,15 @@ func _set_seated_hud(on: bool) -> void:
 	_hint.visible = on
 	_fold_bar.visible = false
 	_sit_prompt.visible = false        # the "take the helm" prompt is a not-seated cue
+	if not on:
+		_update_marker_visibility("")  # leaving the helm clears every world marker
+
+
+## Show only the pointed-at world's rhombus name marker, and only while seated -
+## the other planets stay unlabelled so the canopy reads as plain outer space.
+func _update_marker_visibility(active: String) -> void:
+	for mission in _labels:
+		(_labels[mission] as Label3D).visible = _seated and mission == active
 
 
 ## Fold confirmed: open the difficulty prompt WHILE STILL SEATED at the helm (you pick

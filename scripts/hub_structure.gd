@@ -319,9 +319,13 @@ func _build_vendor_stall() -> void:
 		counter = (cscene as PackedScene).instantiate() as Node3D
 		add_child(counter)
 		counter.rotation.y = -PI * 0.5
-		counter.scale = Vector3(4.4, 3.7, 6.2)
+		# Taller (top ~pelvis height) to hide the clerk's legs, but SHALLOWER front-to-
+		# back (scale.x drives world depth after the -90 spin) so the desk sits IN FRONT
+		# of him rather than a deep table whose rear edge swallows his shins. Clerk is at
+		# z12.3; this desk's rear face lands ~z11.9, so he stands clear behind it.
+		counter.scale = Vector3(2.5, 4.7, 6.2)
 		var ca := _combined_aabb(counter)
-		counter.position = Vector3(0.0, -ca.position.y, 11.5)
+		counter.position = Vector3(0.0, -ca.position.y, 11.45)
 		_add_prop_collision(counter)
 		counter.add_to_group("gen_counter")
 	if counter == null:
@@ -368,7 +372,7 @@ func _build_vendor_stall() -> void:
 	nameplate.modulate = Color(0.95, 0.78, 0.32)
 	nameplate.outline_modulate = Color(0, 0, 0, 0.85)
 	nameplate.outline_size = 14
-	nameplate.position = Vector3(0, 2.5, 12.2)
+	nameplate.position = Vector3(0, 2.95, 12.0)   # just above his head, toward the player
 	add_child(nameplate)
 	_omni(Vector3(0, 2.4, 11.6), 7.0, 2.2, Color(1.0, 0.72, 0.4))
 
