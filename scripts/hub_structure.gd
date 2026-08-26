@@ -325,7 +325,7 @@ func _build_vendor_stall() -> void:
 		# z12.3; this desk's rear face lands ~z11.9, so he stands clear behind it.
 		counter.scale = Vector3(2.5, 4.7, 6.2)
 		var ca := _combined_aabb(counter)
-		counter.position = Vector3(0.0, -ca.position.y, 11.45)
+		counter.position = Vector3(0.0, -ca.position.y, 11.30)
 		_add_prop_collision(counter)
 		counter.add_to_group("gen_counter")
 	if counter == null:
