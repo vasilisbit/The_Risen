@@ -104,6 +104,15 @@ model, as most shooters do.
 
 ## Pipeline C — equippable armour plates (`tools/gen_armor.py`, `scripts/guardian_armor.gd`)
 
+> **Status: REMOVED from display (2026-08-26).** The plate meshes never fit the Meshy
+> rig cleanly across all three views (the body, hub mirror, and preview each pose the
+> same rig differently, and the abstract Tripo plates don't hug the body), so they read
+> as floating parts. `GuardianArmor.refresh` was reduced to a stub that just clears old
+> plate nodes; equipped armour is **stat-only** now. The section below is kept as a
+> record of the pipeline — if revisited, the plates need to be **modelled to fit the
+> actual Guardian body** (or skinned to the rig), not generated as standalone props.
+
+
 Over-armour that **layers on top** of the already-armoured base body, one mesh per
 slot, tinted by the equipped piece's rarity, shared by the mission body + hub mirror
 (`guardian.gd`) and the inventory preview (`guardian_preview.gd`).
