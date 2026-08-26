@@ -340,16 +340,16 @@ func _build_vendor_stall() -> void:
 	_prop("Prop_Shelves_WideTall", Vector3(-2.35, 0, 12.55), PI, 0.95)
 	_prop("Prop_Shelves_WideTall", Vector3(2.35, 0, 12.55), PI, 0.95)
 
-	var clerk_scene := load("res://assets/thirdparty/fab/skm_robot/skm_robot3_full.fbx")
+	# The custom Meshy-rigged Forge Master armourer robot (T-0043), replacing the
+	# Fab skm_robot3 stand-in. Ships its own PBR (gunmetal + gold trim + teal energy
+	# + a forge-orange chest core) so no material override, and a real rigged idle.
+	var clerk_scene := load("res://assets/generated/hub/forge_master.glb")
 	if clerk_scene is PackedScene:
 		var clerk := (clerk_scene as PackedScene).instantiate() as Node3D
 		add_child(clerk)
 		clerk.position = Vector3(0, 0.0, 12.3)
-		clerk.rotation.y = PI
+		clerk.rotation.y = PI                        # face the player across the counter
 		clerk.scale = Vector3.ONE * 1.15
-		var mech_mat := _mat(Color(0.34, 0.36, 0.40), 0.9, 0.32)
-		for m in clerk.find_children("*", "MeshInstance3D", true, false):
-			(m as MeshInstance3D).material_override = mech_mat
 		var idle := Node.new()
 		idle.set_script(load("res://scripts/forge_master_idle.gd"))
 		clerk.add_child(idle)

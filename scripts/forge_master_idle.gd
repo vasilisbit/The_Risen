@@ -1,19 +1,21 @@
 extends Node
-## Subtle "alive" idle for the Forge Master robot, which ships with no animation
-## clips. A slow breathing bob plus a gentle sway, applied to the parent robot
-## each frame on top of its rest transform. Added as a child of the robot in both
-## the hub (hub_structure) and the vendor screen (vendor_shop).
+## Drives the Forge Master vendor's rigged idle. Added as a child of the instanced
+## forge_master.glb (the custom Meshy-rigged armourer robot, T-0043) in BOTH places
+## the vendor appears: the hub bay (hub_structure) and the vendor screen backdrop
+## (vendor_shop). Finds the GLB's AnimationPlayer, loops its "idle" clip (glTF import
+## leaves clips non-looping) and plays it - the same pattern guardian_preview uses.
 ##
-## PROCESS_MODE_ALWAYS so it keeps idling while the vendor screen pauses the tree.
+## PROCESS_MODE_ALWAYS so the idle keeps playing while the vendor screen pauses the
+## tree. Falls back to a subtle procedural breathing bob if the GLB ships no idle
+## clip, so the vendor is never a frozen statue.
 
-const BOB := 0.022        # metres of vertical breathing
-const SWAY := 0.03        # radians of gentle lean
-const SPEED := 1.0
+const BOB := 0.02         # metres of vertical breathing (fallback only)
+const SWAY := 0.025       # radians of gentle lean (fallback only)
 
+var _t: float = 0.0
 var _base_pos: Vector3
 var _base_rot: Vector3
-var _t: float = 0.0
-var _ready_ok: bool = false
+var _fallback: bool = false
 
 
 func _ready() -> void:
@@ -23,16 +25,41 @@ func _ready() -> void:
 		return
 	_base_pos = p.position
 	_base_rot = p.rotation
-	_ready_ok = true
+	var ap := _find_anim_player(p)
+	if ap != null:
+		var clip := _idle_clip(ap)
+		if clip != "":
+			var anim := ap.get_animation(clip)
+			if anim:
+				anim.loop_mode = Animation.LOOP_LINEAR
+			# Slow the Meshy idle a touch - the raw clip sways a bit much for a
+			# shopkeeper; ~0.65x reads as a calm, dignified stance.
+			ap.speed_scale = 0.65
+			ap.play(clip)
+			return
+	# No usable clip - keep the vendor subtly alive procedurally.
+	_fallback = true
+
+
+func _find_anim_player(root: Node) -> AnimationPlayer:
+	var aps := root.find_children("*", "AnimationPlayer", true, false)
+	return aps[0] as AnimationPlayer if not aps.is_empty() else null
+
+
+func _idle_clip(ap: AnimationPlayer) -> String:
+	for name in ap.get_animation_list():
+		if String(name).to_lower().contains("idle"):
+			return name
+	var list := ap.get_animation_list()
+	return String(list[0]) if not list.is_empty() else ""
 
 
 func _process(delta: float) -> void:
-	if not _ready_ok:
+	if not _fallback:
 		return
 	var p := get_parent() as Node3D
 	if p == null:
 		return
-	_t += delta * SPEED
+	_t += delta
 	p.position.y = _base_pos.y + sin(_t) * BOB
 	p.rotation.y = _base_rot.y + sin(_t * 0.55) * SWAY
-	p.rotation.x = _base_rot.x + sin(_t * 0.8) * SWAY * 0.4

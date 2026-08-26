@@ -1,0 +1,5 @@
+# Large regenerable intermediates (via tools/gen_guardian.py + the Blender merge).
+# The concept PNGs + response JSONs are kept (small; the armour pipeline reuses the
+# body concepts). The final guardian.glb (one level up) is what the game imports.
+*.glb
+*.fbx
