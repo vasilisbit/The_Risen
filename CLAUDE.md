@@ -116,7 +116,18 @@ memory `thirdparty-asset-inventory`) before generating or web-searching.
 - **KayKit** gltf is clean real-world scale (2 m tiles). Used for the Mars canyon
   backdrop (`mars_level._build_environment`, visual-only, no collision).
 - Many Fab FBX **ship without textures** (render flat white) — apply a
-  `material_override` (see the Forge Master mech, Phantom, Ember Tyrant).
+  `material_override` (see the Phantom, Ember Tyrant). *The hub Forge Master vendor is
+  no longer a Fab robot — it's a custom Meshy-rigged GLB, T-0043; see below.*
+
+**Forge Master vendor (T-0043, custom):** `assets/generated/hub/forge_master.glb` — a
+heavy-set armourer robot (gunmetal + gold trim + teal energy + a forge-orange chest
+core, cohesive with the Guardian) built on the §6/§9A pipeline (nano-banana-pro concept
+→ `meshy/v7/multi-image-to-3d` → `fal-ai/meshy/rigging` idle, `tools/gen_forge_master.py`),
+with a Blender cleanup (rename clip → `idle`, strip Meshy icosphere, dampen the idle sway
+50%). Replaces the Fab `skm_robot3` in BOTH the hub bay (`hub_structure._build_vendor_stall`)
+and the vendor screen backdrop (`vendor_shop._build_backdrop`). `forge_master_idle.gd`
+(child of the instanced GLB) loops the rig's `idle` at 0.65× speed; ships its own PBR so
+no `material_override`.
 
 ## Conventions
 - **Static typing** everywhere; tuning numbers in one place per system.

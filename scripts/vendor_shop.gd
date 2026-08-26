@@ -570,20 +570,17 @@ func _build_backdrop() -> Control:
 	fill.light_color = Color(0.72, 0.82, 1.0)
 	vp.add_child(fill)
 
-	var robot_scene: Resource = load("res://assets/thirdparty/fab/skm_robot/skm_robot3_full.fbx")
+	# The custom Meshy-rigged Forge Master (T-0043) - same asset as the hub bay, so
+	# the clerk you talk to matches the one behind the counter. Ships its own PBR
+	# (gunmetal + gold + teal + forge-orange core) and a real rigged idle.
+	var robot_scene: Resource = load("res://assets/generated/hub/forge_master.glb")
 	if robot_scene is PackedScene:
 		var robot := (robot_scene as PackedScene).instantiate() as Node3D
 		robot.scale = Vector3.ONE * 1.15
 		robot.position = Vector3(-1.82, -0.1, -0.9)
 		robot.rotation.y = PI - 0.55                 # face 3/4 toward the camera
-		var mech_mat := StandardMaterial3D.new()
-		mech_mat.albedo_color = Color(0.34, 0.36, 0.40)
-		mech_mat.metallic = 0.9
-		mech_mat.roughness = 0.32
-		for m in robot.find_children("*", "MeshInstance3D", true, false):
-			(m as MeshInstance3D).material_override = mech_mat
 		vp.add_child(robot)
-		var idle := Node.new()                       # subtle standing idle
+		var idle := Node.new()                       # real rigged idle (guardian pattern)
 		idle.set_script(load("res://scripts/forge_master_idle.gd"))
 		robot.add_child(idle)
 
