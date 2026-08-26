@@ -549,8 +549,10 @@ func _build_backdrop() -> Control:
 		# would read identity). -PI/2 spans it left-right; placed as the foreground trade
 		# desk in front of the clerk (tuned in-engine).
 		fc.rotation.y = -PI * 0.5
-		fc.scale = Vector3.ONE * 3.1
-		fc.position = Vector3(-1.2, 0.72, 0.45)
+		# Taller desk (Y up) so it hides the clerk's legs to the pelvis, matching the
+		# hub bay; wider footprint kept.
+		fc.scale = Vector3(3.1, 4.5, 3.1)
+		fc.position = Vector3(-1.2, 0.86, 0.45)
 	else:
 		_stage_box(vp, Vector3(1.6, 0.55, -0.2), Vector3(11, 1.1, 0.7), Color(0.15, 0.16, 0.20), 0.5)
 		_stage_box(vp, Vector3(1.6, 1.15, -0.15), Vector3(11, 0.1, 0.95), Color(0.85, 0.62, 0.30), 0.3)
@@ -578,7 +580,9 @@ func _build_backdrop() -> Control:
 		var robot := (robot_scene as PackedScene).instantiate() as Node3D
 		robot.scale = Vector3.ONE * 1.15
 		robot.position = Vector3(-1.82, -0.1, -0.9)
-		robot.rotation.y = PI - 0.55                 # face 3/4 toward the camera
+		# His front is +Z local (in the hub, rotation.y=PI faces the -Z player). The
+		# backdrop camera sits at +Z/+X of him, so ~0.55 rad turns his front to it.
+		robot.rotation.y = 0.55                       # face the camera square-on
 		vp.add_child(robot)
 		var idle := Node.new()                       # real rigged idle (guardian pattern)
 		idle.set_script(load("res://scripts/forge_master_idle.gd"))

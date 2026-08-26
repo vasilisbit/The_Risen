@@ -40,7 +40,7 @@ func _physics_process(_delta: float) -> void:
 	var text := ""
 	if target:
 		if target.is_in_group("vendor"):
-			text = "[E]  Forge Master  -  buy, mod and sell gear"
+			text = "[E]  Interact"
 		elif target.is_in_group("mission_sphere"):
 			text = "[E]  Deploy to %s" % String(target.name).trim_suffix("Sphere")
 	_prompt.text = text
