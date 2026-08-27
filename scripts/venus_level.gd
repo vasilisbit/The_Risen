@@ -295,10 +295,11 @@ func _build_descent() -> void:
 	var last_y := _platform_y(last_i)
 	var y_lava := last_y - 6.0                          # lava river below the lowest platform
 	_z_pool = last_z - 9.0                              # drop-through pool, past the last platform
-	# Pool-chamber floor sits a bit ABOVE the lava-river surface (was exactly AT it, which
-	# z-fought the ground lava at the entrance to the pool). The lava sheet under the chamber
-	# still fills the small step so nothing floats.
-	_y_pool_floor = y_lava + 1.2
+	# Pool-chamber floor sits clearly ABOVE the lava-river surface (was exactly AT it, which
+	# z-fought the ground lava at the pool entrance; +1.2 was still glitching the box around
+	# the pool). The lava sheet under the chamber (sunk well below, see _build_pool_chamber)
+	# fills the step so nothing floats.
+	_y_pool_floor = y_lava + 2.0
 	_arena_center = Vector3(0, ARENA_Y, _z_pool)        # boss arena sits DIRECTLY BELOW the pool
 
 	var field_start_z := _z_cavern_start - 20.0
@@ -330,14 +331,6 @@ func _build_descent() -> void:
 	var river_z: float = (field_start_z + field_end_z) * 0.5
 	_box(Vector3(0, y_lava - 1.5, river_z), Vector3(CAVERN_HALF_WIDTH * 2, 3, river_len), _lava)
 	_lava_area(Vector3(0, y_lava + 1.2, river_z), Vector3(CAVERN_HALF_WIDTH * 2, 5, river_len), Vector3.ZERO, RIVER_DPS)
-
-	# A back wall behind the far (-Z) end of the lava river, closing the gap between the
-	# river and the (raised) pool-chamber floor so no void shows behind the floor lava at
-	# the bottom of the puzzle. Its top meets the chamber floor, so it never blocks the drop.
-	var bw_bottom: float = y_lava - 3.0
-	var bw_h: float = (_y_pool_floor - bw_bottom) + 0.5
-	_box(Vector3(0, (bw_bottom + _y_pool_floor) * 0.5, field_end_z),
-		Vector3(CAVERN_HALF_WIDTH * 2, bw_h, T), _rock_dark)
 
 	_build_platforms()
 	# NOTE: the cavern-wall shooter LEDGES were removed - they read as extra side walls above
@@ -419,7 +412,9 @@ func _build_pool_chamber(field_end_z: float, cav_far_z: float) -> void:
 	# is obviously the way down on its own.
 	var chamber_len: float = absf(cav_far_z - field_end_z) + 8.0
 	var chamber_z: float = (field_end_z + cav_far_z) * 0.5
-	_panel(Vector3(0, fy - 1.1, chamber_z), Vector3(w * 2 + 4.0, 0.6, chamber_len), _lava)
+	# Sunk well below the chamber floor so it never z-fights the jump-puzzle river where the
+	# two lavas meet at the pool entrance (was fy-1.1, ~coplanar with the river surface).
+	_panel(Vector3(0, fy - 3.0, chamber_z), Vector3(w * 2 + 4.0, 0.6, chamber_len), _lava)
 
 	# Lava shaft: four flowing-magma walls dropping from the pool floor, so you free-fall
 	# down a glowing lava pit. They STOP SHAFT_CLEAR metres above the arena floor, so the
@@ -664,10 +659,13 @@ func _build_spawns() -> void:
 	# were removed (they read as extra side walls, shooters clipped into them, and the
 	# player could hop across to cheese them), so the shooters now overlook the puzzle from
 	# the entrance ledge (top) and the pool-chamber floor (bottom) instead.
+	# Deep on the entrance ledge (well past the cavern-mouth arch/cliff walls so they don't
+	# spawn embedded in the rock) + on the pool-chamber floor, centred (low |x|) to stay off
+	# the cavern side walls.
 	var shooter_spots: Array[Vector3] = [
-		Vector3(-7.0, _y_summit + 1.0, _z_cavern_start - 6.0),
-		Vector3(0.0, _y_summit + 1.0, _z_cavern_start - 6.0),
-		Vector3(7.0, _y_summit + 1.0, _z_cavern_start - 6.0),
+		Vector3(-5.0, _y_summit + 1.0, _z_cavern_start - 13.0),
+		Vector3(0.0, _y_summit + 1.0, _z_cavern_start - 13.0),
+		Vector3(5.0, _y_summit + 1.0, _z_cavern_start - 13.0),
 		Vector3(-5.0, _y_pool_floor + 1.0, _z_pool + 7.0),
 		Vector3(5.0, _y_pool_floor + 1.0, _z_pool + 7.0),
 	]
