@@ -85,6 +85,7 @@ const ELEMENT_COLORS := {
 const HIT_MASK := 1 | (1 << 4)             # world + enemy layer
 
 signal state_changed                       # ammo / reload changed
+signal reload_started(duration: float)     # a reload just BEGAN (manual R or auto-on-empty)
 
 ## Scales outgoing damage - Mars wave buffs raise this (e.g. +20% -> 1.2).
 ## Buff picks SET this rather than stacking it, hence the separate class field.
@@ -227,6 +228,7 @@ func start_reload() -> void:
 		return
 	_reloading = true
 	_reload_left = reload_time
+	reload_started.emit(reload_time)         # drives the FP reload animation (manual OR auto-empty)
 	state_changed.emit()
 
 

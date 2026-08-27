@@ -64,6 +64,9 @@ func rebuild() -> void:
 			w.apply_mod(String(mod_id))
 		add_child(w)
 		w.state_changed.connect(_update_hud)
+		# Play the FP reload animation whenever a reload BEGINS - manual (R) or the
+		# automatic reload weapon.tick() starts when the mag runs dry.
+		w.reload_started.connect(_on_reload_started)
 		_weapons.append(w)
 	# Give the viewmodel the starting weapon's silhouette.
 	if not _weapons.is_empty():
@@ -107,11 +110,7 @@ func _process(delta: float) -> void:
 		_switch(3)
 
 	if Input.is_action_just_pressed("reload"):
-		w.start_reload()
-		if w.is_reloading():                 # only if it actually began (mag not full)
-			var fpvm := get_parent().get_node_or_null("FPViewmodel")
-			if fpvm and fpvm.has_method("play_reload"):
-				fpvm.play_reload(w.reload_time)
+		w.start_reload()                     # the reload_started signal plays the FP animation
 
 	var wants_fire := Input.is_action_pressed("fire") if w.automatic else Input.is_action_just_pressed("fire")
 	if wants_fire:
@@ -125,6 +124,14 @@ func _switch(index: int) -> void:
 	_active = index
 	_show_weapon(active_weapon().weapon_name)
 	_update_hud()
+
+
+## Play the first-person arms reload animation for a reload that just began (from
+## the weapon's reload_started signal, so manual R and auto-on-empty both animate).
+func _on_reload_started(duration: float) -> void:
+	var fpvm := get_parent().get_node_or_null("FPViewmodel")
+	if fpvm and fpvm.has_method("play_reload"):
+		fpvm.play_reload(duration)
 
 
 ## Re-push the equipped weapon into the viewmodel and the character's hand.
