@@ -12,12 +12,19 @@ const PROJECTILE_DAMAGE := 100.0   # normal-mode balance: was 150
 const TELEPORT_INTERVAL := 20.0
 const ADDS_COUNT := 3
 const EYE_HEIGHT := 1.6
-const BOLT_COLOR := Color(0.70, 0.25, 1.0)
-const SHELL_COLOR := Color(0.70, 0.30, 1.0)   # purple arc-shield (Earth boss is blue)
+## Teal soulfire to match the custom Hive-wraith model (T-0044); was purple.
+const BOLT_COLOR := Color(0.20, 0.95, 0.90)
+const SHELL_COLOR := Color(0.25, 0.90, 0.85)  # teal arc-shield (Earth boss is blue)
 const MAX_SHIELD := 600.0                     # gate shield, mirrors the Brute's 500
 const RUSHER := "res://scenes/enemies/rusher.tscn"
+## It now WALKS toward the player when out past this range (in addition to
+## teleporting), using the rig's walk clip; inside it, it holds and casts.
+const WALK_SPEED := 3.2
+const PREFERRED_RANGE := 14.0
 
 enum State { IDLE, ACTIVE }
+
+@onready var _agent: NavigationAgent3D = $NavigationAgent3D
 
 ## Exposed for tests / telemetry.
 var teleports_done: int = 0
@@ -36,23 +43,15 @@ func _init() -> void:
 	flux_value = 75
 
 
-## The ghoul FBX ships without textures; paint it a spectral, emissive purple so
-## the Phantom reads as its GDD description.
+## The custom Hive-wraith model (T-0044) ships its own teal PBR, so DON'T tint it -
+## the old purple override is what put the "purple around him". Keep its materials.
 func external_model_tint() -> Material:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.28, 0.12, 0.45)
-	mat.metallic = 0.1
-	mat.roughness = 0.5
-	mat.emission_enabled = true
-	mat.emission = Color(0.55, 0.25, 0.95)
-	mat.emission_energy_multiplier = 0.8
-	return mat
+	return null
 
 
 func _ready() -> void:
 	super._ready()
 	add_to_group("boss")
-	_apply_phantom_material()
 
 
 func _physics_process(delta: float) -> void:
@@ -62,24 +61,41 @@ func _physics_process(delta: float) -> void:
 		return
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
-	_halt_horizontal()          # it teleports rather than walks
-	move_and_slide()
 
 	if not _ensure_player():
+		_halt_horizontal()
+		move_and_slide()
 		return
 	var dist := global_position.distance_to(_player.global_position)
 	match _state:
 		State.IDLE:
+			_halt_horizontal()
 			if dist <= DETECT_RANGE:
 				_state = State.ACTIVE
 		State.ACTIVE:
 			_face(_player.global_position)
+			# Walk in when far (the walk clip plays via EnemyBase), hold and cast
+			# when close; teleporting still repositions it every TELEPORT_INTERVAL.
+			if dist > PREFERRED_RANGE:
+				var dir := _nav_dir(_agent, _player.global_position, delta)
+				if dir.length() > 0.05:
+					dir = dir.normalized()
+					var spd := WALK_SPEED * EnemyBase.speed_scale
+					velocity.x = dir.x * spd
+					velocity.z = dir.z * spd
+					_tick_jump(dir, delta)
+				else:
+					_halt_horizontal()
+			else:
+				_halt_horizontal()
 			_shoot_timer -= delta
 			if _shoot_timer <= 0.0:
 				shoot()
 			_teleport_timer -= delta
 			if _teleport_timer <= 0.0:
 				teleport()
+
+	move_and_slide()
 
 
 ## Fire a purple bolt at the player. Public so it is unit-testable.
@@ -190,19 +206,6 @@ func _drop_loot(where: Vector3) -> void:
 		super._drop_loot(where)
 
 
-func _apply_phantom_material() -> void:
-	var mesh := get_node_or_null("Mesh") as MeshInstance3D
-	if mesh == null:
-		return
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.45, 0.15, 0.75, 0.85)
-	m.emission_enabled = true
-	m.emission = Color(0.70, 0.25, 1.0)
-	m.emission_energy_multiplier = 2.2
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mesh.material_override = m
-
-
 func _blink_vfx(at: Vector3) -> void:
 	var host := get_tree().current_scene
 	if host == null:
@@ -213,9 +216,9 @@ func _blink_vfx(at: Vector3) -> void:
 	sphere.height = 1.0
 	vfx.mesh = sphere
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.70, 0.30, 1.0, 0.75)
+	m.albedo_color = Color(0.25, 0.90, 0.85, 0.75)
 	m.emission_enabled = true
-	m.emission = Color(0.70, 0.30, 1.0)
+	m.emission = Color(0.25, 0.90, 0.85)
 	m.emission_energy_multiplier = 3.5
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	vfx.material_override = m

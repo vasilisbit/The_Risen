@@ -76,6 +76,5 @@ func _chase(delta: float) -> void:
 
 func _do_melee() -> void:
 	_attack_timer = ATTACK_COOLDOWN
-	play_attack_animation()
-	if _player and _player.has_method("take_damage"):
-		_player.take_damage(MELEE_DAMAGE, "Rusher")
+	# Swing first, land the hit at the animation's contact point (EnemyBase).
+	melee_strike(MELEE_DAMAGE, "Rusher", ATTACK_RANGE * 1.4)

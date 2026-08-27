@@ -1,13 +1,15 @@
 [gd_scene load_steps=2 format=3 uid="uid://crisenembertyrant01"]
 
-; Ember Tyrant (Venus final boss) = Fab "monster" (Monster UE). Auto-loaded by
-; EnemyBase._apply_external_model for the EmberTyrant class. The inner transform
-; normalises the FBX's native size/facing (model must face -Z); the tyrant is a
-; large boss so it is scaled up relative to the regular enemies.
+; Ember Tyrant (Venus final boss) = custom fal.ai Hive-ogre fire boss (T-0044).
+; Wrapper for EnemyBase._apply_external_model. Molten-orange soulfire (its Venus
+; fire element - the deliberate exception to the teal palette) over charred chitin;
+; rigged idle + walk (Meshy). Sized by the rig (height_meters 4.0) so scale is 1.0.
+; Faces -Z.
 
-[ext_resource type="PackedScene" uid="uid://cf6xtxs7qpjt7" path="res://assets/thirdparty/fab/monster/Monster UE.fbx" id="1_model"]
+[ext_resource type="PackedScene" uid="uid://c78fmha4h3w01" path="res://assets/generated/enemies/ember_tyrant.glb" id="1_model"]
 
 [node name="EmberTyrantModel" type="Node3D"]
 
+; 180 deg about Y: Meshy model faces +Z; EnemyBase._face look_at points -Z at the player.
 [node name="Model" parent="." instance=ExtResource("1_model")]
-transform = Transform3D(2.0, 0, 0, 0, 2.0, 0, 0, 0, 2.0, 0, 0, 0)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)

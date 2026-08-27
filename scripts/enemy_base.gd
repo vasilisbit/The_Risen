@@ -265,6 +265,15 @@ func _process(_delta: float) -> void:
 		_model_anim.play(want)
 
 
+## Attack clips are ~2 s of mocap; play them faster so the swing is snappy and its
+## contact lands near MELEE_WINDUP (below) rather than seconds later.
+const ATTACK_ANIM_SPEED := 1.8
+## Delay between starting the swing and landing the hit, so the damage reads as
+## connecting WITH the animation instead of a frame before it starts (the reported
+## "I take damage, then the melee shows" bug). Roughly the clip's wind-up-to-contact.
+const MELEE_WINDUP := 0.4
+
+
 ## Play a one-shot attack clip if the model has one (returns to walk/idle after).
 ## Enemies call this when they strike; a no-op if there's no attack animation.
 func play_attack_animation() -> void:
@@ -272,9 +281,25 @@ func play_attack_animation() -> void:
 		return
 	for anim_name in _model_anim.get_animation_list():
 		var l := anim_name.to_lower()
-		if l.contains("attack") or l.contains("hit") or l.contains("bite") or l.contains("punch"):
-			_model_anim.play(anim_name)
+		if l.contains("attack") or l.contains("hit") or l.contains("bite") \
+				or l.contains("punch") or l.contains("slash"):
+			_model_anim.play(anim_name, -1, ATTACK_ANIM_SPEED)
 			return
+
+
+## Play the attack swing, then land the hit after a wind-up so the damage is
+## synced to the animation's contact (fixes damage arriving before the swing shows).
+## The hit only lands if the enemy is alive and the player is still within
+## `max_range` at contact - a dodge out of range whiffs, which reads as fair.
+func melee_strike(damage: float, source: String, max_range: float,
+		windup: float = MELEE_WINDUP) -> void:
+	play_attack_animation()
+	await get_tree().create_timer(windup).timeout
+	if _dead or not is_instance_valid(_player):
+		return
+	if _player.global_position.distance_to(global_position) <= max_range \
+			and _player.has_method("take_damage"):
+		_player.take_damage(damage, source)
 
 
 ## "ShieldedBrute" -> "shielded_brute", matching the scene file names.
