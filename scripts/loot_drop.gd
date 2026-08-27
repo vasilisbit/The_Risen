@@ -37,8 +37,12 @@ var _spin: float = 0.0
 
 const CHEST_PATH := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/Prop_Chest.gltf"
 ## Generated weapon models (T-0041) - a weapon drop shows the actual gun spinning
-## on its rarity beacon instead of a chest. Armour drops keep the chest.
+## on its rarity beacon instead of a chest.
 const WEAPON_MODEL_DIR := "res://assets/generated/weapons/"
+## Generated armour models (T-0042) - an armour drop now shows the actual plate
+## (chest/helmet/gauntlets) instead of the loot chest. Kind -> GLB basename.
+const ARMOR_MODEL_DIR := "res://assets/generated/armor/"
+const ARMOR_FILE := {"Chest Plate": "chest", "Helmet": "helmet", "Gauntlets": "gauntlets"}
 
 
 func _ready() -> void:
@@ -75,12 +79,16 @@ func _roll_kind() -> String:
 
 func _build_visual() -> void:
 	var c: Color = RARITY_COLORS.get(rarity, Color.WHITE)
-	# A weapon drop shows the actual generated gun; armour (or a missing model)
-	# falls back to the loot chest, then to a coloured box.
-	var gun := _load_weapon_model() if category != "armor" else null
-	if gun != null:
-		_visual = gun
-		_visual.scale = Vector3.ONE * 0.9
+	# A drop shows its ACTUAL generated model - the gun for weapons (T-0041), the
+	# armour plate for armour (T-0042). A missing model falls back to the loot chest,
+	# then to a coloured box.
+	var model := _load_weapon_model() if category != "armor" else _load_armor_model()
+	if model != null:
+		_visual = model
+		if category == "armor":
+			_fit_to(_visual, 0.55)                    # armour pieces vary in size - normalise
+		else:
+			_visual.scale = Vector3.ONE * 0.9
 		_visual.rotation = Vector3(0.35, 0.0, 0.25)   # cant it so it reads in the air
 		_visual.position = Vector3(0, 0.55, 0)
 	else:
@@ -155,6 +163,37 @@ func _load_weapon_model() -> Node3D:
 		return null
 	var res := load(path)
 	return (res as PackedScene).instantiate() as Node3D if res is PackedScene else null
+
+
+## Load the generated GLB for this armour kind (chest/helmet/gauntlets), or null.
+func _load_armor_model() -> Node3D:
+	var file: String = ARMOR_FILE.get(kind, "")
+	if file == "":
+		return null
+	var path := "%s%s.glb" % [ARMOR_MODEL_DIR, file]
+	if not ResourceLoader.exists(path):
+		return null
+	var res := load(path)
+	return (res as PackedScene).instantiate() as Node3D if res is PackedScene else null
+
+
+## Uniformly scale `node` so its largest mesh dimension is `target` metres, so
+## differently-sized armour pieces all read at a consistent pickup size.
+func _fit_to(node: Node3D, target: float) -> void:
+	var acc := AABB()
+	var first := true
+	for n in node.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var a: AABB = mi.transform * mi.get_aabb()
+		if first:
+			acc = a; first = false
+		else:
+			acc = acc.merge(a)
+	if first:
+		return
+	var m: float = maxf(acc.size.x, maxf(acc.size.y, acc.size.z))
+	if m > 0.001:
+		node.scale = Vector3.ONE * (target / m)
 
 
 func _process(delta: float) -> void:

@@ -85,7 +85,6 @@ func _init() -> void:
 func _ready() -> void:
 	super._ready()
 	add_to_group("boss")
-	_apply_body_material()
 	_build_shield_vfx()
 
 
@@ -93,17 +92,11 @@ func nameplate_tier() -> String:
 	return "boss"
 
 
-## The monster FBX ships without textures (renders pale), so paint it as a
-## charred, ember-lit tyrant.
+## The custom Hive-ogre model (T-0044) ships its own molten-orange PBR, so DON'T
+## tint it - the old orange emissive coat is the "orange overlay" that washed the
+## model flat. Keep its generated materials.
 func external_model_tint() -> Material:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.16, 0.06, 0.05)
-	mat.metallic = 0.2
-	mat.roughness = 0.55
-	mat.emission_enabled = true
-	mat.emission = Color(0.9, 0.25, 0.05)
-	mat.emission_energy_multiplier = 0.9
-	return mat
+	return null
 
 
 func nameplate_head_y() -> float:
@@ -416,18 +409,6 @@ func _drop_item(where: Vector3, rarity: String, category: String, kind: String) 
 func _host() -> Node:
 	var host := get_tree().current_scene
 	return host if host != null else get_tree().root
-
-
-func _apply_body_material() -> void:
-	var mesh := get_node_or_null("Mesh") as MeshInstance3D
-	if mesh == null:
-		return
-	_body_mat = StandardMaterial3D.new()
-	_body_mat.albedo_color = Color(0.22, 0.08, 0.06)     # cooled magma crust
-	_body_mat.emission_enabled = true
-	_body_mat.emission = Color(1.0, 0.35, 0.05)
-	_body_mat.emission_energy_multiplier = 1.4
-	mesh.material_override = _body_mat
 
 
 func _build_shield_vfx() -> void:

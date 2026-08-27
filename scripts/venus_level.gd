@@ -232,10 +232,11 @@ func _build_ascent_cliffs() -> void:
 
 ## Rock formations (cover) and lava vents (hazards) dotted up the slope.
 func _build_ascent_props() -> void:
-	# Cover sits at the path EDGES (not the middle), so enemies pathing up the centre
-	# never climb onto it and get stranded. The rocks are VISUAL ONLY now (no collision)
-	# for the same reason - enemies were getting stuck on / stranded on top of them.
-	var lanes := [-6.5, 6.5, -6.5, 6.5, -6.0, 6.0, -6.5, 6.5]
+	# Cover sits off-centre but WELL INSIDE the path (not against the walls) - the visual
+	# cliff walls jut inward, so cover/enemies at the far edge ended up clipping INTO them
+	# (shooters "inside the side walls"). Pulled in from +-6.5 to +-4.5. Rocks are VISUAL
+	# ONLY (no collision) so enemies pathing the centre never climb/strand on them.
+	var lanes := [-4.5, 4.5, -4.5, 4.5, -4.0, 4.0, -4.5, 4.5]
 	for i in lanes.size():
 		var z := -22.0 - 22.0 * float(i)
 		var x: float = lanes[i]
@@ -294,9 +295,10 @@ func _build_descent() -> void:
 	var last_y := _platform_y(last_i)
 	var y_lava := last_y - 6.0                          # lava river below the lowest platform
 	_z_pool = last_z - 9.0                              # drop-through pool, past the last platform
-	# Pool-chamber floor sits AT the lava-river level, so the platform holding the pit is
-	# flush with the jump-puzzle lava (no floating gap under it).
-	_y_pool_floor = y_lava
+	# Pool-chamber floor sits a bit ABOVE the lava-river surface (was exactly AT it, which
+	# z-fought the ground lava at the entrance to the pool). The lava sheet under the chamber
+	# still fills the small step so nothing floats.
+	_y_pool_floor = y_lava + 1.2
 	_arena_center = Vector3(0, ARENA_Y, _z_pool)        # boss arena sits DIRECTLY BELOW the pool
 
 	var field_start_z := _z_cavern_start - 20.0
@@ -329,8 +331,19 @@ func _build_descent() -> void:
 	_box(Vector3(0, y_lava - 1.5, river_z), Vector3(CAVERN_HALF_WIDTH * 2, 3, river_len), _lava)
 	_lava_area(Vector3(0, y_lava + 1.2, river_z), Vector3(CAVERN_HALF_WIDTH * 2, 5, river_len), Vector3.ZERO, RIVER_DPS)
 
+	# A back wall behind the far (-Z) end of the lava river, closing the gap between the
+	# river and the (raised) pool-chamber floor so no void shows behind the floor lava at
+	# the bottom of the puzzle. Its top meets the chamber floor, so it never blocks the drop.
+	var bw_bottom: float = y_lava - 3.0
+	var bw_h: float = (_y_pool_floor - bw_bottom) + 0.5
+	_box(Vector3(0, (bw_bottom + _y_pool_floor) * 0.5, field_end_z),
+		Vector3(CAVERN_HALF_WIDTH * 2, bw_h, T), _rock_dark)
+
 	_build_platforms()
-	_build_wall_ledges(field_end_z)
+	# NOTE: the cavern-wall shooter LEDGES were removed - they read as extra side walls above
+	# the puzzle/lava, shooters spawned clipping into them, and the player could hop across to
+	# cheese the ranged enemies. The descent shooters now stand on the connected entrance ledge
+	# + pool-chamber floor instead (see _build_spawns).
 	_build_jump_zone(field_start_z, field_end_z)
 	_build_pool_chamber(field_end_z, cav_far_z)
 	_cavern_arch()
@@ -378,16 +391,6 @@ func _build_platforms() -> void:
 		_cylinder(pos, PLATFORM_RADIUS, T, _obsidian)
 		if i % 3 == 0:
 			_checkpoint(Vector3(pos.x, _platform_y(i) + 1.2, pos.z), Vector3(2.6, 2.6, 2.6))
-
-
-## Ledges along the cavern walls give the ranged enemies somewhere to stand.
-func _build_wall_ledges(field_end_z: float) -> void:
-	var span: float = (_z_cavern_start - 28.0) - field_end_z
-	for i in 5:
-		var z: float = _z_cavern_start - 28.0 - (span / 5.0) * float(i)
-		var y := _platform_y(i * 2) - 1.5
-		var x := (CAVERN_HALF_WIDTH - 2.5) * (1.0 if i % 2 == 0 else -1.0)
-		_box(Vector3(x, y - T * 0.5, z), Vector3(5, T, 8), _rock)
 
 
 ## The descent ends at a real lava POOL: a hole in the pool-chamber floor you drop
@@ -644,10 +647,11 @@ func _build_spawns() -> void:
 	_marker(Vector3(0, 1.0, 6.0), "player_spawn")
 
 	# Ascent - 20 markers. First 8 sit next to the rock cover (shooters), the
-	# remaining 12 are spread down the open slope (rushers).
+	# remaining 12 are spread down the open slope (rushers). Shooter x pulled in to
+	# +-3.0 so they stand clear of the inward-jutting cliff walls (was +-4.5).
 	for i in 8:
 		var z := -24.0 - 22.0 * float(i)
-		var x := -4.5 if i % 2 == 0 else 4.5
+		var x := -3.0 if i % 2 == 0 else 3.0
 		_marker(Vector3(x, slope_y(z) + 1.0, z), "spawn_point")
 	for i in 12:
 		var z := -18.0 - 15.0 * float(i)
@@ -655,15 +659,20 @@ func _build_spawns() -> void:
 		_marker(Vector3(x, slope_y(z) + 1.0, z), "spawn_point")
 
 	# Descent - 15 markers, created in the order venus_mission._type_for expects:
-	# 5 shooters (wall ledges) + 2 exploders + 8 rushers, on the connected floors
-	# (entrance ledge / pool chamber) where navmesh actually reaches the player.
-	var field_end_z: float = _platform_z(PLATFORM_COUNT - 1) - 4.0
-	var span: float = (_z_cavern_start - 28.0) - field_end_z
-	for i in 5:
-		var z: float = _z_cavern_start - 28.0 - (span / 5.0) * float(i)
-		var y := _platform_y(i * 2) - 1.5
-		var x := (CAVERN_HALF_WIDTH - 2.5) * (1.0 if i % 2 == 0 else -1.0)
-		_marker(Vector3(x, y + 1.0, z), "spawn_point")
+	# 5 shooters + 2 exploders + 8 rushers, all on the CONNECTED floors (entrance ledge /
+	# pool chamber) where the navmesh reaches the player. The cavern-wall shooter ledges
+	# were removed (they read as extra side walls, shooters clipped into them, and the
+	# player could hop across to cheese them), so the shooters now overlook the puzzle from
+	# the entrance ledge (top) and the pool-chamber floor (bottom) instead.
+	var shooter_spots: Array[Vector3] = [
+		Vector3(-7.0, _y_summit + 1.0, _z_cavern_start - 6.0),
+		Vector3(0.0, _y_summit + 1.0, _z_cavern_start - 6.0),
+		Vector3(7.0, _y_summit + 1.0, _z_cavern_start - 6.0),
+		Vector3(-5.0, _y_pool_floor + 1.0, _z_pool + 7.0),
+		Vector3(5.0, _y_pool_floor + 1.0, _z_pool + 7.0),
+	]
+	for sp in shooter_spots:
+		_marker(sp, "spawn_point")
 	for i in 2:                                             # 2 exploders on the entrance ledge
 		var x := -6.0 if i == 0 else 6.0
 		_marker(Vector3(x, _y_summit + 1.0, _z_cavern_start - 8.0), "spawn_point")
