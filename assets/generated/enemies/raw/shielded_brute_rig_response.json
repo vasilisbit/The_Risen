@@ -1,0 +1,65 @@
+{
+  "rigged_character_glb": {
+    "url": "https://v3b.fal.media/files/b/0aa80d2a/Q0W9F4cRq5uVeN3QaWtDl_rigged_character.glb",
+    "content_type": "model/gltf-binary",
+    "file_name": "rigged_character.glb",
+    "file_size": 9883980
+  },
+  "rigged_character_fbx": {
+    "url": "https://v3b.fal.media/files/b/0aa80d15/unNFwhtR8q2BDxis5UeKR_rigged_character.fbx",
+    "content_type": "application/octet-stream",
+    "file_name": "rigged_character.fbx",
+    "file_size": 9759660
+  },
+  "basic_animations": {
+    "walking_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa80d15/4__dtz1fSPsG46MLfXZzD_walking.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "walking.glb",
+      "file_size": 9897840
+    },
+    "walking_fbx": {
+      "url": "https://v3b.fal.media/files/b/0aa80d15/CUiOJx9TM0ZT7Z0ik385r_walking.fbx",
+      "content_type": "application/octet-stream",
+      "file_name": "walking.fbx",
+      "file_size": 9784172
+    },
+    "walking_armature_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa80d15/xcQiZUJhJQ_rgXNmw68Qx_walking_armature.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "walking_armature.glb",
+      "file_size": 66684
+    },
+    "running_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa80d2b/Mt6CX1kFCjpYMECBb9bb6_running.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "running.glb",
+      "file_size": 9892592
+    },
+    "running_fbx": {
+      "url": "https://v3b.fal.media/files/b/0aa80d2a/z8KeO-O46q6d45oONvvUW_running.fbx",
+      "content_type": "application/octet-stream",
+      "file_name": "running.fbx",
+      "file_size": 9775740
+    },
+    "running_armature_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa80d2a/AszyK1lJpyTas0DpBC4LG_running_armature.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "running_armature.glb",
+      "file_size": 61432
+    }
+  },
+  "animation_glb": {
+    "url": "https://v3b.fal.media/files/b/0aa80d2d/JvZY32DYtuAupt0QYgF2A_animation.glb",
+    "content_type": "model/gltf-binary",
+    "file_name": "animation.glb",
+    "file_size": 9945804
+  },
+  "animation_fbx": {
+    "url": "https://v3b.fal.media/files/b/0aa80d18/WCGcmKA1Foc2VOuyQ_8zo_animation.fbx",
+    "content_type": "application/octet-stream",
+    "file_name": "animation.fbx",
+    "file_size": 9835196
+  },
+  "rig_task_id": "01a0447d-c136-7875-917b-6895b8e01e37"
+}

@@ -97,9 +97,8 @@ func _chase(delta: float) -> void:
 
 func _melee() -> void:
 	_melee_timer = MELEE_COOLDOWN
-	play_attack_animation()
-	if _player and _player.has_method("take_damage"):
-		_player.take_damage(MELEE_DAMAGE, "ShieldedBrute")
+	# Swing first, land the hit at the animation's contact point (EnemyBase).
+	melee_strike(MELEE_DAMAGE, "ShieldedBrute", MELEE_RANGE * 1.4)
 
 
 ## Ground slam: hard-radius AoE + knockback. Public so it is unit-testable.

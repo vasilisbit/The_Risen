@@ -1,0 +1,10 @@
+# raw/ holds large, regenerable intermediates (tools/gen_enemies.py +
+# tools/merge_enemy_anim.py): the meshes, rigged bind poses, walk/run/attack clips,
+# and the Godot .import sidecars + extracted textures they spawned before this dir was
+# .gdignore'd. Godot skips this dir (.gdignore), so none of it is needed in-engine -
+# the final <enemy>.glb one level up is what the game imports. Keep only the small
+# fal.ai response JSONs for reference.
+*
+!.gitignore
+!.gdignore
+!*_response.json

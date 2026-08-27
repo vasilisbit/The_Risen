@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://cidkmh40movc7" path="res://scripts/rusher.gd" id="1_vc0ui"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_727js"]
-radius = 0.6
-height = 1.1
+radius = 0.45
+height = 1.9
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ddulv"]
 albedo_color = Color(0.6, 0.12, 0.12, 1)
@@ -21,7 +21,7 @@ height = 1.8
 script = ExtResource("1_vc0ui")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=906462290]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
 shape = SubResource("CapsuleShape3D_727js")
 
 [node name="Mesh" type="MeshInstance3D" parent="." unique_id=1758583681]
@@ -31,4 +31,4 @@ mesh = SubResource("CapsuleMesh_wu13h")
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="." unique_id=1698967031]
 path_desired_distance = 0.5
-radius = 0.6
+radius = 0.5

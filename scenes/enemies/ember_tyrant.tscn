@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/ember_tyrant.gd" id="1_tyrant"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_tyrant"]
-radius = 1.2
+radius = 1.35
 height = 4.0
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_tyrant"]
@@ -24,4 +24,4 @@ mesh = SubResource("CapsuleMesh_tyrant")
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
 path_desired_distance = 0.8
 target_desired_distance = 1.5
-radius = 1.3
+radius = 1.4

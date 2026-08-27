@@ -312,6 +312,10 @@ func _portal_vfx(pos: Vector3) -> Node3D:
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
+	# "mission_hud" so the ship's board/lift-off cinematic hides the wave counter too
+	# (landed_ship._freeze_player hides this group); otherwise "Wave n/5  Enemies: x"
+	# stayed on screen over the [L] lift-off.
+	layer.add_to_group("mission_hud")
 	add_child(layer)
 	_label = Label.new()
 	# Directly UNDER the top-centre health/shield bar. Shows only the live wave count.

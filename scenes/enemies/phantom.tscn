@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dcx8k137xa2bi" path="res://scripts/phantom.gd" id="1_xraoj"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_q5kw4"]
-radius = 0.6
+radius = 0.55
 height = 2.4
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_ylqix"]
@@ -20,3 +20,8 @@ shape = SubResource("CapsuleShape3D_q5kw4")
 [node name="Mesh" type="MeshInstance3D" parent="." unique_id=989409631]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 mesh = SubResource("CapsuleMesh_ylqix")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.6
+target_desired_distance = 1.0
+radius = 0.6

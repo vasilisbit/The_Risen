@@ -1,12 +1,14 @@
 [gd_scene load_steps=2 format=3 uid="uid://crisenphantom01"]
 
-; Teleporting Phantom (Mars mini-boss) = Fab "ghoul_stylized_monster" (ghoul_ue5).
-; Auto-loaded by EnemyBase._apply_external_model for the Phantom class. The inner
-; transform normalises the FBX's native size/facing (model must face -Z).
+; Teleporting Phantom (Mars mini-boss) = custom fal.ai Hive-wizard wraith (T-0044).
+; Wrapper for EnemyBase._apply_external_model. Teal-soulfire Hive art direction
+; (teal skull, tattered robe, soulfire hands); rigged idle + walk (Meshy). Sized by
+; the rig (height_meters 2.4) so scale is 1.0. Faces -Z.
 
-[ext_resource type="PackedScene" uid="uid://cpqfx8f6ul6hi" path="res://assets/thirdparty/fab/ghoul_stylized_monster/ghoul_ue5.fbx" id="1_model"]
+[ext_resource type="PackedScene" uid="uid://dlk0e5vs04tqf" path="res://assets/generated/enemies/phantom.glb" id="1_model"]
 
 [node name="PhantomModel" type="Node3D"]
 
+; 180 deg about Y: Meshy model faces +Z; EnemyBase._face look_at points -Z at the player.
 [node name="Model" parent="." instance=ExtResource("1_model")]
-transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 0, 0, 0)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
