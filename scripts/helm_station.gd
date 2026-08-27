@@ -208,7 +208,7 @@ func _build_worlds() -> void:
 		# seated (see _update_marker_visibility).
 		label.visible = false
 		add_child(label)                # in-tree before setting the world position
-		label.global_position = pos + Vector3(0.0, radius + 1.5, 0.0)
+		label.global_position = pos + Vector3(0.0, radius + 2.5, 0.0)
 		_labels[mission] = label
 
 
