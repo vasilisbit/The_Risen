@@ -314,8 +314,12 @@ func _build_descent() -> void:
 	var ceil_y: float = _y_summit + 18.0
 	var wall_h: float = (ceil_y - (y_lava - 2.0)) + 4.0
 	var wall_my: float = (ceil_y + (y_lava - 2.0)) * 0.5
-	_box(Vector3(-CAVERN_HALF_WIDTH, wall_my, cav_mid_z), Vector3(T, wall_h, cav_len), _rock_dark)
-	_box(Vector3(CAVERN_HALF_WIDTH, wall_my, cav_mid_z), Vector3(T, wall_h, cav_len), _rock_dark)
+	# The flat rock SIDE walls are now INVISIBLE collision only (the player flagged the
+	# boxy side walls at the entrance/puzzle). The sides open onto the molten Venus horizon;
+	# the invisible walls still contain the player so nothing walks off into the void. The
+	# ceiling + far wall stay solid so the cavern is still capped and backed.
+	_collision_box(Vector3(-CAVERN_HALF_WIDTH, wall_my, cav_mid_z), Vector3(T, wall_h, cav_len))
+	_collision_box(Vector3(CAVERN_HALF_WIDTH, wall_my, cav_mid_z), Vector3(T, wall_h, cav_len))
 	_box(Vector3(0, ceil_y, cav_mid_z), Vector3(CAVERN_HALF_WIDTH * 2, T, cav_len), _rock_dark)
 	_box(Vector3(0, wall_my, cav_far_z), Vector3(CAVERN_HALF_WIDTH * 2, wall_h, T), _rock_dark)
 
@@ -331,6 +335,14 @@ func _build_descent() -> void:
 	var river_z: float = (field_start_z + field_end_z) * 0.5
 	_box(Vector3(0, y_lava - 1.5, river_z), Vector3(CAVERN_HALF_WIDTH * 2, 3, river_len), _lava)
 	_lava_area(Vector3(0, y_lava + 1.2, river_z), Vector3(CAVERN_HALF_WIDTH * 2, 5, river_len), Vector3.ZERO, RIVER_DPS)
+
+	# Back wall at the START of the jump puzzle: closes the void that showed behind the
+	# ground lava when you look back up the puzzle from the pool. It spans from the entrance
+	# ground level (_y_summit) down to a little below the lava surface, full cavern width.
+	var rw_top: float = _y_summit
+	var rw_bottom: float = y_lava - 2.0
+	_box(Vector3(0, (rw_top + rw_bottom) * 0.5, field_start_z),
+		Vector3(CAVERN_HALF_WIDTH * 2, rw_top - rw_bottom, T), _rock_dark)
 
 	_build_platforms()
 	# NOTE: the cavern-wall shooter LEDGES were removed - they read as extra side walls above
