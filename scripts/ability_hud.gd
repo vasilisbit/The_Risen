@@ -121,8 +121,13 @@ func _draw_super() -> void:
 				col if ready_now else col.darkened(0.35))
 
 
-## Six-armed swirl, echoing the super glyph in the reference.
+## Radiant super emblem (generated icon), falling back to the six-armed swirl.
+## The icon is drawn near-white so it reads whether the diamond behind it is the
+## dark "ready" fill or the tinted charge fill (a tint-coloured glyph vanishes
+## against the same-coloured charge). The swirl fallback keeps the passed tint.
 func _draw_super_glyph(c: Vector2, col: Color) -> void:
+	if UiIcons.blit_centered(self, "super", c, DIAMOND_HALF.x * 1.1, Color(0.97, 0.98, 1.0, 0.96)):
+		return
 	var arms := 6
 	for i in arms:
 		var a := TAU * float(i) / float(arms)
@@ -158,9 +163,13 @@ func _draw_tile(index: int, ability: Ability) -> void:
 		draw_rect(Rect2(pip.position, Vector2(pip.size.x * frac, PIP_HEIGHT)), tint.darkened(0.5))
 
 
-## Tile 0 is the grenade (a lobbed arc), tile 1 the melee (a strike).
+## Tile 0 is the grenade (a lobbed arc), tile 1 the melee (a strike). Prefers the
+## generated icons, falling back to the code-drawn glyphs.
 func _draw_tile_glyph(index: int, r: Rect2, col: Color) -> void:
 	var c := r.position + r.size * 0.5
+	if UiIcons.blit(self, "grenade" if index == 0 else "melee",
+			r.grow(-r.size.x * 0.16), col):
+		return
 	if index == 0:
 		# Grenade: a body with an arcing throw line over it.
 		draw_circle(c + Vector2(0, 5), 8.0, col)

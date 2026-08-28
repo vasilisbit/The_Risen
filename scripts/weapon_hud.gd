@@ -111,8 +111,11 @@ func _draw() -> void:
 
 
 ## Side-on silhouette per weapon type, so a glance at the stack tells you which
-## row is which without reading names. Barrel points left.
+## row is which without reading names. Barrel points left. Prefers the generated
+## icon, falling back to the code-drawn silhouette.
 func _draw_weapon_glyph(kind: String, c: Vector2, col: Color, scale: float) -> void:
+	if UiIcons.blit_centered(self, UiIcons.weapon_key(kind), c, 54.0 * scale, col):
+		return
 	var w := 34.0 * scale
 	var h := 7.0 * scale
 	match kind:

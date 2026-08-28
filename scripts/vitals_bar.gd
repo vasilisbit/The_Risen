@@ -72,6 +72,9 @@ func _draw() -> void:
 	_draw_bar(Vector2(0, SHIELD_H + GAP), BAR_W, HEALTH_H, _hp / _hp_max, hp_col)
 	# sh_x kept for symmetry / future inset tuning
 	sh_x = sh_x
+	# Emblem caps just left of the bars (generated icons; nothing drawn if absent).
+	UiIcons.blit_centered(self, "shield", Vector2(-15, SHIELD_H * 0.5), 16.0, SHIELD_COL)
+	UiIcons.blit_centered(self, "health", Vector2(-15, SHIELD_H + GAP + HEALTH_H * 0.5), 16.0, hp_col)
 
 
 ## One bar: dark track, coloured fill, segment ticks, and a bright top edge.

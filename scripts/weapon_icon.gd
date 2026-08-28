@@ -49,8 +49,11 @@ func _draw() -> void:
 
 
 ## Side-on weapon silhouette, barrel pointing left. Mirrors the weapon-HUD
-## glyphs so a gun reads the same in the inventory as it does on the HUD.
+## glyphs so a gun reads the same in the inventory as it does on the HUD. Prefers
+## the generated icon, falling back to the code-drawn silhouette.
 func _draw_weapon_glyph(kind_: String, c: Vector2, col: Color) -> void:
+	if UiIcons.blit_centered(self, UiIcons.weapon_key(kind_), c, minf(size.x, size.y) * 0.82, col):
+		return
 	var s := minf(size.x, size.y) / 56.0
 	var w := 40.0 * s
 	var h := 9.0 * s
@@ -77,8 +80,11 @@ func _draw_weapon_glyph(kind_: String, c: Vector2, col: Color) -> void:
 			draw_rect(Rect2(c + Vector2(w * 0.3, -h * 0.35), Vector2(w * 0.18, h * 0.8)), col)
 
 
-## Simple armour-piece silhouettes for the three slots.
+## Simple armour-piece silhouettes for the three slots. Prefers the generated
+## icon, falling back to the code-drawn silhouette.
 func _draw_armor_glyph(kind_: String, c: Vector2, col: Color) -> void:
+	if UiIcons.blit_centered(self, UiIcons.armor_key(kind_), c, minf(size.x, size.y) * 0.82, col):
+		return
 	var s := minf(size.x, size.y) / 56.0
 	var u := 13.0 * s
 	match kind_:

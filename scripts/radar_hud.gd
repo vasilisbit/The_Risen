@@ -53,6 +53,14 @@ func _draw() -> void:
 	draw_line(c - Vector2(r, 0), c + Vector2(r, 0), RING_DIM, 1.0)
 	draw_line(c - Vector2(0, r), c + Vector2(0, r), RING_DIM, 1.0)
 
+	# Cardinal tick marks framing the scope; the forward (top) tick is brightest so
+	# "up = where I'm facing" reads at a glance. Small HUD-polish pass (T-0045).
+	for i in 4:
+		var dir := Vector2(sin(TAU * float(i) / 4.0), -cos(TAU * float(i) / 4.0))
+		var tick := 7.0 if i == 0 else 4.0
+		var col := RING_COL if i == 0 else RING_DIM.lerp(RING_COL, 0.4)
+		draw_line(c + dir * (r + 1.0), c + dir * (r + 1.0 + tick), col, 2.0 if i == 0 else 1.0)
+
 	# radial sweep line
 	var sweep_dir := Vector2(sin(_sweep), -cos(_sweep))
 	draw_line(c, c + sweep_dir * r, RING_COL.lerp(Color(0, 0, 0, 0), 0.3), 1.5)
