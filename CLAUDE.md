@@ -171,6 +171,6 @@ trailer, **never push** unless asked. `git add` the `.uid` next to any new `.gd`
   `blit`/`weapon_key`/`armor_key`, cached, null when missing) and blitted-with-tint by
   `ability_hud`/`weapon_hud`/`weapon_icon`/`vitals_bar` (each keeps its old code-drawn
   glyph as a safe fallback). radar got a small cardinal-tick polish. Verified in-engine
-  (Earth HUD + inventory). ~$0.30 fal.
+  (Earth HUD + inventory). **~$1.95 fal** (13 nano-banana-pro images @ $0.15).
 - **TODO:** real audio (music/SFX); LOD/culling (T-0036/37) + downscale the 2–4K
   ground pngs ≤1024. Budget ~$10 of $20 spent.

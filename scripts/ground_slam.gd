@@ -12,7 +12,7 @@ extends MeleeAbility
 ## card: 3 m radius, 2 m of knockback.
 
 const DAMAGE := 250.0
-const RADIUS := 3.0
+const RADIUS := 3.5               # was 3.0 - clears the enemies' own melee range
 const KNOCKBACK := 2.0            # metres, exact (EnemyBase.apply_push)
 
 ## Enemies hit by the last slam - exposed for tests.
