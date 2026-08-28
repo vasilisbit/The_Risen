@@ -7,8 +7,9 @@ Music -> fal-ai/stable-audio-3/small/music/base/text-to-audio  (prompt, duration
 Files land in assets/generated/audio/{sfx,music}/*.mp3 and are picked up automatically
 by scripts/audio_manager.gd (it prefers a file over its code-synthesised fallback).
 
-    uv run python tools/gen_audio.py            # generate anything missing
-    uv run python tools/gen_audio.py --force    # regenerate everything
+    uv run python tools/gen_audio.py               # generate anything missing
+    uv run python tools/gen_audio.py --force       # regenerate everything
+    uv run python tools/gen_audio.py --only boss   # just one id (validate before a batch)
 
 Auth: FAL_KEY from .env.local (gitignored), same as tools/falgen.py.
 """
@@ -30,13 +31,41 @@ SFX = {
     "footstep": ("A single quick footstep boot scuff on hard ground, dry and short", 1, False),
     "wind": ("Eerie alien planet ambience: low howling desert wind with a faint hollow "
              "atmospheric drone, seamless loop", 15, True),
+    # Weapons — one shot per file (the game fires one per trigger pull), dry and punchy so
+    # rapid fire doesn't smear. Futuristic ballistic guns with a teal-energy metallic tail.
+    "auto_rifle": ("A single sharp futuristic assault rifle gunshot, fast light mechanical "
+                   "crack with a short metallic energy zap tail, dry close-up, no reverb", 0.7, False),
+    "shotgun": ("A single heavy sci-fi combat shotgun blast, deep punchy boom with a chunky "
+                "mechanical clack, powerful, dry close-up", 0.9, False),
+    "sniper": ("A single powerful futuristic sniper rifle shot, loud sharp supersonic crack "
+               "with a metallic ring and a quick tail, high-caliber, close-up", 1.0, False),
+    "hand_cannon": ("A single heavy sci-fi hand cannon revolver shot, deep booming gunshot "
+                    "with a metallic energy snap, powerful, dry close-up", 0.8, False),
+    "explosion": ("A punchy sci-fi grenade explosion, deep bass boom with a sharp debris crack "
+                  "and short crackling tail, close-up", 1.6, False),
+    "enemy_hit": ("A short wet impact hitting an alien creature, dull chitin-flesh thud with a "
+                  "faint energy squelch, dry and close", 0.5, False),
+    "player_hit": ("A heavy blunt impact on armor, dull metallic thud with a low painful crunch, "
+                   "dry close-up", 0.6, False),
+    "ui_hover": ("A soft short futuristic UI hover blip, clean subtle high-tech beep", 0.5, False),
+    "ui_click": ("A crisp futuristic UI confirm click, clean bright high-tech button press", 0.5, False),
 }
-# name -> (prompt, duration)
+# name -> (prompt, duration). Combat/boss loops the manager crossfades between; the file is
+# looped in engine, so ask for a seamless, evolving-but-uniform bed with no hard ending.
 MUSIC = {
     "hub": ("Calm ambient sci-fi space station music, slow atmospheric synth pads and gentle "
             "warm drones, floating, spacious and hopeful, no drums, no percussion, seamless loop", 45),
     "travel": ("Cinematic sci-fi space travel cue: a hopeful adventurous synth swell that builds "
                "and rises into a triumphant warp-jump hit, short stinger, orchestral electronic hybrid", 18),
+    "earth_combat": ("Driving sci-fi combat music for a firefight in ruined Earth city streets, "
+                     "pulsing electronic bass, steady militaristic drums, tense heroic synth "
+                     "ostinato, urgent and energetic, seamless loop, no ending", 40),
+    "mars_combat": ("Intense fast sci-fi combat music for a battle on Mars, aggressive distorted "
+                    "bass, hard fast percussion, dark driving synth arpeggios, relentless and "
+                    "adrenaline-fueled, seamless loop, no ending", 40),
+    "boss": ("Epic ominous sci-fi boss battle music, massive pounding war drums, dark brass and "
+             "choir stabs, menacing low drone, dread and grandeur, cinematic orchestral "
+             "electronic hybrid, seamless loop, no ending", 50),
 }
 
 
@@ -80,10 +109,15 @@ def run(model, payload, timeout=420):
 
 def main():
     force = "--force" in sys.argv
+    only = None
+    if "--only" in sys.argv:
+        only = set(sys.argv[sys.argv.index("--only") + 1].split(","))
     os.makedirs(SFX_DIR, exist_ok=True)
     os.makedirs(MUSIC_DIR, exist_ok=True)
 
     for sid, (prompt, dur, loop) in SFX.items():
+        if only is not None and sid not in only:
+            continue
         dest = os.path.join(SFX_DIR, sid + ".mp3")
         if os.path.exists(dest) and not force:
             print("skip", dest); continue
@@ -94,6 +128,8 @@ def main():
         print("  ->", dest, flush=True)
 
     for name, (prompt, dur) in MUSIC.items():
+        if only is not None and name not in only:
+            continue
         dest = os.path.join(MUSIC_DIR, name + ".mp3")
         if os.path.exists(dest) and not force:
             print("skip", dest); continue
