@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Generate The Risen's real audio on fal.ai (stdlib only; run via `uv run python`).
 
-SFX  -> fal-ai/elevenlabs/sound-effects/v2   (text, duration_seconds 0.5-22, loop)
+SFX   -> fal-ai/elevenlabs/sound-effects/v2   (text, duration_seconds 0.5-22, loop)
 Music -> fal-ai/stable-audio-3/small/music/base/text-to-audio  (prompt, duration)
+Voice -> fal-ai/elevenlabs/tts/multilingual-v2  (text, voice) -- Forge Master vendor lines (T-0029)
 
-Files land in assets/generated/audio/{sfx,music}/*.mp3 and are picked up automatically
-by scripts/audio_manager.gd (it prefers a file over its code-synthesised fallback).
+Files land in assets/generated/audio/{sfx,music}/*.mp3 (picked up automatically by
+scripts/audio_manager.gd, which prefers a file over its code-synthesised fallback) and
+assets/generated/audio/vendor/*.mp3 (played per-action by scripts/vendor_shop.gd, with a
+voice_lines.json metadata/licence sidecar written alongside).
 
     uv run python tools/gen_audio.py               # generate anything missing
     uv run python tools/gen_audio.py --force       # regenerate everything
@@ -18,9 +21,27 @@ import os, sys, time, json, urllib.request, urllib.error
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SFX_DIR = os.path.join(ROOT, "assets", "generated", "audio", "sfx")
 MUSIC_DIR = os.path.join(ROOT, "assets", "generated", "audio", "music")
+VOICE_DIR = os.path.join(ROOT, "assets", "generated", "audio", "vendor")
 
 SFX_MODEL = "fal-ai/elevenlabs/sound-effects/v2"
 MUSIC_MODEL = "fal-ai/stable-audio-3/small/music/base/text-to-audio"
+VOICE_MODEL = "fal-ai/elevenlabs/tts/multilingual-v2"  # ElevenLabs TTS ($0.10/1k chars)
+
+# Forge Master vendor voice (T-0029). A gruff, warm mid-30s male armourer. Each line is
+# tied to a SPECIFIC vendor action / tab so vendor_shop.gd can play the right one:
+#   buy     -> Weapons tab, weapon purchased
+#   upgrade -> Mods tab, mod installed (an upgrade)
+#   sell    -> Sell tab, item sold
+#   leave   -> shop closed / player leaves
+# male mid-30s voice = ElevenLabs "Adam" (deep, natural US male).
+VOICE_NAME = "Adam"
+# id -> spoken line
+VOICE = {
+    "buy": "This will serve you well.",
+    "upgrade": "Good upgrade, Guardian.",
+    "sell": "Thank you for selling that.",
+    "leave": "Return with honor.",
+}
 
 # id -> (prompt, duration_seconds, loop)
 SFX = {
@@ -63,6 +84,9 @@ MUSIC = {
     "mars_combat": ("Intense fast sci-fi combat music for a battle on Mars, aggressive distorted "
                     "bass, hard fast percussion, dark driving synth arpeggios, relentless and "
                     "adrenaline-fueled, seamless loop, no ending", 40),
+    "venus_combat": ("Brutal infernal sci-fi combat music for a firefight on volcanic Venus, "
+                     "molten low distorted bass, heavy tribal war drums, searing metallic synth "
+                     "leads, oppressive heat and menace, relentless, seamless loop, no ending", 40),
     "boss": ("Epic ominous sci-fi boss battle music, massive pounding war drums, dark brass and "
              "choir stabs, menacing low drone, dread and grandeur, cinematic orchestral "
              "electronic hybrid, seamless loop, no ending", 50),
@@ -137,6 +161,31 @@ def main():
         res = run(MUSIC_MODEL, {"prompt": prompt, "duration": dur, "output_format": "mp3"})
         urllib.request.urlretrieve(res["audio"]["url"], dest)
         print("  ->", dest, flush=True)
+
+    # Vendor voice lines (TTS). Also writes a metadata sidecar recording the exact text,
+    # voice, model and licence for each clip (prompt/licence provenance, T-0029).
+    os.makedirs(VOICE_DIR, exist_ok=True)
+    meta = {
+        "model": VOICE_MODEL, "voice": VOICE_NAME,
+        "voice_description": "gruff warm mid-30s male armourer (Forge Master vendor)",
+        "licence": ("Synthetic speech generated via fal.ai ElevenLabs Multilingual v2. Not a real "
+                    "person; usable under the fal.ai output licence. Commercial/IGF-safe."),
+        "lines": {},
+    }
+    for vid, text in VOICE.items():
+        dest = os.path.join(VOICE_DIR, vid + ".mp3")
+        meta["lines"][vid] = {"text": text, "file": vid + ".mp3"}
+        if only is not None and vid not in only:
+            continue
+        if os.path.exists(dest) and not force:
+            print("skip", dest); continue
+        print("VOICE", vid, flush=True)
+        res = run(VOICE_MODEL, {"text": text, "voice": VOICE_NAME,
+                                "stability": 0.45, "similarity_boost": 0.8, "style": 0.2})
+        urllib.request.urlretrieve(res["audio"]["url"], dest)
+        print("  ->", dest, flush=True)
+    with open(os.path.join(VOICE_DIR, "voice_lines.json"), "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
 
     print("done")
 

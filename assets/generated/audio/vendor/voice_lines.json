@@ -1,0 +1,24 @@
+{
+  "model": "fal-ai/elevenlabs/tts/multilingual-v2",
+  "voice": "Adam",
+  "voice_description": "gruff warm mid-30s male armourer (Forge Master vendor)",
+  "licence": "Synthetic speech generated via fal.ai ElevenLabs Multilingual v2. Not a real person; usable under the fal.ai output licence. Commercial/IGF-safe.",
+  "lines": {
+    "buy": {
+      "text": "This will serve you well.",
+      "file": "buy.mp3"
+    },
+    "upgrade": {
+      "text": "Good upgrade, Guardian.",
+      "file": "upgrade.mp3"
+    },
+    "sell": {
+      "text": "Thank you for selling that.",
+      "file": "sell.mp3"
+    },
+    "leave": {
+      "text": "Return with honor.",
+      "file": "leave.mp3"
+    }
+  }
+}

@@ -37,6 +37,14 @@ var _mods_list: VBoxContainer          # rows in the Mods tab, rebuilt on change
 var _buy_sound: AudioStreamPlayer
 var _error_sound: AudioStreamPlayer
 
+## Forge Master voice (T-0029). One player; per-action AudioStreamRandomizers hold the
+## generated line(s) for that action, so the right clip plays for the right tab/action
+## (buy / upgrade / sell / leave) with a little natural pitch variation, and extra takes
+## can be dropped into the same randomizer later. Absent files degrade silently.
+const VOICE_PATH := "res://assets/generated/audio/vendor/%s.mp3"
+var _voice: AudioStreamPlayer
+var _voice_lines: Dictionary = {}      # action -> AudioStreamRandomizer
+
 
 func _ready() -> void:
 	add_to_group("vendor_shop")
@@ -72,6 +80,7 @@ func _do_open() -> void:
 
 
 func close() -> void:
+	_say("leave")                           # "Return with honor."
 	# Fade out through black just like the open, so leaving the shop isn't a hard cut.
 	var gs := get_node_or_null("/root/GameState")
 	if gs and gs.has_method("fade_black_then"):
@@ -113,6 +122,7 @@ func buy_weapon(id: String) -> String:
 	if tel:
 		tel.vendor_interaction("buy", String(weapon["name"]), price)
 	_buy_sound.play()
+	_say("buy")                             # "This will serve you well."
 	_set_status("Purchased %s" % weapon["name"], false)
 	_refresh()
 	return "Purchased"
@@ -255,6 +265,7 @@ func _install_mod(weapon_id: String, mod_id: String) -> void:
 	var ok := status.begins_with("Installed")
 	if ok:
 		_buy_sound.play()
+		_say("upgrade")                     # "Good upgrade, Guardian."
 	else:
 		_error_sound.play()
 	_set_status(status, not ok)
@@ -359,6 +370,7 @@ func _sell(id: String, category: String) -> void:
 		_set_status("Can't sell your last weapon.", true)
 	else:
 		_buy_sound.play()
+		_say("sell")                        # "Thank you for selling that."
 		_set_status("Sold for %d Flux." % got, false)
 	_refresh()
 
@@ -370,6 +382,37 @@ func _build_audio() -> void:
 	_error_sound = AudioStreamPlayer.new()
 	_error_sound.stream = _make_beep(180.0, 0.14)
 	add_child(_error_sound)
+	_build_voice()
+
+
+## Load the generated Forge Master lines and wrap each in an AudioStreamRandomizer keyed by
+## the vendor action it belongs to. Missing files just leave that action silent.
+func _build_voice() -> void:
+	_voice = AudioStreamPlayer.new()
+	_voice.bus = "SFX" if AudioServer.get_bus_index("SFX") != -1 else "Master"
+	_voice.volume_db = 2.0                 # voice sits a touch above the beeps
+	add_child(_voice)
+	for action in ["buy", "upgrade", "sell", "leave"]:
+		var path := VOICE_PATH % action
+		if not ResourceLoader.exists(path):
+			continue
+		var stream := load(path)
+		if stream == null:
+			continue
+		var rnd := AudioStreamRandomizer.new()
+		rnd.add_stream(-1, stream)          # append (more takes can be added later)
+		rnd.random_pitch = 1.04             # subtle natural variation
+		rnd.random_volume_offset_db = 1.5
+		_voice_lines[action] = rnd
+
+
+## Speak the line tied to a vendor action (buy / upgrade / sell / leave), if it exists.
+func _say(action: String) -> void:
+	var rnd: AudioStreamRandomizer = _voice_lines.get(action)
+	if rnd == null or _voice == null:
+		return
+	_voice.stream = rnd
+	_voice.play()
 
 
 ## Build a short decaying sine blip as an AudioStreamWAV (no external assets).
