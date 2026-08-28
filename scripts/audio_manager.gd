@@ -36,6 +36,7 @@ const DIRECTOR_INTERVAL := 1.0     # s between track decisions
 const TRACK_HUB := "hub"
 const TRACK_COMBAT_EARTH := "earth_combat"
 const TRACK_COMBAT_MARS := "mars_combat"
+const TRACK_COMBAT_VENUS := "venus_combat"
 const TRACK_BOSS := "boss"
 const TRACK_TRAVEL := "travel"           # the Fold cutscene stinger (file-only)
 
@@ -91,7 +92,7 @@ func _exit_tree() -> void:
 ## Build every loop up front, off the main thread. Until a track lands in the
 ## cache the director simply retries a second later, so nothing stalls.
 func _warm_music() -> void:
-	for track in [TRACK_HUB, TRACK_COMBAT_EARTH, TRACK_COMBAT_MARS, TRACK_BOSS, TRACK_TRAVEL]:
+	for track in [TRACK_HUB, TRACK_COMBAT_EARTH, TRACK_COMBAT_MARS, TRACK_COMBAT_VENUS, TRACK_BOSS, TRACK_TRAVEL]:
 		var wav := _build_music(track)
 		if wav == null:
 			continue
@@ -202,7 +203,13 @@ func _wanted_track() -> String:
 			return TRACK_BOSS
 
 	if _enemy_engaged(player as Node3D):
-		return TRACK_COMBAT_MARS if scene == "Mars" else TRACK_COMBAT_EARTH
+		match scene:
+			"Mars":
+				return TRACK_COMBAT_MARS
+			"Venus":
+				return TRACK_COMBAT_VENUS
+			_:
+				return TRACK_COMBAT_EARTH
 	return TRACK_HUB
 
 
@@ -303,6 +310,8 @@ func _build_music(track: String) -> AudioStream:
 			wav = _make_combat(120.0, 55.0, 0.35)
 		TRACK_COMBAT_MARS:
 			wav = _make_combat(140.0, 41.2, 0.55)
+		TRACK_COMBAT_VENUS:
+			wav = _make_combat(150.0, 36.7, 0.7)   # faster + lower + grittier: Venus is hell
 		TRACK_BOSS:
 			wav = _make_boss()
 	if wav != null:
