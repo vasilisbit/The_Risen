@@ -14,10 +14,12 @@ extends Node
 ## buses, crossfades, attenuation, volume persistence - regardless of the source.
 ##
 ## Music is picked from world state rather than pushed by each scene: the
-## director looks at what is alive near the player once a second and chooses
-## ambient / combat / boss. That keeps the rules in one place instead of
-## scattering play_music() calls through every mission script, and it also
-## drops back out of combat on its own when a fight ends.
+## director decides once a second. Each planet has ONE continuous battle theme
+## that plays for the whole mission (it must not drop back to the calm hub bed
+## just because no enemy is momentarily nearby); a living boss anywhere overrides
+## it with the boss track; the hub and main menu use the calm ambient bed. That
+## keeps the rules in one place instead of scattering play_music() calls through
+## every mission script.
 
 signal track_changed(track: String)
 
@@ -29,7 +31,6 @@ const SFX_RATE := 22050
 const LOOP_SECONDS := 8.0          # every music loop is one 8 s phrase
 const CROSSFADE := 2.0             # s between tracks
 const MUSIC_DB := -12.0            # music sits under the effects
-const COMBAT_RANGE := 30.0         # m: an enemy this close counts as engaged
 const DIRECTOR_INTERVAL := 1.0     # s between track decisions
 
 ## Tracks, chosen by the director. "silent" is used before anything is playing.
@@ -202,24 +203,17 @@ func _wanted_track() -> String:
 		if is_instance_valid(b):
 			return TRACK_BOSS
 
-	if _enemy_engaged(player as Node3D):
-		match scene:
-			"Mars":
-				return TRACK_COMBAT_MARS
-			"Venus":
-				return TRACK_COMBAT_VENUS
-			_:
-				return TRACK_COMBAT_EARTH
+	# On a planet the world's battle theme plays for the WHOLE mission - continuously,
+	# not gated on an enemy being within range (that made the music cut out to the hub
+	# bed whenever you cleared the immediate area). Boss above still overrides it.
+	match scene:
+		"Earth":
+			return TRACK_COMBAT_EARTH
+		"Mars":
+			return TRACK_COMBAT_MARS
+		"Venus":
+			return TRACK_COMBAT_VENUS
 	return TRACK_HUB
-
-
-func _enemy_engaged(player: Node3D) -> bool:
-	for e in get_tree().get_nodes_in_group("enemy"):
-		if not is_instance_valid(e) or not (e is Node3D):
-			continue
-		if (e as Node3D).global_position.distance_to(player.global_position) <= COMBAT_RANGE:
-			return true
-	return false
 
 
 ## Crossfade to `track`. Public so scenes can force a cue if they ever need to.

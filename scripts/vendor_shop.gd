@@ -77,6 +77,7 @@ func _do_open() -> void:
 	visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().paused = true
+	_say("greeting")                        # "Welcome to the Vanguard Armoury, Guardian..."
 
 
 func close() -> void:
@@ -392,7 +393,7 @@ func _build_voice() -> void:
 	_voice.bus = "SFX" if AudioServer.get_bus_index("SFX") != -1 else "Master"
 	_voice.volume_db = 2.0                 # voice sits a touch above the beeps
 	add_child(_voice)
-	for action in ["buy", "upgrade", "sell", "leave"]:
+	for action in ["buy", "upgrade", "sell", "leave", "greeting"]:
 		var path := VOICE_PATH % action
 		if not ResourceLoader.exists(path):
 			continue
