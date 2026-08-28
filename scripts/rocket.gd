@@ -16,6 +16,8 @@ const SPLASH_RADIUS := 8.0
 const LIFETIME := 6.0
 const ARM_TIME := 0.15            # s of straight flight before it starts homing
 const COLOR := Color(1.0, 0.75, 0.25)
+const KNIFE_GLB := "res://assets/generated/vfx/flaming_knife.glb"
+const KNIFE_LENGTH := 0.75        # metres, blade tip to grip
 
 var target: Node3D
 var _dir: Vector3 = Vector3.UP
@@ -31,6 +33,27 @@ func setup(from: Vector3, initial_dir: Vector3, at: Node3D) -> void:
 
 
 func _ready() -> void:
+	_build_visual()
+	# An orange point light so the salvo streaks brightly even where the knife
+	# texture is dark - it reads as a molten projectile at speed.
+	var light := OmniLight3D.new()
+	light.omni_range = 4.5
+	light.light_energy = 1.8
+	light.light_color = COLOR
+	add_child(light)
+
+
+## The projectile mesh: the generated flaming-knife GLB when present, else the
+## original emissive capsule. The knife concept is a side view with the blade to
+## the LEFT (-X after align_image), so rotate it to point down -Z, which look_at()
+## keeps aimed along the flight path.
+func _build_visual() -> void:
+	var knife := MeshUtil.load_prop(KNIFE_GLB)
+	if knife != null:
+		add_child(knife)
+		MeshUtil.fit(knife, KNIFE_LENGTH)
+		knife.rotate_y(-PI / 2.0)
+		return
 	var mi := MeshInstance3D.new()
 	var body := CapsuleMesh.new()
 	body.radius = 0.12

@@ -172,5 +172,16 @@ trailer, **never push** unless asked. `git add` the `.uid` next to any new `.gd`
   `ability_hud`/`weapon_hud`/`weapon_icon`/`vitals_bar` (each keeps its old code-drawn
   glyph as a safe fallback). radar got a small cardinal-tick polish. Verified in-engine
   (Earth HUD + inventory). **~$1.95 fal** (13 nano-banana-pro images @ $0.15).
-- **TODO:** real audio (music/SFX); LOD/culling (T-0036/37) + downscale the 2–4K
-  ground pngs ≤1024. Budget ~$10 of $20 spent.
+- **Projectile props (`tools/gen_projectiles.py`, nano-banana-pro → Tripo H3.1):**
+  `assets/generated/vfx/flaming_knife.glb` (Storm Barrage super rockets) +
+  `assets/generated/venus/molten_rock.glb` (Venus volcano magma bombs) replace the
+  code capsule/sphere. Wired via `scripts/mesh_util.gd` (`MeshUtil.load_prop`/`fit`) —
+  a runtime AABB-fit + recenter so an arbitrary-scale GLB sits where the primitive did,
+  with the primitive kept as a fallback. `rocket.gd` rotates the knife (blade -X after
+  align_image) to fly down -Z + adds an orange light; `magma_rock.gd` tumbles the rock.
+  Extracted glTF textures (Color/NormalGL/ORM jpg + .import) are committed; `raw/` is
+  `.gdignore`d. Verified in a throwaway scene. ~$0.30 fal.
+- **Vendor icons:** the Forge Master shop (`vendor_shop.gd`) buy tiles, sell rows and
+  mods headers now use the shared `LootIcon` (`_loot_icon()`) so the T-0045 weapon/armour
+  icons show there too (was a plain rarity `ColorRect`).
+- **TODO:** LOD/culling (T-0036/37) + downscale the 2–4K ground pngs ≤1024. ~$25 fal spent.
