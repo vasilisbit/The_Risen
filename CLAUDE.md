@@ -161,5 +161,16 @@ trailer, **never push** unless asked. `git add` the `.uid` next to any new `.gd`
   nano-banana→PATINA PBR ground + per-planet sky shader + runtime fog atmosphere).
   Per-planet batch generators: `gen_earth_buildings.py`/`gen_earth_chunks.py`,
   `gen_mars_rocks.py`/`gen_mars_structures.py`, `gen_venus_rocks.py`/`gen_venus_textures.py`.
+- **`assets/generated/ui/` (T-0045, UI icon set):** 12 flat WHITE monochrome HUD
+  glyphs with a clean alpha channel (super/grenade/melee, the 4 weapon types,
+  helmet/chest/gauntlets, shield/health). Made by `tools/gen_ui_icons.py`:
+  nano-banana-pro renders each as a *pure white glyph on solid black* (unambiguous),
+  then Pillow keys luminance→alpha (black→transparent) and forces RGB white, so each
+  icon tints cleanly in-engine. `raw/` keeps the white-on-black sources (`.gdignore`d
+  so Godot never imports them). Loaded by `scripts/ui_icons.gd` (`UiIcons.get_icon`/
+  `blit`/`weapon_key`/`armor_key`, cached, null when missing) and blitted-with-tint by
+  `ability_hud`/`weapon_hud`/`weapon_icon`/`vitals_bar` (each keeps its old code-drawn
+  glyph as a safe fallback). radar got a small cardinal-tick polish. Verified in-engine
+  (Earth HUD + inventory). ~$0.30 fal.
 - **TODO:** real audio (music/SFX); LOD/culling (T-0036/37) + downscale the 2–4K
   ground pngs ≤1024. Budget ~$10 of $20 spent.
