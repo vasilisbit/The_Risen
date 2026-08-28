@@ -11,11 +11,14 @@ const SPLASH_DAMAGE := 20.0       # anyone caught in the impact radius
 const SPLASH_RADIUS := 3.5
 const LIFETIME := 9.0             # safety cap so a stray bomb can't live forever
 
+const MOLTEN_ROCK_GLB := "res://assets/generated/venus/molten_rock.glb"
+const ROCK_SIZE := 1.1            # metres, longest axis (was a 1.0 m sphere)
+
 var _vel: Vector3 = Vector3.ZERO
 var _life: float = 0.0
 var _target_y: float = 0.0
 var _done: bool = false
-var _mesh: MeshInstance3D
+var _mesh: Node3D                 # the tumbling visual (generated rock GLB or a sphere)
 
 
 func _ready() -> void:
@@ -79,20 +82,29 @@ func _impact() -> void:
 
 
 func _build_visual() -> void:
-	_mesh = MeshInstance3D.new()
-	var rock := SphereMesh.new()
-	rock.radius = 0.5
-	rock.height = 1.0
-	rock.radial_segments = 8
-	rock.rings = 5
-	_mesh.mesh = rock
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.14, 0.05, 0.03)              # charred crust
-	m.emission_enabled = true
-	m.emission = Color(1.0, 0.4, 0.08)                    # molten glow
-	m.emission_energy_multiplier = 3.2
-	_mesh.material_override = m
-	add_child(_mesh)
+	# Prefer the generated molten-rock GLB (charred basalt crust + glowing lava
+	# cracks); fall back to the emissive low-poly sphere when it is missing.
+	var glb := MeshUtil.load_prop(MOLTEN_ROCK_GLB)
+	if glb != null:
+		_mesh = glb
+		add_child(_mesh)
+		MeshUtil.fit(_mesh, ROCK_SIZE)
+	else:
+		var mi := MeshInstance3D.new()
+		var rock := SphereMesh.new()
+		rock.radius = 0.5
+		rock.height = 1.0
+		rock.radial_segments = 8
+		rock.rings = 5
+		mi.mesh = rock
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.14, 0.05, 0.03)              # charred crust
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.4, 0.08)                    # molten glow
+		m.emission_energy_multiplier = 3.2
+		mi.material_override = m
+		_mesh = mi
+		add_child(_mesh)
 	# Light so it visibly streaks over the slope as it flies.
 	var light := OmniLight3D.new()
 	light.omni_range = 9.0

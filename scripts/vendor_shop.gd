@@ -1,8 +1,9 @@
 extends Control
 ## Forge Master vendor shop (T-0005). Built programmatically so the .tscn stays
 ## trivial. Opens on interact (E) with the ForgeMaster; 3 tabs
-## (Weapons/Armor/Consumables); the Weapons tab has 4 slots with placeholder
-## rarity icons, stats and Flux prices. Buying deducts Flux, adds the weapon to
+## (Weapons/Mods/Sell); the Weapons tab has 4 slots with the generated T-0045
+## weapon icons (LootIcon, tinted by rarity), stats and Flux prices - the buy,
+## sell and mods rows all share `_loot_icon()`. Buying deducts Flux, adds it to
 ## SaveManager.owned_weapons and persists via SaveManager.save_game(); an already
 ## owned weapon shows "Owned"; insufficient Flux shows an error and buys nothing.
 
@@ -214,11 +215,16 @@ func _make_mod_weapon_panel(item: Dictionary) -> PanelContainer:
 	col.add_theme_constant_override("separation", 4)
 	panel.add_child(col)
 
+	var head_row := HBoxContainer.new()
+	head_row.add_theme_constant_override("separation", 8)
+	col.add_child(head_row)
+	head_row.add_child(_loot_icon(String(item.get("name", "?")), rarity, false, 32))
 	var head := Label.new()
 	head.text = "%s  [%s]   -   %d/%d slots" % [String(item.get("name", "?")), rarity, mods.size(), slots]
 	head.add_theme_font_size_override("font_size", 15)
 	head.add_theme_color_override("font_color", RARITY_COLORS.get(rarity, Color.WHITE))
-	col.add_child(head)
+	head.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head_row.add_child(head)
 
 	if slots == 0:
 		col.add_child(_dim_label("No mod slots - Rare or better weapons only."))
@@ -333,10 +339,7 @@ func _make_sell_row(item: Dictionary, category: String) -> PanelContainer:
 	row.add_theme_constant_override("separation", 12)
 	row_panel.add_child(row)
 
-	var swatch := ColorRect.new()
-	swatch.color = RARITY_COLORS.get(rarity, Color.WHITE)
-	swatch.custom_minimum_size = Vector2(10, 40)
-	row.add_child(swatch)
+	row.add_child(_loot_icon(String(item.get("name", "?")), rarity, category == "armor", 44))
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -727,10 +730,7 @@ func _make_weapon_tile(weapon: Dictionary) -> Control:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 10)
 	v.add_child(top)
-	var icon := ColorRect.new()
-	icon.color = RARITY_COLORS.get(weapon["rarity"], Color.WHITE)
-	icon.custom_minimum_size = Vector2(42, 42)
-	top.add_child(icon)
+	top.add_child(_loot_icon(String(weapon["name"]), String(weapon["rarity"]), false, 42))
 	var nm := VBoxContainer.new()
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(nm)
@@ -755,6 +755,16 @@ func _make_weapon_tile(weapon: Dictionary) -> Control:
 	return card
 
 
+## A boxed loot icon (the same LootIcon the inventory + HUD use), drawing the
+## generated weapon/armour glyph tinted by rarity - shared by the shop's buy,
+## sell and mods rows so every menu shows the T-0045 icons, not a colour block.
+func _loot_icon(kind: String, rarity: String, is_armor: bool, px: float) -> LootIcon:
+	var ic := LootIcon.new()
+	ic.custom_minimum_size = Vector2(px, px)
+	ic.configure(kind, rarity, is_armor)
+	return ic
+
+
 ## Dark rounded row panel, matching the inventory rows.
 func _styled_panel() -> PanelContainer:
 	var p := PanelContainer.new()
@@ -772,10 +782,7 @@ func _make_weapon_row(weapon: Dictionary) -> PanelContainer:
 	row.add_theme_constant_override("separation", 12)
 	row_panel.add_child(row)
 
-	var icon := ColorRect.new()
-	icon.color = RARITY_COLORS.get(weapon["rarity"], Color.WHITE)
-	icon.custom_minimum_size = Vector2(48, 48)
-	row.add_child(icon)
+	row.add_child(_loot_icon(String(weapon["name"]), String(weapon["rarity"]), false, 48))
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
