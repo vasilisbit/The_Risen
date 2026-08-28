@@ -3,12 +3,15 @@ extends Node
 ## AudioManager autoload (T-0034). Owns the bus layout, the music director and
 ## the shared SFX synth.
 ##
-## GDD §5.3 specifies Suno AI music and Freesound SFX. This project has a
-## standing zero-external-asset policy (see the GDQuest licensing decision in
-## the devlog), and no audio files exist in the repo, so every track and effect
-## here is SYNTHESISED IN CODE. The system is real - buses, crossfades,
-## attenuation, volume persistence - and swapping in authored audio later is
-## just assigning a different stream to the same players.
+## GDD §5.3 specifies Suno AI music and Freesound SFX. Every track and effect is
+## also SYNTHESISED IN CODE as a fallback, so the game is playable with no audio
+## files present. In practice the real audio is generated on fal.ai (Stable Audio
+## music + ElevenLabs SFX, tools/gen_audio.py) and lives under
+## assets/generated/audio/{music,sfx}; _build_music / _sfx / _load_*_file prefer a
+## file over the synth loop, so a present clip wins and a missing one degrades to
+## the synth. As of 2026-08-28 every director track (hub/earth_combat/mars_combat/
+## boss/travel) and the gameplay SFX ship as generated files. The system is real -
+## buses, crossfades, attenuation, volume persistence - regardless of the source.
 ##
 ## Music is picked from world state rather than pushed by each scene: the
 ## director looks at what is alive near the player once a second and chooses
