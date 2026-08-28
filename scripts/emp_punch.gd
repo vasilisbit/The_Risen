@@ -11,8 +11,8 @@ extends MeleeAbility
 
 const DAMAGE := 80.0
 const STUN := 3.0
-const REACH := 2.0
-const HALF_ARC_DEG := 45.0        # narrower than the blade: it's a punch
+const REACH := 3.0                # was 2.0 - reach the enemies that are meleeing us
+const HALF_ARC_DEG := 55.0        # narrower than the blade: it's a punch
 
 ## Enemies hit / stunned by the last punch - exposed for tests.
 var last_hits: int = 0

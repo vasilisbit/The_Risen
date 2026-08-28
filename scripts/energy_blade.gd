@@ -6,8 +6,9 @@ extends MeleeAbility
 ## card calls for "πολλαπλοί στόχοι" and it is the whole point of a slash.
 
 const DAMAGE := 200.0
-const REACH := 1.5
-const HALF_ARC_DEG := 60.0        # 120 degree swing in front of the player
+const REACH := 3.0                # was 1.5 - enemies engage/strike from 2-2.8 m, so
+                                  # the old blade whiffed on things that were hitting us
+const HALF_ARC_DEG := 65.0        # 130 degree swing in front of the player
 
 ## Enemies hit by the last swing - exposed for tests.
 var last_hits: int = 0

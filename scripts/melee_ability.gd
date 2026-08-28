@@ -55,6 +55,12 @@ func _hit(target: Node, amount: float) -> void:
 ## Enemies inside a cone in front of the player: within `reach` metres and
 ## within `half_angle_deg` of where they are facing. Used by the blade and
 ## punch, which are directional; the slam uses the radius helper instead.
+##
+## Distance is measured to the enemy's body surface, not its origin: a big
+## boss (scale 3-4) has its origin at its feet, metres from the player it is
+## looming over, so measuring origin-to-origin whiffed on exactly the enemies
+## that were meleeing us. Subtracting the enemy's collision radius makes reach
+## line up with what the player sees.
 func _targets_in_cone(reach: float, half_angle_deg: float) -> Array:
 	var origin: Vector3 = player.global_position
 	var facing: Vector3 = -player.global_transform.basis.z
@@ -68,10 +74,11 @@ func _targets_in_cone(reach: float, half_angle_deg: float) -> Array:
 			continue
 		var to: Vector3 = (e as Node3D).global_position - origin
 		to.y = 0.0
-		if to.length() > reach:
+		var surface := to.length() - _enemy_radius(e)
+		if surface > reach:
 			continue
-		if to.length() < 0.01:
-			found.append(e)          # standing inside us: always hit
+		if surface < 0.01:
+			found.append(e)          # standing inside us / overlapping: always hit
 			continue
 		if rad_to_deg(facing.angle_to(to.normalized())) <= half_angle_deg:
 			found.append(e)
@@ -87,9 +94,31 @@ func _targets_in_radius(reach: float) -> Array:
 			continue
 		var to: Vector3 = (e as Node3D).global_position - origin
 		to.y = 0.0
-		if to.length() <= reach:
+		if to.length() - _enemy_radius(e) <= reach:
 			found.append(e)
 	return found
+
+
+## Approximate horizontal radius of an enemy's body, from its first
+## CollisionShape3D scaled into world space (falls back to its node scale).
+## Cached per enemy so a swing does not re-walk every body it touches.
+func _enemy_radius(e: Node) -> float:
+	if not (e is Node3D):
+		return 0.0
+	if e.has_meta("_melee_radius"):
+		return float(e.get_meta("_melee_radius"))
+	var r := 0.5
+	var shapes := (e as Node).find_children("*", "CollisionShape3D", true, false)
+	if not shapes.is_empty():
+		var shape: Shape3D = (shapes[0] as CollisionShape3D).shape
+		if shape is SphereShape3D or shape is CapsuleShape3D or shape is CylinderShape3D:
+			r = shape.radius
+		elif shape is BoxShape3D:
+			r = maxf(shape.size.x, shape.size.z) * 0.5
+	var s: Vector3 = (e as Node3D).global_transform.basis.get_scale()
+	r *= maxf(s.x, s.z)
+	e.set_meta("_melee_radius", r)
+	return r
 
 
 ## Flat expanding disc in front of / around the player, standing in for the

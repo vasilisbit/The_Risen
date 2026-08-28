@@ -186,10 +186,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		begin_boarding()
 
 
-## True when the player is close enough to board the parked ship.
+## True when the player is close enough to board the parked ship - and alive.
+## A dead/respawning Guardian must not board (they can die on the pad; boarding
+## then would strand them in the leave-mission cinematic mid-death).
 func _player_near() -> bool:
 	var p := get_tree().get_first_node_in_group("player") as Node3D
-	return p != null and p.global_position.distance_to(global_position) <= BOARD_RANGE
+	if p == null or ("is_dead" in p and p.is_dead):
+		return false
+	return p.global_position.distance_to(global_position) <= BOARD_RANGE
 
 
 ## Keep the 3rd-person camera aimed at the ship during a cinematic; otherwise show the
