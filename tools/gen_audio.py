@@ -35,12 +35,18 @@ VOICE_MODEL = "fal-ai/elevenlabs/tts/multilingual-v2"  # ElevenLabs TTS ($0.10/1
 #   leave   -> shop closed / player leaves
 # male mid-30s voice = ElevenLabs "Adam" (deep, natural US male).
 VOICE_NAME = "Adam"
-# id -> spoken line
+# id -> spoken line.
+#   greeting        -> played once when the shop menu opens
+#   bark_1..bark_3  -> idle lines the hub clerk says at random when the player is near him
 VOICE = {
     "buy": "This will serve you well.",
     "upgrade": "Good upgrade, Guardian.",
     "sell": "Thank you for selling that.",
     "leave": "Return with honor.",
+    "greeting": "Welcome to the Vanguard Armoury, Guardian. Let's forge something deadly.",
+    "bark_1": "Every weapon here is forged for war.",
+    "bark_2": "Bring me your Flux, Guardian, and I'll bring you firepower.",
+    "bark_3": "Stay sharp out there. The dark doesn't wait.",
 }
 
 # id -> (prompt, duration_seconds, loop)

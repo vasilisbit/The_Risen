@@ -357,6 +357,10 @@ func _build_vendor_stall() -> void:
 		var idle := Node.new()
 		idle.set_script(load("res://scripts/forge_master_idle.gd"))
 		clerk.add_child(idle)
+		# Idle voice barks near him in the hub (hub bay only - not the vendor screen).
+		var barks := Node.new()
+		barks.set_script(load("res://scripts/forge_master_barks.gd"))
+		clerk.add_child(barks)
 
 	var bar := CollisionShape3D.new()
 	var bshape := BoxShape3D.new()
