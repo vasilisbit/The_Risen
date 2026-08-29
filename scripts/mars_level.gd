@@ -465,6 +465,14 @@ func _place_struct(nm: String, pos: Vector3, rot_y: float, target_size: float, s
 		col.shape = box
 		col.position = world.position + world.size * 0.5
 		add_child(col)
+		# Occlusion culling (T-0031): a conservative solid box inside the structure so
+		# the renderer skips geometry it hides. Inset like Earth's buildings.
+		var occ := OccluderInstance3D.new()
+		var ob := BoxOccluder3D.new()
+		ob.size = Vector3(world.size.x * 0.7, world.size.y * 0.9, world.size.z * 0.7)
+		occ.occluder = ob
+		occ.position = world.position + world.size * 0.5
+		add_child(occ)
 	return m
 
 
