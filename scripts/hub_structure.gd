@@ -177,11 +177,32 @@ func _col_rot(center: Vector3, size: Vector3, rot_z: float) -> void:
 
 
 ## Cool ambient down the length + a warm pool at the vendor. No dark zones.
+## Plus a dim, cool "starlight" directional raked down through the front canopy: its
+## job is not to light the room (the omnis do that) but to throw soft god-ray shafts
+## into the interior haze where the canopy frame breaks it up — the atmospheric beat
+## the reference cockpit is loved for. Energy is deliberately low so it reads as a
+## volumetric shaft, not a second key light; the shafts live in the volumetric fog
+## (light_volumetric_fog_energy boosts its in-scatter) set on the hub Environment.
 func _build_lighting() -> void:
 	_omni(Vector3(0, 3.7, -2.0), 16.0, 2.0, Color(0.80, 0.86, 1.0))
 	_omni(Vector3(0, 3.7, 4.0), 16.0, 2.0, Color(0.82, 0.88, 1.0))
 	_omni(Vector3(0, 3.7, 9.5), 15.0, 2.0, Color(0.85, 0.90, 1.0))
 	_omni(Vector3(0, 2.8, 10.8), 9.0, 2.6, Color(1.0, 0.80, 0.50))
+	_canopy_god_ray()
+
+
+func _canopy_god_ray() -> void:
+	var sun := DirectionalLight3D.new()
+	sun.name = "CanopyGodRay"
+	# Rake in from beyond the canopy (front, -Z) and above, angling down into the room.
+	sun.rotation_degrees = Vector3(-34.0, 176.0, 0.0)
+	sun.light_color = Color(0.62, 0.76, 1.0)
+	sun.light_energy = 0.45
+	sun.light_volumetric_fog_energy = 3.0     # emphasise the shafts in the haze
+	sun.shadow_enabled = true                 # canopy frame breaks the beam into shafts
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.shadow_bias = 0.06
+	add_child(sun)
 
 
 ## ------------------------------------------------------- kept systems
