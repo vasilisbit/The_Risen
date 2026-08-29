@@ -184,4 +184,14 @@ trailer, **never push** unless asked. `git add` the `.uid` next to any new `.gd`
 - **Vendor icons:** the Forge Master shop (`vendor_shop.gd`) buy tiles, sell rows and
   mods headers now use the shared `LootIcon` (`_loot_icon()`) so the T-0045 weapon/armour
   icons show there too (was a plain rarity `ColorRect`).
-- **TODO:** LOD/culling (T-0036/37) + downscale the 2–4K ground pngs ≤1024. ~$25 fal spent.
+- **Performance pass (T-0031/T-0036/T-0037, game `f498d66`):** DONE. 180 runtime textures
+  downscaled to budget (ground/interior/planet/char ≤1024, prop/rock model jpgs ≤512, FP
+  weapon/viewmodel ≤1024 — 174.7 MB reclaimed) via `tools/downscale_textures.py`; the ground
+  PBR PNGs were imported LOSSLESS + no-mipmaps → 42 `.import` fixed to VRAM-compressed + mipmaps
+  (`tools/fix_texture_imports.py`). In-engine texture memory **755→480 MB**, VRAM 1017→749.
+  Enemy LOD = `visibility_range_end` 75 m + dithered self-fade (`enemy_base._apply_lod`, Ember
+  Tyrant exempt); GLB auto-LOD already on; `mesh_lod` threshold 1→2 px. Occlusion culling
+  enabled project-wide + `BoxOccluder3D` per solid building (Earth) / structure (Mars). Earth
+  skyline (~330 nodes) → one `MultiMeshInstance3D`. Verified hub/Earth/Mars/Venus; the
+  authoritative 60fps@1080p/20-enemy check runs on the RTX 2060 (session baseline was iGPU).
+  ~$25 fal spent (no new gen this pass).
