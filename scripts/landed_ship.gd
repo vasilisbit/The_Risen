@@ -287,7 +287,7 @@ func _show_prompt(text: String) -> void:
 		_prompt.position = Vector2(-160, -120)
 		_prompt.custom_minimum_size = Vector2(320, 0)
 		_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_prompt.add_theme_font_size_override("font_size", 26)
+		_prompt.add_theme_font_size_override("font_size", 22)
 		_prompt.add_theme_color_override("font_color", Color(1.0, 0.82, 0.34))
 		_prompt.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 		_prompt.add_theme_constant_override("outline_size", 6)
