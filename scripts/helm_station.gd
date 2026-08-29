@@ -39,6 +39,12 @@ const YAW_LIMIT := deg_to_rad(22.0)
 const PITCH_LIMIT := deg_to_rad(15.0)
 const LOOK_SENS := 0.0022
 
+## To take the helm you must be near the chair AND looking at it (crosshair on the
+## seat), not merely standing beside it. This is the cosine of the aim cone half-
+## angle: the angle between the camera forward and the direction to the seat must
+## be under ~21 deg. Resolution-independent (an angle, not a pixel radius).
+const AIM_DOT := 0.93
+
 ## Hold [F] this long, with a world under the reticle, to Fold to it. The reticle
 ## locks the nearest marker within PICK_RADIUS screen pixels of centre.
 const HOLD_TIME := 1.2
@@ -355,7 +361,7 @@ func _build_hud() -> void:
 	_hud.layer = 10
 	add_child(_hud)
 
-	_reticle = _mk_label("+", 34, HORIZONTAL_ALIGNMENT_CENTER)
+	_reticle = _mk_label("+", 34, HORIZONTAL_ALIGNMENT_CENTER, Color(0.9, 0.95, 1.0))
 	_reticle.set_anchors_preset(Control.PRESET_CENTER)
 	_reticle.position = Vector2(-10, -22)
 	_hud.add_child(_reticle)
@@ -380,7 +386,7 @@ func _build_hud() -> void:
 	_fold_bar.add_theme_stylebox_override("fill", fg)
 	_hud.add_child(_fold_bar)
 
-	_hint = _mk_label("[E] Leave Helm", 18, HORIZONTAL_ALIGNMENT_CENTER)
+	_hint = _mk_label("[E] Leave Helm", 22, HORIZONTAL_ALIGNMENT_CENTER)
 	_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
@@ -399,12 +405,17 @@ func _build_hud() -> void:
 	_set_seated_hud(false)
 
 
-func _mk_label(text: String, size: int, align: int) -> Label:
+## Shared gold interaction-prompt colour — identical to the hub interact/deploy
+## prompt (debug_hud) and the landed-ship board prompt, so every "point at
+## something" text reads the same. The aiming reticle passes a neutral colour.
+const PROMPT_GOLD := Color(1.0, 0.82, 0.34)
+
+func _mk_label(text: String, size: int, align: int, color := PROMPT_GOLD) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = align
 	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", Color(0.85, 0.93, 1.0))
+	l.add_theme_color_override("font_color", color)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	l.add_theme_constant_override("outline_size", 6)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -418,11 +429,40 @@ func _process(delta: float) -> void:
 		_update_prompt()
 
 
-## Not seated: show the "take the helm" prompt when the player is close enough.
+## Not seated: show the "take the helm" prompt only when the player is close AND
+## pointing at the chair (see _can_sit) - so it isn't a stray prompt whenever you
+## happen to walk past the seat.
 func _update_prompt() -> void:
+	_sit_prompt.visible = _can_sit()
+
+
+## True only when the player is within reach of the chair AND aiming at it.
+func _can_sit() -> bool:
 	var p := _find_player()
-	var near := p != null and p.global_position.distance_to(SEAT_ANCHOR) <= SIT_RANGE
-	_sit_prompt.visible = near
+	if p == null or p.global_position.distance_to(SEAT_ANCHOR) > SIT_RANGE:
+		return false
+	return _aiming_at_seat()
+
+
+## Is the crosshair on the chair? The angle between the player camera's forward and
+## the direction from the camera to the seat must fall inside the AIM_DOT cone.
+func _aiming_at_seat() -> bool:
+	var cam := _player_camera()
+	if cam == null:
+		return false
+	var aim := Vector3(SEAT_ANCHOR.x, 1.0, SEAT_ANCHOR.z)   # the seat body, not the floor
+	var to_seat := aim - cam.global_position
+	if to_seat.length() < 0.05:
+		return true
+	var fwd := -cam.global_transform.basis.z
+	return fwd.normalized().dot(to_seat.normalized()) >= AIM_DOT
+
+
+func _player_camera() -> Camera3D:
+	var p := _find_player()
+	if p == null:
+		return null
+	return p.get_node_or_null("SpringArm3D/Camera3D") as Camera3D
 
 
 func _find_player() -> Node3D:
@@ -516,8 +556,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("interact"):
-		var p := _find_player()
-		if p != null and p.global_position.distance_to(SEAT_ANCHOR) <= SIT_RANGE:
+		if _can_sit():
 			_take_helm()
 			get_viewport().set_input_as_handled()
 

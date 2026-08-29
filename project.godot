@@ -16,6 +16,14 @@ run/main_scene="res://ui/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
+[display]
+
+window/size/viewport_width=1152
+window/size/viewport_height=648
+window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
 [autoload]
 
 SaveManager="*res://scripts/save_manager.gd"

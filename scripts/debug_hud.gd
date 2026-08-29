@@ -30,8 +30,10 @@ func _ready() -> void:
 	prompt.offset_top = 28.0
 	prompt.offset_bottom = 58.0
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	prompt.add_theme_font_size_override("font_size", 18)
-	prompt.add_theme_color_override("font_color", Color(0.95, 0.9, 0.7))
+	# Shared interaction-prompt style (gold), kept identical across every "[E]…"
+	# world prompt: hub interact/deploy (here), the helm, and the landed ship.
+	prompt.add_theme_font_size_override("font_size", 22)
+	prompt.add_theme_color_override("font_color", Color(1.0, 0.82, 0.34))
 	prompt.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	prompt.add_theme_constant_override("outline_size", 6)
 	prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
