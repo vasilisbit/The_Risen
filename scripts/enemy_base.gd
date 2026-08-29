@@ -197,7 +197,33 @@ func _apply_external_model() -> void:
 					(placeholder as Node3D).visible = false
 				_apply_model_tint(inst)
 				_wire_model_animation(inst)
+				_apply_lod(inst)
 				return
+
+
+## LOD (T-0031): fade distant enemies out so a full 20-enemy wave doesn't pay the
+## full skinned-vertex cost across the whole level. The generated GLBs already carry
+## auto-generated mesh LODs (`meshes/generate_lods` on import) that shed triangles
+## with distance; this adds a FAR CULL with a dithered self-fade so an enemy well
+## out of engagement range costs nothing to draw, with no hard pop-in (the mesh
+## dissolves over the margin band). The cull distance is per-enemy so a large
+## arena boss stays visible far longer than a rusher (see `_lod_cull_distance`).
+func _apply_lod(inst: Node3D) -> void:
+	var cull := _lod_cull_distance()
+	if cull <= 0.0:
+		return  # boss / never-cull
+	for m in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		mi.visibility_range_end = cull
+		mi.visibility_range_end_margin = cull * 0.18   # dither-fade band before the cull
+		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+
+
+## Distance (m) at which this enemy fades out. 0 disables culling (arena bosses).
+## Regular enemies use 75 m — beyond effective engagement range for these weapons,
+## so it never hides something you could meaningfully fight. Subclasses override.
+func _lod_cull_distance() -> float:
+	return 75.0
 
 
 ## Some models (Fab FBX) ship without their textures and render flat white; a

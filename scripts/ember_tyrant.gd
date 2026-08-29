@@ -99,6 +99,12 @@ func external_model_tint() -> Material:
 	return null
 
 
+## Never distance-cull the iconic 3-phase arena boss (T-0031 LOD) — it stays drawn
+## across the whole Venus arena.
+func _lod_cull_distance() -> float:
+	return 0.0
+
+
 func nameplate_head_y() -> float:
 	return 4.7
 

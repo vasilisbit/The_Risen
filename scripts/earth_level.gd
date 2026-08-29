@@ -110,9 +110,24 @@ func _place_chunk(row: Array) -> void:
 		col.shape = box
 		col.position = world.position + world.size * 0.5
 		add_child(col)
+		_add_box_occluder(world)                       # cull geometry hidden behind it (T-0031)
 	else:
 		for node in m.find_children("*", "MeshInstance3D", true, false):
 			(node as MeshInstance3D).create_trimesh_collision()   # solid, walkable-around
+
+
+## Occlusion culling (T-0031): a conservative solid box INSIDE the building mass so
+## the renderer skips whatever it hides. Deliberately smaller than the visual/collider
+## footprint (occluders must stay inside solid geometry or they wrongly cull visible
+## objects); ruined facades have gaps, but the lower/central mass is solid enough to
+## occlude the dense city behind it. Requires rendering/occlusion_culling enabled.
+func _add_box_occluder(world: AABB, footprint: float = 0.7, height_frac: float = 0.9) -> void:
+	var occ := OccluderInstance3D.new()
+	var box := BoxOccluder3D.new()
+	box.size = Vector3(world.size.x * footprint, world.size.y * height_frac, world.size.z * footprint)
+	occ.occluder = box
+	occ.position = world.position + world.size * 0.5
+	add_child(occ)
 
 
 func _world_aabb(root: Node3D) -> AABB:
@@ -294,26 +309,45 @@ func _build_skyline() -> void:
 		[-185.0, -95.0,  -60.0,  150.0, 16, 40.0, 100.0],  # deep left backdrop
 		[  95.0, 185.0,  -60.0,  150.0, 16, 40.0, 100.0],  # deep right backdrop
 	]
+	# All ~330 towers + crowns collapse into ONE MultiMeshInstance3D (T-0031): a shared
+	# unit cube scaled per instance, with the per-building brightness jitter carried as
+	# a per-instance colour instead of a per-node material_override. ~330 draw calls +
+	# nodes -> 1. Background only (no collision, no shadows).
+	var xforms: Array[Transform3D] = []
+	var colors: PackedColorArray = PackedColorArray()
 	for b in bands:
 		for i in int(b[4]):
 			var x: float = rng.randf_range(b[0], b[1])
 			var z: float = rng.randf_range(b[2], b[3])
 			var hgt: float = rng.randf_range(b[5], b[6])
 			var w := Vector3(rng.randf_range(8.0, 20.0), hgt, rng.randf_range(8.0, 20.0))
-			_skyline_box(Vector3(x, hgt * 0.5, z), w, rng)
+			var center := Vector3(x, hgt * 0.5, z)
+			var v: float = rng.randf_range(0.72, 1.0)
+			var col := Color(v, v * 1.02, v * 1.06)          # subtle cool jitter
+			xforms.append(Transform3D(Basis().scaled(w), center))
+			colors.append(col)
+			if rng.randf() < 0.55:                            # broken/stepped crown
+				var ts := Vector3(w.x * rng.randf_range(0.3, 0.7),
+					rng.randf_range(4.0, 16.0), w.z * rng.randf_range(0.3, 0.7))
+				var tc := center + Vector3(rng.randf_range(-w.x * 0.25, w.x * 0.25),
+					w.y * 0.5 + ts.y * 0.5, rng.randf_range(-w.z * 0.25, w.z * 0.25))
+				xforms.append(Transform3D(Basis().scaled(ts), tc))
+				colors.append(col)
+	_emit_skyline(xforms, colors)
 
 
-func _skyline_box(center: Vector3, size: Vector3, rng: RandomNumberGenerator) -> void:
-	# Windowed war-damaged facade (fal.ai nano-banana + PATINA) triplanar-mapped so
-	# the distant towers read as real skyscrapers, with a per-building brightness/tint
-	# jitter for variety. Falls back to a flat grey-blue tint if the texture is absent.
+## Build the single skyline MultiMesh from the collected per-instance transforms +
+## brightness colours. Windowed war-damaged facade (fal.ai nano-banana + PATINA)
+## triplanar-mapped so the distant towers read as real skyscrapers; instance colours
+## modulate it (vertex_color_use_as_albedo). Falls back to a flat grey-blue tint if
+## the texture is absent.
+func _emit_skyline(xforms: Array[Transform3D], colors: PackedColorArray) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.roughness = 1.0
+	mat.vertex_color_use_as_albedo = true                    # per-instance colour -> albedo
 	var facade: Texture2D = _gen_tex("skyscraper_facade")
 	if facade != null:
-		var v: float = rng.randf_range(0.72, 1.0)
 		mat.albedo_texture = facade
-		mat.albedo_color = Color(v, v * 1.02, v * 1.06)      # subtle cool jitter
 		mat.uv1_triplanar = true
 		mat.uv1_scale = Vector3(0.045, 0.045, 0.045)         # ~1 facade tile / 22 m
 		var n: Texture2D = _gen_tex("skyscraper_facade_normal")
@@ -324,27 +358,21 @@ func _skyline_box(center: Vector3, size: Vector3, rng: RandomNumberGenerator) ->
 		if r != null:
 			mat.roughness_texture = r
 			mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-	else:
-		var g: float = rng.randf_range(0.40, 0.60)
-		mat.albedo_color = Color(g * 0.90, g * 0.96, g * 1.10)
-	var mesh := MeshInstance3D.new()
-	var bm := BoxMesh.new(); bm.size = size
-	mesh.mesh = bm
-	mesh.position = center
-	mesh.material_override = mat
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mesh)
-	if rng.randf() < 0.55:                                    # broken/stepped crown
-		var tb := BoxMesh.new()
-		tb.size = Vector3(size.x * rng.randf_range(0.3, 0.7),
-			rng.randf_range(4.0, 16.0), size.z * rng.randf_range(0.3, 0.7))
-		var top := MeshInstance3D.new()
-		top.mesh = tb
-		top.position = center + Vector3(rng.randf_range(-size.x * 0.25, size.x * 0.25),
-			size.y * 0.5 + tb.size.y * 0.5, rng.randf_range(-size.z * 0.25, size.z * 0.25))
-		top.material_override = mat
-		top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(top)
+	var bm := BoxMesh.new()
+	bm.size = Vector3.ONE                                     # unit cube, scaled per instance
+	bm.material = mat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = bm
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+		mm.set_instance_color(i, colors[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
 
 
 ## INVISIBLE containment barriers around the street corridor: the player is kept in
