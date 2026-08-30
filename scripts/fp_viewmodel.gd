@@ -123,9 +123,16 @@ func _build_overlay() -> void:
 
 
 func _process(delta: float) -> void:
-	var win := get_window().size
-	if _viewport.size != win:
-		_viewport.size = win
+	# Size the viewmodel viewport to the 2D CONTENT rect (the window-stretch base,
+	# aspect-matched under canvas_items), NOT the raw OS window size. The overlay
+	# TextureRect is a full-rect Control that lives in that base space, so matching the
+	# viewport to it keeps the composite 1:1 and frames the gun exactly as at the base
+	# resolution; the window stretch then scales the whole overlay uniformly with the
+	# rest of the UI. (Feeding it the raw window size mismatched the full-rect base
+	# space, so STRETCH_KEEP_ASPECT_COVERED rescaled the arms back/small on maximize.)
+	var content := Vector2i(get_viewport().get_visible_rect().size)
+	if content.x > 0 and content.y > 0 and _viewport.size != content:
+		_viewport.size = content
 	# Ease the recoil back to rest.
 	var t := clampf(RECOIL_RECOVER * delta, 0.0, 1.0)
 	_recoil = _recoil.lerp(Vector3.ZERO, t)
