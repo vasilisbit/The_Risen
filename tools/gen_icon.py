@@ -1,23 +1,28 @@
 """Generate the game's window/app icon emblem via fal.ai (nano-banana-pro).
 
-Writes build/icon_source.png (1:1). Then run tools/make_icon.py to flood-fill the
-corners and emit build/windows_icon.ico + icon.png. Committed source so the icon is
-reproducible. ~$0.15 fal.
+A minimalist, symmetric emblem in the spirit of a clean single-colour game crest
+(bold silhouette + subtle grunge) but ORIGINAL to The Risen: a "rising Guardian"
+mark, off-white with a sliver of teal soulfire, rendered on flat black so
+make_icon.py can key the background to full transparency.
+
+Writes build/icon_source.png (1:1). Then run tools/make_icon.py to key out the
+black background and emit build/windows_icon.ico + icon.png. ~$0.15 fal.
 
 Run:  uv run --no-project python tools/gen_icon.py
 """
-import subprocess, os, sys
+import subprocess, os
 
 HERE = os.path.dirname(__file__) or "."
 PROMPT = (
-    "App icon / game logo emblem for a sci-fi first-person looter-shooter titled THE "
-    "RISEN. A single bold centered emblem: a stylized armored Guardian helmet seen "
-    "head-on, smooth dark gunmetal plating with clean facets, a glowing teal-cyan energy "
-    "visor slit and thin cracks of teal soulfire light, subtle brushed-gold trim edges, "
-    "sitting on a very dark navy near-black background with a soft circular teal rim-glow "
-    "behind it. Flat modern app-icon style, strong silhouette, high contrast, crisp, "
-    "minimal, iconic, perfectly centered square composition, readable when shrunk to a "
-    "tiny size, NO text, NO letters, professional game icon."
+    "A minimalist flat vector emblem logo for a sci-fi game called THE RISEN. A single "
+    "bold, symmetric mark suggesting a RISING guardian ascending: a strong central "
+    "vertical spire flanked by two clean upswept angular wing-like prongs sweeping upward "
+    "and outward from a solid base, simple geometric silhouette. The shape is a solid "
+    "off-white / light silver-grey with a subtle weathered speckled grunge texture, and a "
+    "single thin sliver of glowing teal-cyan soulfire light runs up the central core. "
+    "Minimalist iconic game crest, perfectly symmetric, bold negative space, centered, "
+    "on a pure flat solid black background (#000000, no gradient). High contrast, crisp "
+    "clean edges, no text, no letters, no numbers, no watermark, no logo type."
 )
 out = os.path.join(HERE, "..", "build", "icon_source.png")
 subprocess.run([

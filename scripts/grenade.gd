@@ -13,6 +13,11 @@ extends RigidBody3D
 
 const DEFAULT_NAME := "Grenade"
 const DEFAULT_COLOR := Color(0.8, 0.8, 0.8)
+## Generated themed casing (gunmetal + gold + teal soulfire), shared by all types;
+## the payload colour still reads on the detonation burst. Falls back to the
+## code-built primitive if the GLB is missing.
+const GRENADE_GLB := "res://assets/generated/vfx/grenade.glb"
+const SOULFIRE := Color(0.25, 0.95, 0.85)   # teal core glow, matches the model
 
 const FUSE := 2.5                 # s from throw to detonation (longer throw needs it)
 const BODY_RADIUS := 0.13
@@ -28,6 +33,7 @@ const LINEAR_DAMP := 0.5
 var _fuse_left: float = FUSE
 var _detonated: bool = false
 var _mat: StandardMaterial3D
+var _light: OmniLight3D           # pulsing soulfire glow (GLB path); fuse readability
 
 
 func _ready() -> void:
@@ -106,12 +112,26 @@ func _build_body() -> void:
 	phys.friction = FRICTION
 	physics_material_override = phys
 
-	# A little sci-fi grenade instead of a bare ball: a gunmetal capsule casing
-	# with a glowing element band (the payload colour, which pulses on the fuse)
-	# and a small fuse cap. All parented to a holder so it tumbles as one.
+	# All visuals under a holder so they tumble as one with the rigid body.
 	var model := Node3D.new()
 	add_child(model)
 
+	# Preferred: the generated themed grenade (gunmetal + gold + teal soulfire core).
+	# A pulsing teal light makes the armed fuse read in flight; the payload colour
+	# still shows on the detonation burst (_burst uses _colour()).
+	var glb := MeshUtil.load_prop(GRENADE_GLB)
+	if glb != null:
+		model.add_child(glb)
+		MeshUtil.fit(glb, BODY_RADIUS * 2.4)
+		_light = OmniLight3D.new()
+		_light.light_color = SOULFIRE
+		_light.omni_range = 2.4
+		_light.light_energy = 1.2
+		model.add_child(_light)
+		return
+
+	# Fallback: a code-built sci-fi grenade - a gunmetal capsule casing with a
+	# glowing element band (the payload colour, which pulses on the fuse) and a cap.
 	var casing := StandardMaterial3D.new()
 	casing.albedo_color = Color(0.16, 0.17, 0.20)
 	casing.metallic = 0.85
@@ -153,12 +173,13 @@ func _build_body() -> void:
 
 ## Blink faster as the fuse runs down, so the throw is readable in flight.
 func _pulse() -> void:
-	if _mat == null:
-		return
 	var t := 1.0 - clampf(_fuse_left / FUSE, 0.0, 1.0)
 	var rate := lerpf(4.0, 18.0, t)
 	var wave := 0.5 + 0.5 * sin(_fuse_left * rate)
-	_mat.emission_energy_multiplier = lerpf(1.0, 5.0, wave)
+	if _mat != null:
+		_mat.emission_energy_multiplier = lerpf(1.0, 5.0, wave)
+	if _light != null:
+		_light.light_energy = lerpf(0.8, 3.6, wave)
 
 
 ## Subclasses declare GRENADE_COLOR; read it off the actual script.
