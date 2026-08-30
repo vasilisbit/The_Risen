@@ -166,8 +166,26 @@ func _draw() -> void:
 		var has3d: bool = i < _planet3d.size() and _planet3d[i] != null
 		if not has3d:
 			_draw_menu_planet(MENU_PLANETS[i], vp, _planet_tex[i] if i < _planet_tex.size() else null)
+	# On-screen disc (centre + px radius) of each planet at this frame, so the starfield
+	# is NOT painted over the worlds - otherwise the drifting stars show THROUGH the
+	# planets and they read as see-through. Same Lissajous the planets themselves use.
+	var discs: Array = []
+	for i in MENU_PLANETS.size():
+		var info: Dictionary = MENU_PLANETS[i]
+		var orbit: float = float(info["orbit"])
+		var sway: Vector2 = info["sway"]
+		var offset := Vector2(sin(_time * orbit) * sway.x, cos(_time * orbit * 0.73) * sway.y)
+		# +2 px so edge stars don't peek past the sphere's antialiased rim.
+		discs.append({"c": (Vector2(info["pos"]) + offset) * vp, "r": float(info["radius"]) + 2.0})
 	for s in _stars:
 		var p := Vector2(s.x * vp.x, s.y * vp.y)
+		var occluded := false
+		for d in discs:
+			if p.distance_to(d["c"]) <= float(d["r"]):
+				occluded = true
+				break
+		if occluded:
+			continue
 		var a: float = 0.25 + 0.55 * s.z
 		# Twinkle, keyed off each star's own speed so they don't pulse in sync.
 		a *= 0.75 + 0.25 * sin(_time * (1.0 + s.z * 3.0) + s.y * 20.0)

@@ -7,7 +7,7 @@
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_rx1gp"]
 geometry_parsed_geometry_type = 1
-agent_height = 1.8
+agent_height = 2.0
 
 [node name="Mars" type="Node3D" unique_id=679572922]
 
