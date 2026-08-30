@@ -16,14 +16,6 @@ run/main_scene="res://ui/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
-[display]
-
-window/size/viewport_width=1152
-window/size/viewport_height=648
-window/size/resizable=true
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
-
 [autoload]
 
 SaveManager="*res://scripts/save_manager.gd"
@@ -35,6 +27,13 @@ Difficulty="*res://scripts/difficulty.gd"
 ShipTravel="*res://scripts/ship_travel.gd"
 PauseMenu="*res://scripts/pause_menu.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [editor_plugins]
 
