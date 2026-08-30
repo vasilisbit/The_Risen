@@ -27,12 +27,14 @@ const CAM_OFFSET := Vector3(16.0, 9.0, 24.0)
 ## How close the player must be to the ship to board it, and where to go on lift-off.
 const BOARD_RANGE := 8.0
 const HUB_SCENE := "res://scenes/hub/hub.tscn"
+const CREDITS_SCENE := "res://ui/credits.tscn"
 
 var _parked_y: float = 0.0
 var _busy: bool = false
 var _boardable: bool = false        # true once landed - the player may board to leave
 var _prompt_shown: bool = false
 var _await_liftoff: bool = false
+var _completed_run: bool = false        # true when boarding via the extraction (mission cleared), not a manual early [E] board
 var _cine_cam: Camera3D
 var _player: Node3D
 var _player_cam: Camera3D
@@ -128,9 +130,10 @@ func _end_landing() -> void:
 ## Boarding: swap to a 3rd-person view of the ship and wait for the player to press [L]
 ## to lift off. Reached by walking up to the ship ([E]) any time during a mission, or from
 ## ExtractionCountdown at mission end. On lift-off the ship flies up and returns to the hub.
-func begin_boarding() -> void:
+func begin_boarding(from_extraction := false) -> void:
 	if _ship == null or _busy:
 		return
+	_completed_run = from_extraction
 	_busy = true
 	_boardable = false
 	_hide_prompt()
@@ -161,16 +164,35 @@ func _return_home() -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	# After the in-engine climb, play the LIFT-OFF cinematic (the ship leaves the atmosphere
-	# and docks into the mothership where it rests); it then dissolves to the hub. Falls back
-	# to the plain transition if the clip / ShipTravel is missing, so extraction never stalls.
+	# and docks into the mothership where it rests); it then dissolves to the destination. Falls
+	# back to the plain transition if the clip / ShipTravel is missing, so extraction never stalls.
+	# Clearing Venus on the hardest tier (Legendary) rolls the credits between the orbit
+	# cinematic and the hub; the roll then continues into the hub itself.
+	var dest := HUB_SCENE
+	if _completed_run and _venus_legendary_cleared():
+		Credits.next_scene = HUB_SCENE
+		dest = CREDITS_SCENE
 	var st := get_node_or_null("/root/ShipTravel")
-	if st and st.has_method("play_liftoff") and st.play_liftoff(HUB_SCENE):
+	if st and st.has_method("play_liftoff") and st.play_liftoff(dest):
 		return
 	var gs := get_node_or_null("/root/GameState")
 	if gs and gs.has_method("transition_to"):
-		gs.transition_to(HUB_SCENE)
+		gs.transition_to(dest)
 	else:
-		get_tree().change_scene_to_file(HUB_SCENE)
+		get_tree().change_scene_to_file(dest)
+
+
+## True when the run just finished IS the Venus mission played on Legendary (the hardest
+## tier). Read from the Difficulty autoload, which resolves the mission from the scene and
+## the effective tier from the save; safe (returns false) if the autoload is absent.
+func _venus_legendary_cleared() -> bool:
+	var diff := get_node_or_null("/root/Difficulty")
+	if diff == null:
+		return false
+	var mid := String(diff.current_mission()) if diff.has_method("current_mission") else ""
+	if mid != "Venus":
+		return false
+	return diff.has_method("current") and String(diff.current(mid)) == "Legendary"
 
 
 func _unhandled_input(event: InputEvent) -> void:

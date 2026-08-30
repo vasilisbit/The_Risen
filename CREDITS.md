@@ -1,43 +1,78 @@
 # Credits
 
-Third-party and generated assets used in The Risen, with their licenses. Add a
-row **when you add the asset** — CC-BY sources legally require attribution, and
-this is also the source list for the in-game credits screen (T-0039).
+The people, tools and assets behind **The Risen**. This is the source list for the
+in-game credits roll (`ui/credits.tscn`, T-0039) and mirrors the planning repo's
+`docs/ASSET_LIST.md` 1:1 — keep the three in sync.
 
-CC0 assets need no attribution but are listed here for provenance.
+CC0 assets need no attribution but are listed for provenance. Only assets that
+actually **ship and render** in the build are credited; retired placeholders are
+noted at the bottom.
 
-## Art & 3D models
+## Developer
+
+**Vasileios Bitzas** — design, programming, art direction (solo).
+
+## Engine & tools
+
+| Tool | Provider | License | Use |
+|---|---|---|---|
+| Godot Engine 4.7 | Godot Foundation | MIT | Game engine (GDScript) |
+| Godot AI (`addons/godot_ai`) | Godot AI | MCP dev tool | AI-assisted in-editor work |
+| Blender 5.2 | Blender Foundation | GPL (tool) | Mesh authoring, rig merges |
+| fal.ai | fal.ai | Paid-plan API (commercial output) | Hosted generative models (below) |
+
+## Art & 3D — AI-generated (fal.ai, user's paid plan)
+
+| Asset | fal endpoints |
+|---|---|
+| Guardian + first-person viewmodel | nano-banana-pro → Meshy v7 + rigging |
+| Weapons ×4 (Auto Rifle/Shotgun/Sniper/Hand Cannon) | nano-banana-pro → Tripo H3.1 |
+| Enemies + bosses ×6 | nano-banana-pro → Meshy v7 + rigging |
+| Forge Master vendor | nano-banana-pro → Meshy v7 + rigging |
+| Ship, interior, planets | nano-banana-pro → Tripo H3.1 (+ Blender cockpit) |
+| Environments + PBR textures | nano-banana-pro → Tripo H3.1 → fal-ai/patina |
+| Projectile / hazard props | nano-banana-pro → Tripo H3.1 |
+| UI / HUD icons ×12 | nano-banana-pro |
+
+## Audio — AI-generated (fal.ai)
+
+| Asset | fal endpoint |
+|---|---|
+| Music (hub, travel, Earth/Mars/Venus combat, boss) | Stable Audio 3 |
+| SFX (guns, explosion, hits, footstep, wind, warp, engine, UI) | ElevenLabs sound-effects |
+| Vendor voice (Forge Master lines + barks) | ElevenLabs TTS |
+
+## Cinematics — AI-generated (fal.ai)
+
+| Asset | fal endpoints |
+|---|---|
+| Fold approach clips + lift-off-to-orbit clip | nano-banana-pro → Bytedance Seedance 2.0 |
+
+## Third-party assets (shipped)
 
 | Asset | Author / source | License | Where used |
 |---|---|---|---|
-| Sci-Fi Essentials Kit | Quaternius (quaternius.com) | CC0 | Weapon viewmodels (Auto Rifle/Sniper/Hand Cannon), enemy models (Rusher=QuadShell, Shooter=EyeDrone, Exploder=Trilobite), hub props (desks/lockers/crates/barrels) |
-| Weapons FREE - Low Poly Pack (`shotgun_001`) | Fab | Fab (free, commercial-safe) | Shotgun weapon viewmodel |
-| skm_robot3 | Fab | Fab (free, commercial-safe) | Forge Master vendor clerk (hub) + the vendor screen portrait. Ships without its base-colour texture, so it is painted gunmetal in code |
-| Universal Base Characters (`Superhero_Male_FullBody`) | Quaternius | CC0 | Guardian model shown in the inventory screen (placeholder until the Phase-3 rig) |
-| rock_collection_04 (`SM_Rock_*`) | Fab | Fab (free, commercial-safe) | Venus ascent rock cover; material-overridden to volcanic rock |
-| 3D Planet Generator | Rémi / naejimer (github) | MIT | Installed at `addons/naejimer_3d_planet_generator` (tried for the window planet; currently the custom shader is used) |
-| ghoul_stylized_monster | Fab | Fab (free, commercial-safe) | Teleporting Phantom boss model (Mars) |
-| monster (Monster UE) | Fab | Fab (free, commercial-safe) | Ember Tyrant final boss model (Venus) |
-| Blaster Kit | Kenney (kenney.nl) | CC0 | (available, no longer wired - replaced by Sci-Fi Essentials guns) |
-| _(planned)_ KayKit Space Base Bits | Kay Lousberg (kaylousberg.itch.io) | CC0 | Larger station structures (Phase 2 cont.) |
-| _(planned)_ Universal Base Characters + Animation Library | Quaternius | CC0 | Player character (Phase 3) |
+| Sci-Fi Essentials Kit | Quaternius (quaternius.com) | CC0 | Hub props — chairs, chests, crates, barrels, lockers, shelves |
+| 3D Planet Generator addon | Rémi "naejimer" (github) | MIT | Included at `addons/naejimer_3d_planet_generator` (evaluated; the custom shader ships instead) |
 
-## Audio
+## fal.ai models
 
-| Asset | Author / source | License | Where used |
-|---|---|---|---|
-| _(none yet — all audio is procedurally synthesised)_ | | | |
+nano-banana-pro / edit · Tripo H3.1 & P1 image/text-to-3d · Meshy v7 multi-image-to-3d
++ rigging · fal-ai/patina · Stable Audio 3 · ElevenLabs sound-effects & TTS ·
+Bytedance Seedance 2.0
 
-## AI-generated assets
+## Special thanks
 
-Record the tool **and the plan/tier** you generated on (the tier determines the
-license), plus the date.
+The Godot Engine community · the Blender & open-source 3D community · fal.ai ·
+Quaternius for years of CC0 game art · friends, family & every playtester.
 
-| Asset | Tool + tier | Date | License | Where used |
-|---|---|---|---|---|
-| _(none yet)_ | | | | |
+## Retired during M8 (no longer rendered, not credited)
+
+Fab `skm_robot3`, Fab `shotgun_001`, Fab `monster` / `ghoul_stylized_monster`,
+Quaternius Universal Base Characters, Fab `rock_collection_04`, KayKit Space Base
+Bits, Kenney Blaster Kit — all replaced by the AI-generated assets above.
 
 ---
 
-See `docs/ASSET_SOURCES.md` for vetted sources and the licensing rules for this
-project (IGF = commercial: no CC-BY-NC).
+See `docs/ASSET_SOURCES.md` for vetted sources and licensing rules (IGF =
+commercial: CC0 / Fab / paid-AI only, no CC-BY-NC).

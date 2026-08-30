@@ -125,7 +125,7 @@ func _extract() -> void:
 		_going = true
 		if _label:
 			_label.visible = false
-		_ship.begin_boarding()          # no-op if the player is already boarding
+		_ship.begin_boarding(true)      # no-op if the player is already boarding; true = real extraction (mission cleared)
 	else:
 		_return_to_ship()
 

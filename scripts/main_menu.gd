@@ -260,6 +260,9 @@ func _activate(index: int) -> void:
 		"settings":
 			if _settings:
 				_settings.open()
+		"credits":
+			# The roll returns to the main menu by default (Credits.next_scene).
+			_go("res://ui/credits.tscn")
 		"quit":
 			_show_confirm()
 
@@ -342,6 +345,7 @@ func _build_ui() -> void:
 		{"id": "continue", "text": "CONTINUE", "hint": "Resume your last-played slot"},
 		{"id": "load", "text": "LOAD GAME", "hint": "Choose a saved slot"},
 		{"id": "settings", "text": "SETTINGS", "hint": "Audio, graphics, controls"},
+		{"id": "credits", "text": "CREDITS", "hint": "The people and tools behind The Risen"},
 		{"id": "quit", "text": "QUIT", "hint": "Leave the game"},
 	]
 	for i in defs.size():
