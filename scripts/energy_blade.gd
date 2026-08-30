@@ -29,5 +29,8 @@ func _strike() -> void:
 
 
 func _execute() -> void:
-	_swing_vfx(REACH)
+	# Swept energy-arc slash (flare_cross arc + edge sparks) instead of the flat disc.
+	var facing: Vector3 = -player.global_transform.basis.z
+	var at: Vector3 = player.global_position + Vector3(0, 1.1, 0) + facing.normalized() * (REACH * 0.4)
+	VfxKit.slash(_host(), at, facing, ability_color, REACH)
 	_strike()

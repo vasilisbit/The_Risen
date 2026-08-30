@@ -13,13 +13,18 @@ extends Ability
 const DURATION := 5.0
 const MELEE_MULT := 3.0
 const CHARGE_COLOR := Color(0.55, 0.75, 1.0)
+## Energy-crackle aura via the shared shield shader (docs/VFX_FAL_RESEARCH.md §11.5).
+const AURA_SHADER := "res://shaders/shield_dome.gdshader"
+const CRACKLE_TEX := "res://assets/generated/vfx/tex/voronoi.png"
+const NOISE_TEX := "res://assets/generated/vfx/tex/noise_fbm.png"
 
 ## Live state, exposed for the HUD and tests.
 var active: bool = false
 var time_left: float = 0.0
 
 var _aura: MeshInstance3D
-var _mat: StandardMaterial3D
+var _mat: StandardMaterial3D          # fallback flat material
+var _shader: ShaderMaterial           # preferred crackle material
 
 
 func _init() -> void:
@@ -44,7 +49,8 @@ func _execute() -> void:
 	player.invulnerable = true
 	player.melee_multiplier = MELEE_MULT
 	_build_aura()
-	_burst(player.global_position + Vector3(0, 1, 0), CHARGE_COLOR, 5.0, 0.4)
+	# Energy charge-up burst (bright ring + arc sparks + bloom).
+	VfxKit.explosion(_host(), player.global_position + Vector3(0, 1, 0), CHARGE_COLOR, 5.0, "emp")
 
 
 func _end() -> void:
@@ -64,13 +70,25 @@ func _build_aura() -> void:
 	sphere.radius = 1.3
 	sphere.height = 2.6
 	_aura.mesh = sphere
-	_mat = StandardMaterial3D.new()
-	_mat.albedo_color = Color(CHARGE_COLOR, 0.25)
-	_mat.emission_enabled = true
-	_mat.emission = CHARGE_COLOR
-	_mat.emission_energy_multiplier = 2.5
-	_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_aura.material_override = _mat
+	if ResourceLoader.exists(AURA_SHADER) and ResourceLoader.exists(CRACKLE_TEX):
+		_shader = ShaderMaterial.new()
+		_shader.shader = load(AURA_SHADER)
+		_shader.set_shader_parameter("pattern_tex", load(CRACKLE_TEX))
+		_shader.set_shader_parameter("noise_tex", load(NOISE_TEX))
+		_shader.set_shader_parameter("shield_color", CHARGE_COLOR)
+		_shader.set_shader_parameter("pattern_scale", 2.5)
+		_shader.set_shader_parameter("scroll_speed", 0.18)   # faster = crackle
+		_shader.set_shader_parameter("brightness", 2.6)
+		_shader.set_shader_parameter("strength", 1.0)
+		_aura.material_override = _shader
+	else:
+		_mat = StandardMaterial3D.new()
+		_mat.albedo_color = Color(CHARGE_COLOR, 0.25)
+		_mat.emission_enabled = true
+		_mat.emission = CHARGE_COLOR
+		_mat.emission_energy_multiplier = 2.5
+		_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_aura.material_override = _mat
 	_host().add_child(_aura)
 	_aura.global_position = player.global_position + Vector3(0, 1.0, 0)

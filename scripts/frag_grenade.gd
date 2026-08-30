@@ -20,7 +20,9 @@ func _detonate() -> void:
 			e.mark_damage_source(GRENADE_NAME)
 		if e.has_method("take_damage"):
 			e.take_damage(DAMAGE)
-	_burst(here, GRENADE_COLOR, RADIUS * 2.0, 0.35)
+	# Layered fireball + sparks + smoke + shockwave + scorch decal + flash + shake
+	# (docs/VFX_FAL_RESEARCH.md §11), replacing the single expanding-sphere _burst.
+	VfxKit.explosion(_host(), here, GRENADE_COLOR, RADIUS, "fire")
 	var audio := get_node_or_null("/root/AudioManager")
 	if audio:
 		audio.play_sfx("explosion", here)
