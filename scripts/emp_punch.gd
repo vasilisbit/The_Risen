@@ -36,5 +36,8 @@ func _strike() -> void:
 
 
 func _execute() -> void:
-	_swing_vfx(REACH)
+	# Tight electric burst (bright ring + arc sparks) in front of the punch.
+	var facing: Vector3 = -player.global_transform.basis.z
+	var at: Vector3 = player.global_position + Vector3(0, 1.1, 0) + facing.normalized() * (REACH * 0.35)
+	VfxKit.explosion(_host(), at, ability_color, 2.0, "emp")
 	_strike()

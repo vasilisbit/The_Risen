@@ -25,4 +25,5 @@ func _detonate() -> void:
 	zone.tint = GRENADE_COLOR
 	_host().add_child(zone)
 	zone.global_position = global_position
-	_burst(global_position, GRENADE_COLOR, RADIUS * 1.5, 0.35)
+	# Gentle rising motes + soft bloom + heal-ring decal (no shrapnel/scorch).
+	VfxKit.explosion(_host(), global_position, GRENADE_COLOR, RADIUS, "soft")

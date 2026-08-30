@@ -22,18 +22,5 @@ func _detonate() -> void:
 		if e.has_method("stun"):
 			e.stun(BLIND_DURATION)
 			blinded += 1
-	_burst(global_position, GRENADE_COLOR, RADIUS * 2.0, 0.25)
-	_flash_screen()
-
-
-## A brief white bloom at the blast, standing in for a real screen flash.
-func _flash_screen() -> void:
-	var light := OmniLight3D.new()
-	light.omni_range = RADIUS * 3.0
-	light.light_energy = 8.0
-	light.light_color = GRENADE_COLOR
-	_host().add_child(light)
-	light.global_position = global_position + Vector3(0, 0.5, 0)
-	var tw := light.create_tween()
-	tw.tween_property(light, "light_energy", 0.0, 0.5)
-	tw.tween_callback(light.queue_free)
+	# Hard white bloom + fast glare ring + strong flash light (VfxKit "flash").
+	VfxKit.explosion(_host(), global_position, GRENADE_COLOR, RADIUS, "flash")

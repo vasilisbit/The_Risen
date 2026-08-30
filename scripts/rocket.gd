@@ -125,33 +125,13 @@ func detonate() -> void:
 			e.mark_damage_source("Storm Barrage")
 		if e.has_method("take_damage"):
 			e.take_damage(DAMAGE)
-	_explosion_vfx(here)
+	var host := get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	# Layered fireball + sparks + smoke + shockwave + scorch + flash + shake
+	# (VfxKit), replacing the single expanding-sphere _explosion_vfx.
+	VfxKit.explosion(host, here, COLOR, SPLASH_RADIUS, "fire")
 	var audio := get_node_or_null("/root/AudioManager")
 	if audio:
 		audio.play_sfx("explosion", here)
 	queue_free()
-
-
-func _explosion_vfx(at: Vector3) -> void:
-	var host := get_tree().current_scene
-	if host == null:
-		host = get_tree().root
-	var vfx := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.5
-	sphere.height = 1.0
-	vfx.mesh = sphere
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(COLOR, 0.7)
-	m.emission_enabled = true
-	m.emission = COLOR
-	m.emission_energy_multiplier = 5.0
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	vfx.material_override = m
-	host.add_child(vfx)
-	vfx.global_position = at
-	vfx.scale = Vector3.ONE * 0.3
-	var tw := vfx.create_tween()
-	tw.tween_property(vfx, "scale", Vector3.ONE * SPLASH_RADIUS, 0.35)
-	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.35)
-	tw.tween_callback(vfx.queue_free)

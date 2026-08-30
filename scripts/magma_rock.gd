@@ -77,7 +77,11 @@ func _impact() -> void:
 		if p is Node3D and p.has_method("take_damage"):
 			if p.global_position.distance_to(global_position) <= SPLASH_RADIUS:
 				p.take_damage(SPLASH_DAMAGE, "a magma bomb")
-	_impact_vfx()
+	var host := get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	# Molten fireball + sparks + smoke + shockwave + scorch + flash (VfxKit "fire").
+	VfxKit.explosion(host, global_position, Color(1.0, 0.5, 0.15), SPLASH_RADIUS, "fire")
 	queue_free()
 
 
@@ -111,29 +115,3 @@ func _build_visual() -> void:
 	light.light_energy = 2.4
 	light.light_color = Color(1.0, 0.5, 0.15)
 	add_child(light)
-
-
-## A brief molten flash + scorch, re-parented to the running scene so it outlives the
-## bomb (which frees on impact).
-func _impact_vfx() -> void:
-	var host := get_tree().current_scene
-	if host == null:
-		host = get_tree().root
-	var vfx := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.6
-	sphere.height = 1.2
-	vfx.mesh = sphere
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(1.0, 0.55, 0.15, 0.85)
-	m.emission_enabled = true
-	m.emission = Color(1.0, 0.5, 0.12)
-	m.emission_energy_multiplier = 5.0
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	vfx.material_override = m
-	host.add_child(vfx)
-	vfx.global_position = global_position
-	var tw := vfx.create_tween()
-	tw.tween_property(vfx, "scale", Vector3.ONE * 4.0, 0.4)
-	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.4)
-	tw.tween_callback(vfx.queue_free)

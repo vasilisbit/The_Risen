@@ -45,5 +45,6 @@ func _strike() -> void:
 
 
 func _execute() -> void:
-	_swing_vfx(RADIUS, false)      # centred on the player, not thrown ahead
+	# Heavy ground shockwave + dust + crack decal, centred on the player.
+	VfxKit.explosion(_host(), player.global_position + Vector3(0, 0.15, 0), ability_color, RADIUS, "slam")
 	_strike()
