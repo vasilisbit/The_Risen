@@ -16,19 +16,18 @@ func _ready() -> void:
 	radar.set_script(load("res://scripts/radar_hud.gd"))
 	add_child(radar)
 
-	# Interaction prompt, just below the crosshair. The mission_interactor shows
-	# it while you are looking at the Forge Master or the hologram table.
+	# Interaction prompt. Pinned at the same fixed centre-bottom spot as every other
+	# world prompt (the helm "Take the Helm" and the landed-ship "Board / Lift off"),
+	# rather than floating under the crosshair, so they all appear in one place. The
+	# mission_interactor shows it while you look at the Forge Master or hologram table.
 	var prompt := Label.new()
 	prompt.name = "InteractPrompt"
 	prompt.add_to_group("interact_prompt")
+	prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	prompt.anchor_left = 0.5
 	prompt.anchor_right = 0.5
-	prompt.anchor_top = 0.5
-	prompt.anchor_bottom = 0.5
-	prompt.offset_left = -220.0
-	prompt.offset_right = 220.0
-	prompt.offset_top = 28.0
-	prompt.offset_bottom = 58.0
+	prompt.position = Vector2(-220.0, -115.0)
+	prompt.custom_minimum_size = Vector2(440.0, 0.0)
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# Shared interaction-prompt style (gold), kept identical across every "[E]…"
 	# world prompt: hub interact/deploy (here), the helm, and the landed ship.
