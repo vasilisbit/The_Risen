@@ -11,7 +11,7 @@ class_name Credits
 ##   - After clearing Venus on LEGENDARY    -> played between the lift-off-to-orbit
 ##     cinematic and spawning in the hub, then continues into the hub.
 ##
-## The content mirrors docs/ASSET_LIST.md (planning repo) 1:1 — keep them in sync.
+## The content mirrors docs/ASSET_LIST.md (planning repo) 1:1 - keep them in sync.
 
 ## Where to go when the roll finishes or is skipped. A static so the caller can set
 ## it just before change_scene (scene args can't be passed through change_scene_to_file).
@@ -77,7 +77,7 @@ func _build_roll() -> void:
 	_pair("fal.ai", "Generative model API")
 	_gap(44)
 
-	_header("ART & 3D — AI-GENERATED (fal.ai)")
+	_header("ART & 3D - AI-GENERATED (fal.ai)")
 	_pair("Guardian & viewmodel", "nano-banana-pro · Meshy")
 	_pair("Weapons ×4", "nano-banana-pro · Tripo H3.1")
 	_pair("Enemies & bosses ×6", "nano-banana-pro · Meshy")
@@ -87,13 +87,13 @@ func _build_roll() -> void:
 	_pair("UI / HUD icons ×12", "nano-banana-pro")
 	_gap(44)
 
-	_header("AUDIO — AI-GENERATED (fal.ai)")
+	_header("AUDIO - AI-GENERATED (fal.ai)")
 	_pair("Music", "Stable Audio 3")
 	_pair("Sound effects", "ElevenLabs")
 	_pair("Vendor voice", "ElevenLabs TTS")
 	_gap(44)
 
-	_header("CINEMATICS — AI-GENERATED (fal.ai)")
+	_header("CINEMATICS - AI-GENERATED (fal.ai)")
 	_pair("Fold & lift-off clips", "nano-banana-pro · Seedance 2.0")
 	_gap(44)
 
@@ -148,7 +148,7 @@ func _line(text: String, sz: int, col: Color) -> void:
 	_roll.add_child(l)
 
 
-## A "Label — sublabel" credit row (name left-ish, source dimmer under it), centered.
+## A "Label - sublabel" credit row (name left-ish, source dimmer under it), centered.
 func _pair(name_: String, source: String) -> void:
 	_line(name_, 19, WHITE)
 	_line(source, 14, DIM)

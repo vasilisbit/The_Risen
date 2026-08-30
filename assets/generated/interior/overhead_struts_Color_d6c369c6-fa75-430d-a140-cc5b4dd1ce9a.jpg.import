@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vx5elmro27sg"
+uid="uid://cnrhqwfh76dgo"
 path.s3tc="res://.godot/imported/overhead_struts_Color_d6c369c6-fa75-430d-a140-cc5b4dd1ce9a.jpg-6c982c8ccf8732ef8f91a3eff5e789d5.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "54578a224a60590152138c6a5005ea1f"
 }
 
 [deps]
