@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://o7etgl1ah232"
+uid="uid://d4jofc6rqi2ss"
 path.s3tc="res://.godot/imported/overpass_ORM_c1d1eb69-8d5c-487e-ace5-c146f1b3e36d.jpg-0684f8a55a85a250e78710825528a468.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "5d6941c98f0b69dec78a3d15da0b449f"
 }
 
 [deps]
