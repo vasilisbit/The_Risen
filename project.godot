@@ -14,7 +14,7 @@ config/name="The Risen"
 config/description="Mission-based third-person looter shooter. A Guardian fights across Earth, Mars, and Venus to recover critical technology."
 run/main_scene="res://ui/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="res://icon.png"
 
 [autoload]
 

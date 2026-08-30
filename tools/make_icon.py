@@ -1,49 +1,38 @@
-"""Build build/windows_icon.ico (multi-size) faithful to icon.svg.
+"""Build the game window icon from the fal.ai-generated emblem.
 
-icon.svg (128 viewBox):
-  rect 128x128 rx16 fill #0b1c2e
-  circle 44,52 r14 fill #1a8cff
-  circle 84,44 r10 fill #e03a2a
-  circle 72,80 r12 fill #ff8c1a
-  line 24,104 -> 104,104 stroke #8fb3d9 w6 round caps
-Drawn supersampled (x8 = 1024) then downsampled to each icon size.
+Input : build/icon_source.png  (nano-banana-pro Guardian-helmet emblem; the kit's
+        transparent/white corners are flood-filled to dark navy so it reads as a
+        clean full-bleed app icon).
+Output: build/windows_icon.ico  (multi-size Windows icon, used by export_presets.cfg)
+        icon.png                (256px project icon, project.godot config/icon)
+
+Regenerate the source emblem via tools/gen_icon.py (fal.ai), then run this.
+Run:  uv run --no-project python tools/make_icon.py
 """
 from PIL import Image, ImageDraw
 import os
 
-SS = 8  # supersample factor over the 128 viewBox
-S = 128 * SS  # 1024
+HERE = os.path.dirname(__file__) or "."
+ROOT = os.path.normpath(os.path.join(HERE, ".."))
+SRC = os.path.join(ROOT, "build", "icon_source.png")
+BG = (9, 16, 27)  # dark navy to match the emblem's own backdrop
 
+img = Image.open(SRC).convert("RGB")
+w, h = img.size
+# Flood-fill the (near-white) background inward from each corner. This only
+# recolours the connected corner region, never the helmet's interior highlights.
+for corner in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
+    ImageDraw.floodfill(img, corner, BG, thresh=60)
 
-def rrect(d, box, r, fill):
-    d.rounded_rectangle(box, radius=r, fill=fill)
-
-
-def hx(c):
-    c = c.lstrip("#")
-    return tuple(int(c[i:i+2], 16) for i in (0, 2, 4)) + (255,)
-
-
-def circle(d, cx, cy, r, fill):
-    d.ellipse([(cx-r)*SS, (cy-r)*SS, (cx+r)*SS, (cy+r)*SS], fill=fill)
-
-
-img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-d = ImageDraw.Draw(img)
-rrect(d, [0, 0, S-1, S-1], 16*SS, hx("#0b1c2e"))
-circle(d, 44, 52, 14, hx("#1a8cff"))
-circle(d, 84, 44, 10, hx("#e03a2a"))
-circle(d, 72, 80, 12, hx("#ff8c1a"))
-# rounded-cap line 24,104 -> 104,104 width 6
-d.line([24*SS, 104*SS, 104*SS, 104*SS], fill=hx("#8fb3d9"), width=6*SS)
-for x in (24, 104):
-    circle(d, x, 104, 3, hx("#8fb3d9"))
-
+rgba = img.convert("RGBA")
 sizes = [256, 128, 64, 48, 32, 16]
-frames = [img.resize((s, s), Image.LANCZOS) for s in sizes]
+frames = [rgba.resize((s, s), Image.LANCZOS) for s in sizes]
 
-_build = os.path.join(os.path.dirname(__file__) or ".", "..", "build")
-os.makedirs(_build, exist_ok=True)
-out = os.path.normpath(os.path.join(_build, "windows_icon.ico"))
-frames[0].save(out, format="ICO", sizes=[(s, s) for s in sizes], append_images=frames[1:])
-print("wrote", out, "sizes", sizes)
+ico = os.path.join(ROOT, "build", "windows_icon.ico")
+frames[0].save(ico, format="ICO", sizes=[(s, s) for s in sizes], append_images=frames[1:])
+print("wrote", ico, "sizes", sizes)
+
+# 256px project icon (project.godot config/icon = res://icon.png)
+png = os.path.join(ROOT, "icon.png")
+frames[0].save(png)
+print("wrote", png)

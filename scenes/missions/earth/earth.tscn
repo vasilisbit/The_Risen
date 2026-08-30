@@ -8,7 +8,7 @@
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_4ylf5"]
 geometry_parsed_geometry_type = 1
-agent_height = 1.8
+agent_height = 2.0
 
 [node name="Earth" type="Node3D" unique_id=1122514516]
 
