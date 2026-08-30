@@ -18,11 +18,13 @@ const ARM_TIME := 0.15            # s of straight flight before it starts homing
 const COLOR := Color(1.0, 0.75, 0.25)
 const KNIFE_GLB := "res://assets/generated/vfx/flaming_knife.glb"
 const KNIFE_LENGTH := 0.75        # metres, blade tip to grip
+const SPIN_SPEED := 16.0          # rad/s the knife spins about its flight (Z) axis
 
 var target: Node3D
 var _dir: Vector3 = Vector3.UP
 var _life: float = 0.0
 var _detonated: bool = false
+var _spinner: Node3D              # holds the knife so it can spin under look_at()
 
 
 ## Launch from `from`, initially heading `initial_dir`, homing onto `at`.
@@ -50,7 +52,11 @@ func _ready() -> void:
 func _build_visual() -> void:
 	var knife := MeshUtil.load_prop(KNIFE_GLB)
 	if knife != null:
-		add_child(knife)
+		# Parent under a spinner so it keeps tumbling even though _physics_process
+		# calls look_at() on the root every frame (which would otherwise reset it).
+		_spinner = Node3D.new()
+		add_child(_spinner)
+		_spinner.add_child(knife)
 		MeshUtil.fit(knife, KNIFE_LENGTH)
 		knife.rotate_y(-PI / 2.0)
 		return
@@ -72,6 +78,9 @@ func _physics_process(delta: float) -> void:
 	if _detonated:
 		return
 	_life += delta
+	# Spin the knife about its flight (Z) axis so it reads as a thrown, tumbling blade.
+	if _spinner != null:
+		_spinner.rotate_object_local(Vector3(0, 0, 1), SPIN_SPEED * delta)
 	if _life > LIFETIME:
 		detonate()
 		return

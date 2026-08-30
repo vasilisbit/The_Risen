@@ -39,6 +39,15 @@ PROPS = {
         "centered, plain seamless neutral grey studio background, sharp studio product "
         "render, crisp edges, high detail, PBR materials, even neutral studio lighting, "
         "no text, no watermark, no logo"),
+    "grenade": ("vfx",
+        "a single futuristic sci-fi hand grenade, compact rounded ogival casing of dark "
+        "gunmetal armor plating with subtle brushed-gold trim seams and rivets, a glowing "
+        "teal-cyan energy core band wrapping around the middle with thin cracks of teal "
+        "soulfire light leaking from the seams, a small ridged fuse cap on top, hard-surface "
+        "military sci-fi design cohesive with a teal-and-gold Guardian aesthetic, single "
+        "object, upright, centered, plain seamless neutral grey studio background, sharp "
+        "studio product render, crisp edges, high detail, PBR materials, even neutral studio "
+        "lighting, no hands, no person, no text, no watermark, no logo"),
 }
 
 
