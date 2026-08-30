@@ -39,6 +39,14 @@ PROPS = {
         "centered, plain seamless neutral grey studio background, sharp studio product "
         "render, crisp edges, high detail, PBR materials, even neutral studio lighting, "
         "no text, no watermark, no logo"),
+    "landing_beacon": ("ship",
+        "a single futuristic sci-fi landing-pad marker beacon light, a slim vertical bollard "
+        "post housing of dark gunmetal metal with a tall glowing warm amber-gold light lens "
+        "strip running up its face emitting soft light, subtle brushed-gold trim and a small "
+        "base, hard-surface sci-fi design cohesive with a gunmetal-and-gold spaceship, single "
+        "object, upright, centered, plain seamless neutral grey studio background, sharp studio "
+        "product render, crisp edges, high detail, PBR materials, even neutral studio lighting, "
+        "no hands, no person, no text, no watermark, no logo"),
     "grenade": ("vfx",
         "a single futuristic sci-fi hand grenade, compact rounded ogival casing of dark "
         "gunmetal armor plating with subtle brushed-gold trim seams and rivets, a glowing "

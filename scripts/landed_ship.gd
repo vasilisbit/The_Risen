@@ -14,6 +14,12 @@ signal lifted_off
 
 const SHIP_GLB := "res://assets/generated/ship/hero_ship.glb"
 const PAD_GLB := "res://assets/generated/ship/landing_pad.glb"
+## Generated perimeter marker light (gunmetal bollard + warm amber lens); replaces the
+## old code-built emissive box posts. Falls back to those posts if the GLB is missing.
+const BEACON_GLB := "res://assets/generated/ship/landing_beacon.glb"
+const BEACON_HEIGHT := 1.5          # metres, base to top
+const BEACON_COLOR := Color(1.0, 0.72, 0.3)   # warm amber-gold landing light
+const BEACON_COUNT := 8
 
 ## Cinematics: how high the ship starts (landing) / ends (lift-off) above the pad, the
 ## durations, and the 3rd-person camera offset from the pad (local: right / up / back).
@@ -391,6 +397,9 @@ func _build_hull_collision() -> void:
 
 
 ## A ring of warm marker lights + a soft beacon, so the parked ship reads at a distance.
+## Each marker is the generated beacon GLB (a gunmetal bollard with a glowing amber lens)
+## plus a small warm OmniLight so it actually lights the pad; falls back to an emissive
+## post if the GLB is missing.
 func _build_beacons(radius: float) -> void:
 	var beacon := OmniLight3D.new()
 	beacon.light_color = Color(0.45, 0.7, 1.0)
@@ -398,20 +407,53 @@ func _build_beacons(radius: float) -> void:
 	beacon.omni_range = radius * 2.2
 	beacon.position = Vector3(0, 6.0, 0)
 	add_child(beacon)
-	for i in 8:
-		var a := TAU * float(i) / 8.0
-		var e := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(0.2, 1.2, 0.2)              # slim marker post
-		e.mesh = bm
-		var em := StandardMaterial3D.new()
-		em.emission_enabled = true
-		em.emission = Color(1.0, 0.62, 0.24)
-		em.emission_energy_multiplier = 1.4
-		em.albedo_color = Color(0.4, 0.28, 0.16)
-		e.material_override = em
-		e.position = Vector3(cos(a) * radius, 0.6, sin(a) * radius)
-		add_child(e)
+	for i in BEACON_COUNT:
+		var a := TAU * float(i) / float(BEACON_COUNT)
+		var pos := Vector3(cos(a) * radius, PAD_TOP, sin(a) * radius)
+		var marker := MeshUtil.load_prop(BEACON_GLB)
+		if marker != null:
+			add_child(marker)
+			MeshUtil.fit(marker, BEACON_HEIGHT)      # recenters the mesh on the holder origin
+			marker.position = pos + Vector3(0, PAD_VISUAL_LIFT + BEACON_HEIGHT * 0.5, 0)
+			marker.rotation.y = -a                    # face the lens toward the pad centre
+			_make_beacon_glow(marker)                 # the bright lens self-illuminates (amber)
+		else:
+			var e := MeshInstance3D.new()
+			var bm := BoxMesh.new()
+			bm.size = Vector3(0.2, 1.2, 0.2)          # slim marker post (fallback)
+			e.mesh = bm
+			var em := StandardMaterial3D.new()
+			em.emission_enabled = true
+			em.emission = BEACON_COLOR
+			em.emission_energy_multiplier = 1.4
+			em.albedo_color = Color(0.4, 0.28, 0.16)
+			e.material_override = em
+			e.position = pos + Vector3(0, 0.6, 0)
+			add_child(e)
+		# A small warm light at each marker so the ring genuinely illuminates the pad edge.
+		var lamp := OmniLight3D.new()
+		lamp.light_color = BEACON_COLOR
+		lamp.light_energy = 0.7
+		lamp.omni_range = 3.0
+		lamp.position = pos + Vector3(0, BEACON_HEIGHT * 0.7, 0)
+		add_child(lamp)
+
+
+## Drive emission from the beacon's own albedo texture so its bright lens strip glows
+## amber while the dark gunmetal housing stays unlit (a single-material Tripo GLB has the
+## lens baked into the albedo, not a separate material - so we can't glow it in isolation;
+## this multiplies emission by the amber tint, which lifts only the bright pixels).
+func _make_beacon_glow(root: Node3D) -> void:
+	for mi in root.find_children("*", "MeshInstance3D", true, false):
+		var m := (mi as MeshInstance3D).get_active_material(0)
+		if m is StandardMaterial3D:
+			var mm := (m as StandardMaterial3D).duplicate() as StandardMaterial3D
+			mm.emission_enabled = true
+			if mm.albedo_texture != null:
+				mm.emission_texture = mm.albedo_texture
+			mm.emission = BEACON_COLOR
+			mm.emission_energy_multiplier = 1.8
+			(mi as MeshInstance3D).material_override = mm
 
 
 func _fallback() -> void:
