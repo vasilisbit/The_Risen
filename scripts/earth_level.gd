@@ -349,6 +349,11 @@ func _emit_skyline(xforms: Array[Transform3D], colors: PackedColorArray) -> void
 	if facade != null:
 		mat.albedo_texture = facade
 		mat.uv1_triplanar = true
+		# WORLD-space triplanar is REQUIRED here: the MultiMesh shares one UNIT cube
+		# scaled per instance, so object-local triplanar would map the same tiny 4.5%
+		# texture slice onto every whole tower (stretched/blurry). World space samples
+		# by final world position, so scaled instances tile the facade correctly.
+		mat.uv1_world_triplanar = true
 		mat.uv1_scale = Vector3(0.045, 0.045, 0.045)         # ~1 facade tile / 22 m
 		var n: Texture2D = _gen_tex("skyscraper_facade_normal")
 		if n != null:
