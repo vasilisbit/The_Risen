@@ -18,8 +18,9 @@ How to produce the shipped `The Risen` Windows `.exe`. The export **config**
 - **Single-file exe**: `binary_format/embed_pck=true` (PCK embedded in the `.exe`;
   no side-car `.pck` to ship).
 - **Architecture**: `x86_64`. **Textures**: `s3tc_bptc=true` (desktop).
-- **Custom icon**: `application/icon="res://build/windows_icon.ico"` (multi-size ICO,
-  faithful to `icon.svg`; regenerate with `tools/make_icon.py`).
+- **Custom icon**: `application/icon="res://build/windows_icon.ico"` — a multi-size ICO
+  of the fal.ai Guardian-helmet emblem. Regenerate the source via `tools/gen_icon.py`
+  (fal.ai), then `tools/make_icon.py` (emits the ICO + `icon.png`, the project icon).
 - **Version / PE metadata** (`application/modify_resources=true`): product **The Risen**,
   file/product version **1.0.0.0**, company **Vasileios Bitzas**, copyright, description.
   Bump `application/file_version` + `application/product_version` per release.
@@ -32,7 +33,26 @@ How to produce the shipped `The Risen` Windows `.exe`. The export **config**
 - **Console wrapper**: `debug/export_console_wrapper=1` → a `The_Risen.console.exe` is
   emitted next to the game exe (handy for reading boot logs; not the shipped entry point).
 
-## Build (CLI, headless)
+## Build (recommended: helper script)
+`tools/build_windows.ps1` asks where to place the exe (Enter = **Desktop**), runs the
+headless release export, retries the transient rename lock (below), and reports size:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\build_windows.ps1
+```
+
+Skip the prompt with `-Out "D:\Games"`; override the engine path with
+`-Godot "C:\path\to\Godot.exe"`.
+
+### Antivirus / "Failed to rename temporary file"
+Godot embeds the PCK by writing `<name>.tmp` then renaming it to `<name>.exe`. On
+Windows, Defender (or a sync client like OneDrive) can briefly **lock the freshly
+written ~1 GB file**, so the rename intermittently fails with
+`ERROR: PCK Embedding: Failed to rename temporary file`. The helper script retries up
+to 4×, which clears it in practice. If it still fails, add the export folder (or the
+repo) to your antivirus exclusions, or build to a plain local disk (not a synced folder).
+
+## Build (manual CLI, headless)
 Stop the running game first if the editor is playing. Then:
 
 ```bash

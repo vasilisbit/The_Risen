@@ -44,15 +44,34 @@ Write-Host "  Godot : $Godot"
 Write-Host "  Proj  : $proj"
 Write-Host "  Out   : $exe`n"
 
-& $Godot --headless --path $proj --export-release "Windows Desktop" $exe
-$code = $LASTEXITCODE
+# Godot embeds the PCK by writing a temporary file then renaming it to the final
+# exe. On Windows that rename can transiently fail ("PCK Embedding: Failed to rename
+# temporary file ...") when antivirus / a sync client briefly locks the freshly
+# written ~1 GB file - so retry a few times. Success is judged by a freshly-written
+# exe, not $LASTEXITCODE (Godot logs warnings to stderr and the exit code doesn't
+# always propagate through every invocation context). A total failure leaves any
+# existing build untouched.
+$loopStart = Get-Date
+$built = $false
+for ($i = 1; $i -le 4; $i++) {
+    if ($i -gt 1) {
+        Write-Host "`n(rename lock - likely antivirus/sync - retry $i/4)" -ForegroundColor Yellow
+        Start-Sleep -Seconds 5
+    }
+    & $Godot --headless --path $proj --export-release "Windows Desktop" $exe
+    Start-Sleep -Milliseconds 500
+    $item = Get-Item -LiteralPath $exe -ErrorAction SilentlyContinue
+    if ($item -and $item.Length -gt 50MB -and $item.LastWriteTime -ge $loopStart) { $built = $true; break }
+}
 
-if ($code -eq 0 -and (Test-Path -LiteralPath $exe)) {
+if ($built) {
     $mb = [math]::Round((Get-Item -LiteralPath $exe).Length / 1MB, 1)
     Write-Host "`nBuild OK -> $exe  ($mb MB)" -ForegroundColor Green
     Write-Host "Single self-contained exe (PCK embedded). Double-click to play."
 } else {
-    Write-Host "`nExport FAILED (exit $code). See the log above." -ForegroundColor Red
-    Write-Host "Templates missing? See docs/BUILD_WINDOWS.md." -ForegroundColor Yellow
+    Write-Host "`nExport FAILED after 4 tries. See the log above." -ForegroundColor Red
+    Write-Host "If it says 'Failed to rename temporary file', an antivirus/sync client is" -ForegroundColor Yellow
+    Write-Host "locking the output - exclude the export folder, or build to a local disk." -ForegroundColor Yellow
+    Write-Host "If 'no export template found', install the 4.7 templates (docs/BUILD_WINDOWS.md)." -ForegroundColor Yellow
     exit 1
 }
