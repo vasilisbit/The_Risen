@@ -76,6 +76,21 @@ SFX = {
                    "dry close-up", 0.6, False),
     "ui_hover": ("A soft short futuristic UI hover blip, clean subtle high-tech beep", 0.5, False),
     "ui_click": ("A crisp futuristic UI confirm click, clean bright high-tech button press", 0.5, False),
+    # Ability SFX for the rebuilt VFX (melees + supers + the two non-frag grenades).
+    "melee_blade": ("A single sharp energy blade slash: a fast whoosh with a bright metallic "
+                    "energy ring and a short crackling tail, sci-fi, dry close-up", 0.7, False),
+    "melee_emp": ("A short EMP punch: a sharp crackling electric zap with a low electromagnetic "
+                  "thump, sci-fi, dry close-up", 0.6, False),
+    "melee_slam": ("A heavy ground slam: a deep earth-shaking boom with a low rumble and a "
+                   "debris crack, powerful, sci-fi, close-up", 1.0, False),
+    "super_dome": ("A protective energy shield dome activating: a deep resonant hum rising with "
+                   "a shimmering crystalline energy sweep, powerful sci-fi", 1.6, False),
+    "super_charge": ("A heroic power-up surge: a rising electric energy whoosh building into a "
+                     "strong empowering pulse, triumphant sci-fi", 1.4, False),
+    "grenade_heal": ("A gentle healing burst: a soft warm chime with a soothing shimmering "
+                     "swell, positive magical sci-fi, close-up", 1.2, False),
+    "grenade_flash": ("A blinding flashbang detonation: a sharp high-pitched ringing burst with "
+                      "a bright piercing whine, disorienting, close-up", 1.2, False),
 }
 # name -> (prompt, duration). Combat/boss loops the manager crossfades between; the file is
 # looped in engine, so ask for a seamless, evolving-but-uniform bed with no hard ending.

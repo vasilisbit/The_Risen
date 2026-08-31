@@ -14,6 +14,7 @@ extends Object
 
 const TEX_DIR := "res://assets/generated/vfx/tex"
 const DECAL_DIR := "res://assets/generated/vfx/decals"
+const SLASH_GLB := "res://assets/generated/vfx/slash_arc.glb"
 
 static var _cache: Dictionary = {}
 
@@ -22,7 +23,7 @@ static var _cache: Dictionary = {}
 ##   "fire"  - frag / rocket / magma: fireball + sparks + smoke + shock + scorch + shake
 ##   "soft"  - healing grenade: gentle rising motes + soft bloom + heal ring, no shrapnel
 ##   "flash" - flashbang: hard white bloom + fast glare ring, minimal smoke
-static func explosion(host: Node, at: Vector3, base_color: Color, radius: float, style: String = "fire") -> void:
+static func explosion(host: Node, at: Vector3, base_color: Color, radius: float, style: String = "fire", decal_override: String = "") -> void:
 	if host == null or not (host is Node):
 		return
 	var root := Node3D.new()
@@ -60,7 +61,8 @@ static func explosion(host: Node, at: Vector3, base_color: Color, radius: float,
 			_layer_sparks(root, base_color, radius)
 			_layer_smoke(root, Color(0.1, 0.09, 0.09), radius, 8)
 			_layer_shock(root, base_color, radius, 0.4)
-			_decal(root, "scorch", Color(0.15, 0.12, 0.1), radius)
+			var dname := decal_override if decal_override != "" else "scorch"
+			_decal(root, dname, Color(0.15, 0.12, 0.1) if dname == "scorch" else Color.WHITE, radius)
 			_flash_light(root, base_color, radius, 6.0, 0.28)
 			_shake(root, at, 0.04)
 
@@ -81,23 +83,49 @@ static func slash(host: Node, at: Vector3, facing: Vector3, color: Color, reach:
 	f = f.normalized() if f.length() > 0.01 else Vector3.FORWARD
 	root.look_at(at + f, Vector3.UP)
 
-	# Wide thin arc quad, additive, grows fast then fades.
-	var arc := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(reach * 2.2, reach * 0.9)
-	arc.mesh = quad
-	arc.material_override = _sprite_mat("flare_cross", color, true)
-	root.add_child(arc)
-	arc.position = Vector3(0, 0, -reach * 0.5)
-	arc.scale = Vector3(0.2, 1.0, 1.0)
-	var m: StandardMaterial3D = arc.material_override
-	var tw := arc.create_tween()
-	tw.tween_property(arc, "scale", Vector3(1.0, 1.0, 1.0), 0.14)
-	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.5)
+	# Preferred: the Blender crescent GLB, billboarded + additive, growing then fading.
+	# Fallback: the cross-flare quad (still reads as an energy strike).
+	var arc := MeshUtil.load_prop(SLASH_GLB)
+	var mat := _arc_mat(color)
+	if arc != null:
+		root.add_child(arc)
+		MeshUtil.fit(arc, reach * 2.2)
+		for mi in arc.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).material_override = mat
+		arc.scale = arc.scale * 0.35
+		var tw := arc.create_tween()
+		tw.tween_property(arc, "scale", arc.scale / 0.35, 0.14)
+		tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.5)
+	else:
+		var q := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2(reach * 2.2, reach * 0.9)
+		q.mesh = quad
+		q.material_override = _sprite_mat("flare_cross", color, true)
+		root.add_child(q)
+		q.position = Vector3(0, 0, -reach * 0.5)
+		q.scale = Vector3(0.2, 1.0, 1.0)
+		var m: StandardMaterial3D = q.material_override
+		var tw := q.create_tween()
+		tw.tween_property(q, "scale", Vector3(1.0, 1.0, 1.0), 0.14)
+		tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.5)
 
 	_layer_sparks(root, color, reach * 0.8, 14)
 	var t := host.get_tree().create_timer(0.8)
 	t.timeout.connect(root.queue_free)
+
+
+## Additive, unshaded, billboarded material for the crescent arc mesh. Alpha fades it.
+static func _arc_mat(color: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.billboard_keep_scale = true
+	m.albedo_color = Color(color.r * 1.3 + 0.2, color.g * 1.2 + 0.2, color.b + 0.1, 1.0)
+	return m
 
 
 # --- layers ---------------------------------------------------------------------
@@ -247,12 +275,20 @@ static func _decal(root: Node3D, name: String, tint: Color, radius: float) -> vo
 		return
 	var d := Decal.new()
 	d.texture_albedo = load(path)
+	var npath := "%s/%s_normal.png" % [DECAL_DIR, name]
+	if ResourceLoader.exists(npath):
+		d.texture_normal = load(npath)
+	var epath := "%s/%s_emission.png" % [DECAL_DIR, name]
+	if ResourceLoader.exists(epath):
+		d.texture_emission = load(epath)
+		d.emission_energy = 4.0                # molten crater glow
 	d.size = Vector3(radius * 1.8, 3.0, radius * 1.8)
 	d.modulate = tint
 	d.albedo_mix = 1.0
 	root.add_child(d)
 	var tw := d.create_tween()
 	tw.tween_interval(3.0)
+	tw.parallel().tween_property(d, "emission_energy", 0.0, 6.0)
 	tw.tween_property(d, "albedo_mix", 0.0, 3.0)
 
 

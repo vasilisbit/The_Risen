@@ -51,6 +51,9 @@ func _execute() -> void:
 	_build_aura()
 	# Energy charge-up burst (bright ring + arc sparks + bloom).
 	VfxKit.explosion(_host(), player.global_position + Vector3(0, 1, 0), CHARGE_COLOR, 5.0, "emp")
+	var am := get_node_or_null("/root/AudioManager")
+	if am:
+		am.play_sfx("super_charge", player.global_position)
 
 
 func _end() -> void:

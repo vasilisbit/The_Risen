@@ -80,8 +80,8 @@ func _impact() -> void:
 	var host := get_tree().current_scene
 	if host == null:
 		host = get_tree().root
-	# Molten fireball + sparks + smoke + shockwave + scorch + flash (VfxKit "fire").
-	VfxKit.explosion(host, global_position, Color(1.0, 0.5, 0.15), SPLASH_RADIUS, "fire")
+	# Molten fireball + sparks + smoke + shockwave + glowing crater decal + flash.
+	VfxKit.explosion(host, global_position, Color(1.0, 0.5, 0.15), SPLASH_RADIUS, "fire", "crater")
 	queue_free()
 
 

@@ -50,6 +50,9 @@ func _execute() -> void:
 	absorbed = 0.0
 	time_left = DURATION
 	_build_dome()
+	var am := get_node_or_null("/root/AudioManager")
+	if am:
+		am.play_sfx("super_dome", center)
 
 
 ## Absorb what the dome can and return the damage that gets through. The

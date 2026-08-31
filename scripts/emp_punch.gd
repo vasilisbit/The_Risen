@@ -40,4 +40,7 @@ func _execute() -> void:
 	var facing: Vector3 = -player.global_transform.basis.z
 	var at: Vector3 = player.global_position + Vector3(0, 1.1, 0) + facing.normalized() * (REACH * 0.35)
 	VfxKit.explosion(_host(), at, ability_color, 2.0, "emp")
+	var am := get_node_or_null("/root/AudioManager")
+	if am:
+		am.play_sfx("melee_emp", at)
 	_strike()

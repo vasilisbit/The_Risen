@@ -27,3 +27,6 @@ func _detonate() -> void:
 	zone.global_position = global_position
 	# Gentle rising motes + soft bloom + heal-ring decal (no shrapnel/scorch).
 	VfxKit.explosion(_host(), global_position, GRENADE_COLOR, RADIUS, "soft")
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx("grenade_heal", global_position)
