@@ -24,3 +24,6 @@ func _detonate() -> void:
 			blinded += 1
 	# Hard white bloom + fast glare ring + strong flash light (VfxKit "flash").
 	VfxKit.explosion(_host(), global_position, GRENADE_COLOR, RADIUS, "flash")
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx("grenade_flash", global_position)

@@ -47,4 +47,7 @@ func _strike() -> void:
 func _execute() -> void:
 	# Heavy ground shockwave + dust + crack decal, centred on the player.
 	VfxKit.explosion(_host(), player.global_position + Vector3(0, 0.15, 0), ability_color, RADIUS, "slam")
+	var am := get_node_or_null("/root/AudioManager")
+	if am:
+		am.play_sfx("melee_slam", player.global_position)
 	_strike()
