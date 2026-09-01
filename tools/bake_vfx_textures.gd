@@ -34,6 +34,7 @@ func _initialize() -> void:
 		"flare_cross": _bake_flare_cross,
 		"spark": _bake_spark,
 		"shock_ring": _bake_shock_ring,
+		"muzzle": _bake_muzzle,
 		"noise_fbm": _bake_noise_fbm,
 		"voronoi": _bake_voronoi,
 		"hex_dots": _bake_hex_dots,
@@ -111,6 +112,33 @@ func _bake_shock_ring() -> Image:
 			var a := clampf(1.0 - absf(d - r0) / w, 0.0, 1.0)
 			a = a * a * (3.0 - 2.0 * a)       # smoothstep
 			img.set_pixel(x, y, Color(1, 1, 1, a))
+	return img
+
+
+## Spiky muzzle-flash star: a bright core with irregular radiating spikes of varying
+## length/width (white-on-black, alpha-keyed). Reads as a real muzzle flash, not a soft dot.
+func _bake_muzzle() -> Image:
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
+	var c := SIZE * 0.5
+	var r := SIZE * 0.5
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9182
+	var spikes: Array = []
+	for i in 13:
+		spikes.append({"a": rng.randf() * TAU, "len": rng.randf_range(0.55, 1.0), "w": rng.randf_range(0.035, 0.11)})
+	for y in SIZE:
+		for x in SIZE:
+			var dx := (x - c + 0.5) / r
+			var dy := (y - c + 0.5) / r
+			var rad := sqrt(dx * dx + dy * dy)
+			var ang := atan2(dy, dx)
+			var v := _falloff(rad, 3.2)                    # bright core
+			for s in spikes:
+				var da: float = absf(fmod(ang - float(s["a"]) + PI, TAU) - PI)
+				if da < float(s["w"]) and rad < float(s["len"]):
+					var f := (1.0 - da / float(s["w"])) * (1.0 - rad / float(s["len"]))
+					v = maxf(v, f * f)
+			img.set_pixel(x, y, Color(1, 1, 1, clampf(v, 0.0, 1.0)))
 	return img
 
 

@@ -70,6 +70,72 @@ static func explosion(host: Node, at: Vector3, base_color: Color, radius: float,
 	t.timeout.connect(root.queue_free)
 
 
+## Per-weapon bullet-impact tuning: spark burst scale + count + flash size.
+const IMPACT := {
+	"Auto Rifle": {"scale": 1.0, "amount": 8, "flash": 0.28},
+	"Shotgun": {"scale": 0.75, "amount": 5, "flash": 0.2},   # many pellets -> many small hits
+	"Sniper": {"scale": 1.9, "amount": 13, "flash": 0.5},
+	"Hand Cannon": {"scale": 1.4, "amount": 10, "flash": 0.4},
+}
+
+
+## Brief bullet-impact at a surface hit: sparks bouncing off along the normal + a
+## quick flash + a tiny light, tinted by the weapon's energy element and sized per gun.
+static func impact(host: Node, at: Vector3, normal: Vector3, color: Color, kind: String = "Auto Rifle") -> void:
+	if host == null or not (host is Node):
+		return
+	var root := Node3D.new()
+	host.add_child(root)
+	root.global_position = at
+	var n := normal.normalized() if normal.length() > 0.01 else Vector3.UP
+	var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.95 else Vector3.RIGHT
+	root.look_at(at + n, up)                     # local -Z points out of the surface
+	var spec: Dictionary = IMPACT.get(kind, IMPACT["Auto Rifle"])
+	var scl := float(spec["scale"])
+
+	var p := _emitter(int(spec["amount"]), 0.32, 1.0)
+	var pm := ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 0, -1)             # out along the surface normal
+	pm.spread = 68.0
+	pm.initial_velocity_min = 3.0 * scl
+	pm.initial_velocity_max = 8.0 * scl
+	pm.gravity = Vector3(0.0, -9.0, 0.0)
+	pm.damping_min = 2.0
+	pm.damping_max = 5.0
+	pm.scale_min = 0.5
+	pm.scale_max = 1.0
+	pm.set_particle_flag(ParticleProcessMaterial.PARTICLE_FLAG_ALIGN_Y_TO_VELOCITY, true)
+	pm.color = Color(color.r * 1.5 + 0.4, color.g * 1.4 + 0.3, color.b + 0.2, 1.0)
+	pm.color_ramp = _ramp([Color(1, 1, 1, 1), color, Color(color, 0.0)])
+	p.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.03 * scl, 0.16 * scl)
+	q.material = _streak_mat(color)
+	p.draw_pass_1 = q
+	root.add_child(p)
+
+	# A quick flash at the point + a tiny light.
+	var flash := MeshInstance3D.new()
+	var fq := QuadMesh.new()
+	fq.size = Vector2(float(spec["flash"]), float(spec["flash"]))
+	flash.mesh = fq
+	flash.material_override = _sprite_mat("flare", color, true)
+	root.add_child(flash)
+	flash.position = Vector3(0, 0, -0.02)
+	var tw := flash.create_tween()
+	tw.tween_property(flash.material_override, "albedo_color:a", 0.0, 0.09)
+	# Only the heavier single-shot guns get a dynamic light, so a shotgun blast (one
+	# impact per pellet) or sustained auto fire doesn't spawn a swarm of OmniLights.
+	if scl >= 1.2:
+		var light := OmniLight3D.new()
+		light.light_color = color
+		light.omni_range = 1.2 * scl
+		light.light_energy = 3.0
+		root.add_child(light)
+		tw.parallel().tween_property(light, "light_energy", 0.0, 0.09)
+	host.get_tree().create_timer(0.4).timeout.connect(root.queue_free)
+
+
 ## Swept melee slash: a stretched additive arc quad (flare_cross) that grows and
 ## fades in front of the player, + edge sparks. `color` per class (teal/blue/tan).
 static func slash(host: Node, at: Vector3, facing: Vector3, color: Color, reach: float) -> void:
@@ -344,6 +410,22 @@ static func _sprite_mat(tex_name: String, color: Color, additive: bool) -> Stand
 	var tex := _tex(tex_name)
 	if tex != null:
 		m.albedo_texture = tex
+	return m
+
+
+## Additive unshaded spark material that does NOT billboard, so a velocity-aligned
+## particle reads as a streak in its travel direction (used by impact()).
+static func _streak_mat(color: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.vertex_color_use_as_albedo = true
+	m.albedo_color = color
+	var t := _tex("spark")
+	if t != null:
+		m.albedo_texture = t
 	return m
 
 
