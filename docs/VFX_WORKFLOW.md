@@ -123,10 +123,23 @@ so it composites with the arms. `weapon_manager._fire()` calls
   the forward-most (most −Z) mesh vertex of the gun model in holder space, cached in
   `_muzzle_local`. This auto-aligns to each gun regardless of its own mesh rotation (the
   hand cannon models its barrel along +X, the others along −Z) — no per-gun hand-tuning.
-- The flash = an additive billboarded `flare` core + `flare_cross` star (both `no_depth_test`
-  so they read over the gun) + an element-tinted `OmniLight`, tweened out over ~0.06 s.
+- The flash = a big billboarded **spiky `muzzle` star** (baked, irregular rays) + a bright
+  `flare` core + a one-shot **burst of stretched sparks shooting forward out of the barrel**
+  (`_muzzle_sparks`, aimed down `_muzzle_forward()` = the viewmodel camera's look direction) +
+  an element-tinted `OmniLight`. All `no_depth_test` so they read over the gun. The forward
+  sparks are what sell "coming out of the gun" in the end-on first-person view.
 
 To retune a gun's flash size, edit `MUZZLE_SIZE`; the position is automatic.
+
+## 9. Bullet-impact sparks (`VfxKit.impact`)
+
+Where a shot lands: `weapon.fire()` calls `VfxKit.impact(host, hit_pos, hit_normal, color, kind)`
+for every hit (world or enemy). It spawns a short burst of velocity-aligned **spark streaks
+bouncing off the surface** (emitted along the hit normal, `_streak_mat` — additive, not
+billboarded) + a quick `flare` flash. **Colour = the weapon's energy element**; **size/count =
+gun type** (`VfxKit.IMPACT`: sniper big & bright, shotgun small ×many-pellets, etc.). Only the
+heavier single-shot guns (scale ≥ 1.2) add a dynamic `OmniLight`, so a shotgun blast or
+sustained auto fire doesn't spawn a swarm of lights.
 
 ## 8. Travelling slash wave (`slash_wave.gd`)
 

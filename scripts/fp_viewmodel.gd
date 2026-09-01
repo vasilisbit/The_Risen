@@ -60,10 +60,10 @@ const MUZZLE_POS := {
 	"Hand Cannon": Vector3(0.16, -0.20, -0.86),
 }
 const MUZZLE_SIZE := {
-	"Auto Rifle": Vector2(0.15, 0.15),
-	"Shotgun": Vector2(0.30, 0.22),
-	"Sniper": Vector2(0.15, 0.24),
-	"Hand Cannon": Vector2(0.22, 0.20),
+	"Auto Rifle": Vector2(0.26, 0.26),
+	"Shotgun": Vector2(0.46, 0.36),
+	"Sniper": Vector2(0.28, 0.40),
+	"Hand Cannon": Vector2(0.38, 0.34),
 }
 const MUZZLE_TEX := "res://assets/generated/vfx/tex/"
 
@@ -254,22 +254,83 @@ func muzzle_flash(weapon_name := "Auto Rifle", color := Color(1.0, 0.9, 0.7)) ->
 	var root := Node3D.new()
 	_holder.add_child(root)
 	root.position = _muzzle_local
+	# Point the flash's forward (-Z) down the barrel/aim so the sparks shoot out of the gun.
+	root.look_at(root.global_position + _muzzle_forward(), Vector3.UP)
 	var sz: Vector2 = MUZZLE_SIZE.get(weapon_name, MUZZLE_SIZE["Auto Rifle"])
-	var tint := Color(color.r * 1.2 + 0.25, color.g * 1.2 + 0.25, color.b * 1.2 + 0.25, 1.0)
-	var core := _flash_quad("flare", sz * 0.75, tint)
-	root.add_child(core)
-	var star := _flash_quad("flare_cross", sz * 1.8, tint)
+	var tint := Color(color.r * 1.3 + 0.35, color.g * 1.3 + 0.35, color.b * 1.3 + 0.35, 1.0)
+	# Big spiky star (billboarded) + a bright core - the flash you see end-on.
+	var star := _flash_quad("muzzle", sz * 2.4, tint)
+	star.scale = Vector3.ONE * 0.55
 	root.add_child(star)
+	var core := _flash_quad("flare", sz * 0.9, tint)
+	root.add_child(core)
+	# Sparks shooting FORWARD out of the barrel (the "coming out of the gun" read).
+	var sparks := _muzzle_sparks(sz, color)
+	root.add_child(sparks)
 	var light := OmniLight3D.new()
 	light.light_color = color
-	light.omni_range = 1.4
-	light.light_energy = 4.5
+	light.omni_range = 2.0
+	light.light_energy = 7.0
 	root.add_child(light)
 	var tw := root.create_tween()
-	tw.tween_property(core.material_override, "albedo_color:a", 0.0, 0.06)
-	tw.parallel().tween_property(star.material_override, "albedo_color:a", 0.0, 0.06)
-	tw.parallel().tween_property(light, "light_energy", 0.0, 0.06)
+	tw.tween_property(star, "scale", Vector3.ONE, 0.04)
+	tw.parallel().tween_property(star.material_override, "albedo_color:a", 0.0, 0.07)
+	tw.parallel().tween_property(core.material_override, "albedo_color:a", 0.0, 0.06)
+	tw.parallel().tween_property(light, "light_energy", 0.0, 0.07)
+	tw.tween_interval(0.08)
 	tw.tween_callback(root.queue_free)
+
+
+## Forward (aim) direction in holder space. The viewmodel camera looks toward
+## cam_look_at from cam_position, so "down the barrel" is that direction.
+func _muzzle_forward() -> Vector3:
+	var f := (cam_look_at - cam_position)
+	return f.normalized() if f.length() > 0.001 else Vector3(0, 0, -1)
+
+
+## A one-shot burst of stretched sparks flying forward out of the muzzle (root's -Z),
+## element-tinted. Reads even end-on because the sparks radiate outward as they leave.
+func _muzzle_sparks(sz: Vector2, color: Color) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 12
+	p.lifetime = 0.16
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.emitting = true
+	var pm := ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 0, -1)          # down the barrel (root already aimed)
+	pm.spread = 24.0
+	pm.initial_velocity_min = 4.0
+	pm.initial_velocity_max = 9.0
+	pm.gravity = Vector3.ZERO
+	pm.damping_min = 4.0
+	pm.damping_max = 8.0
+	pm.scale_min = 0.6
+	pm.scale_max = 1.2
+	pm.set_particle_flag(ParticleProcessMaterial.PARTICLE_FLAG_ALIGN_Y_TO_VELOCITY, true)
+	pm.color = Color(color.r * 1.5 + 0.4, color.g * 1.4 + 0.3, color.b + 0.2, 1.0)
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.4, 1.0])
+	g.colors = PackedColorArray([Color(1, 1, 1, 1), color, Color(color, 0.0)])
+	var gt := GradientTexture1D.new()
+	gt.gradient = g
+	pm.color_ramp = gt
+	p.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(sz.x * 0.14, sz.x * 0.6)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.no_depth_test = true
+	m.vertex_color_use_as_albedo = true
+	var sp := MUZZLE_TEX + "spark.png"
+	if ResourceLoader.exists(sp):
+		m.albedo_texture = load(sp)
+	q.material = m
+	p.draw_pass_1 = q
+	return p
 
 
 ## Barrel-tip position in holder space: the forward-most (most -Z, along the viewmodel
