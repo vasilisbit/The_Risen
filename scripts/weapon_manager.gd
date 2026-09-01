@@ -178,6 +178,10 @@ func _fire() -> void:
 	var fpvm := get_parent().get_node_or_null("FPViewmodel")
 	if fpvm and fpvm.has_method("kick"):
 		fpvm.kick(w.weapon_name)         # recoil the first-person arms viewmodel
+	if fpvm and fpvm.has_method("muzzle_flash"):
+		# Per-gun-type flash, tinted by the weapon's energy element (Solar/Arc/Void).
+		var ecol: Color = Weapon.ELEMENT_COLORS.get(w.element, Color(1.0, 0.9, 0.7))
+		fpvm.muzzle_flash(w.weapon_name, ecol)
 	# Camera recoil, weighted per weapon so the shotgun throws the view and the
 	# auto rifle only nudges it.
 	var player := get_parent()

@@ -81,8 +81,9 @@ SFX = {
                     "energy ring and a short crackling tail, sci-fi, dry close-up", 0.7, False),
     "melee_emp": ("A short EMP punch: a sharp crackling electric zap with a low electromagnetic "
                   "thump, sci-fi, dry close-up", 0.6, False),
-    "melee_slam": ("A heavy ground slam: a deep earth-shaking boom with a low rumble and a "
-                   "debris crack, powerful, sci-fi, close-up", 1.0, False),
+    "melee_slam": ("A heavy ground slam impact: a sharp powerful concrete-cracking BOOM with a "
+                   "punchy mid-range thud and crunching debris, a short low rumble tail, "
+                   "impactful and audible, dry close-up", 1.1, False),
     "super_dome": ("A protective energy shield dome activating: a deep resonant hum rising with "
                    "a shimmering crystalline energy sweep, powerful sci-fi", 1.6, False),
     "super_charge": ("A heroic power-up surge: a rising electric energy whoosh building into a "

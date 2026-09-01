@@ -50,6 +50,23 @@ const KICK := {
 }
 const RECOIL_RECOVER := 12.0
 
+## Muzzle-flash placement (holder space, at each gun's barrel tip) + size (billboarded
+## quad, m). Per gun type so each reads differently: the shotgun flares wide, the sniper
+## is longer/narrower, the auto rifle is small and quick. Tuned in-engine.
+const MUZZLE_POS := {
+	"Auto Rifle": Vector3(0.15, -0.17, -0.92),
+	"Shotgun": Vector3(0.15, -0.15, -0.78),
+	"Sniper": Vector3(0.15, -0.18, -1.15),
+	"Hand Cannon": Vector3(0.16, -0.20, -0.86),
+}
+const MUZZLE_SIZE := {
+	"Auto Rifle": Vector2(0.15, 0.15),
+	"Shotgun": Vector2(0.30, 0.22),
+	"Sniper": Vector2(0.15, 0.24),
+	"Hand Cannon": Vector2(0.22, 0.20),
+}
+const MUZZLE_TEX := "res://assets/generated/vfx/tex/"
+
 var _viewport: SubViewport
 var _cam: Camera3D
 var _holder: Node3D           # recoil/dip move this; the VM mesh hangs under it
@@ -62,6 +79,7 @@ var _recoil_rot: float = 0.0
 var _reload_left: float = 0.0
 var _reload_dur: float = 1.0
 var _base_pos: Vector3 = Vector3.ZERO      # current weapon's rest holder position
+var _muzzle_local: Vector3 = Vector3.ZERO  # cached barrel-tip in holder space (per weapon)
 
 
 func _ready() -> void:
@@ -181,6 +199,7 @@ func set_weapon(name_: String) -> void:
 		_metalize(_model, false)
 	else:
 		_fallback_weapon(name_)
+	_muzzle_local = _compute_muzzle(name_)
 
 
 ## No viewmodel mesh yet: show the bare world gun (no arms) so something is drawn.
@@ -224,6 +243,87 @@ func kick(weapon_name := "Auto Rifle") -> void:
 	var k: Dictionary = KICK.get(weapon_name, KICK["Auto Rifle"])
 	_recoil = Vector3(0.0, float(k["up"]), float(k["back"]))
 	_recoil_rot = float(k["rot"])
+
+
+## Spawn a brief muzzle flash at the gun barrel, inside the viewmodel's own world so it
+## composites with the arms. Shape varies per gun type; colour = the weapon's energy
+## element (Kinetic pale / Solar orange / Arc cyan / Void purple). Called per shot.
+func muzzle_flash(weapon_name := "Auto Rifle", color := Color(1.0, 0.9, 0.7)) -> void:
+	if _holder == null:
+		return
+	var root := Node3D.new()
+	_holder.add_child(root)
+	root.position = _muzzle_local
+	var sz: Vector2 = MUZZLE_SIZE.get(weapon_name, MUZZLE_SIZE["Auto Rifle"])
+	var tint := Color(color.r * 1.2 + 0.25, color.g * 1.2 + 0.25, color.b * 1.2 + 0.25, 1.0)
+	var core := _flash_quad("flare", sz * 0.75, tint)
+	root.add_child(core)
+	var star := _flash_quad("flare_cross", sz * 1.8, tint)
+	root.add_child(star)
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.omni_range = 1.4
+	light.light_energy = 4.5
+	root.add_child(light)
+	var tw := root.create_tween()
+	tw.tween_property(core.material_override, "albedo_color:a", 0.0, 0.06)
+	tw.parallel().tween_property(star.material_override, "albedo_color:a", 0.0, 0.06)
+	tw.parallel().tween_property(light, "light_energy", 0.0, 0.06)
+	tw.tween_callback(root.queue_free)
+
+
+## Barrel-tip position in holder space: the forward-most (most -Z, along the viewmodel
+## camera's view) mesh VERTEX of the gun model — the actual muzzle, whatever each mesh's
+## own rotation. Computed once per weapon swap (not per shot) and cached. Falls back to
+## the tuned per-weapon constant if the model has no readable geometry yet.
+func _compute_muzzle(weapon_name: String) -> Vector3:
+	var fallback: Vector3 = MUZZLE_POS.get(weapon_name, MUZZLE_POS["Auto Rifle"])
+	if _model == null or not is_instance_valid(_model):
+		return fallback
+	var inv := _holder.global_transform.affine_inverse()
+	var best_z := INF
+	var best := Vector3.ZERO
+	var found := false
+	for m in _model.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var gt := inv * mi.global_transform
+		for s in mi.mesh.get_surface_count():
+			var arrays := mi.mesh.surface_get_arrays(s)
+			if arrays.size() <= Mesh.ARRAY_VERTEX:
+				continue
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			for v in verts:
+				var p: Vector3 = gt * v
+				if p.z < best_z:
+					best_z = p.z
+					best = p
+					found = true
+	if not found:
+		return fallback
+	return best + Vector3(0.0, 0.0, -0.03)   # just ahead of the muzzle
+
+
+func _flash_quad(tex_name: String, size: Vector2, color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = size
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.billboard_keep_scale = true
+	m.no_depth_test = true                      # a muzzle flash reads over the gun
+	m.albedo_color = color
+	var path := MUZZLE_TEX + tex_name + ".png"
+	if ResourceLoader.exists(path):
+		m.albedo_texture = load(path)
+	mi.material_override = m
+	return mi
 
 
 ## Reload feedback: dip the viewmodel down/back for `duration` seconds (see _process).
