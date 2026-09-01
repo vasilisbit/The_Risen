@@ -92,6 +92,20 @@ SFX = {
                      "swell, positive magical sci-fi, close-up", 1.2, False),
     "grenade_flash": ("A blinding flashbang detonation: a sharp high-pitched ringing burst with "
                       "a bright piercing whine, disorienting, close-up", 1.2, False),
+    # Enemy vocalizations (Destiny-2 Hive inspired): teal-soulfire alien creatures. Played
+    # by enemy_base on spawn, then at random 8-18 s intervals while alive (positional).
+    "enemy_rusher": ("A monstrous small alien creature shrieking a frenzied high-pitched "
+                     "battle screech as it charges, guttural wet snarl, aggressive, dry", 1.6, False),
+    "enemy_shooter": ("An eerie alien acolyte creature letting out a low guttural menacing "
+                      "cackling laugh, raspy and otherworldly, sinister, dry close-up", 1.8, False),
+    "enemy_exploder": ("A cursed unstable alien creature emitting a rising ominous gurgling "
+                       "bubbling hiss, wet and swelling, dread building, dry", 1.8, False),
+    "boss_brute": ("A huge armored alien brute bellowing a deep powerful guttural monster "
+                   "roar, heavy menacing and commanding, slight echo", 2.4, False),
+    "boss_phantom": ("An eerie ghostly alien sorcerer emitting a distorted reverberating "
+                     "cackle and a warping ethereal shriek, otherworldly whispers, haunting", 2.4, False),
+    "boss_tyrant": ("A colossal molten fire demon roaring a deep booming furious infernal "
+                    "roar with crackling flames and embers, monstrous and enormous", 2.6, False),
 }
 # name -> (prompt, duration). Combat/boss loops the manager crossfades between; the file is
 # looped in engine, so ask for a seamless, evolving-but-uniform bed with no hard ending.

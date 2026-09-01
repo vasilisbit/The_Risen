@@ -82,6 +82,10 @@ func _init() -> void:
 	flux_value = 150
 
 
+func _enemy_voice() -> String:
+	return "boss_tyrant"
+
+
 func _ready() -> void:
 	super._ready()
 	add_to_group("boss")

@@ -24,6 +24,10 @@ func _init() -> void:
 	max_health = 150.0
 
 
+func _enemy_voice() -> String:
+	return "enemy_rusher"
+
+
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return

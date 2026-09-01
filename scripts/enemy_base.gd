@@ -91,6 +91,14 @@ var _push_velocity: Vector3 = Vector3.ZERO
 var _push_time_left: float = 0.0
 var _dead: bool = false
 var _player: Node3D = null
+
+## Enemy vocalization (Destiny-2 Hive inspired): each subclass returns its SFX id from
+## _enemy_voice(). Played once shortly after spawn (staggered) then at random intervals
+## while alive, positionally, so a nearby creature snarls/laughs/roars now and then.
+const VOICE_MIN := 8.0
+const VOICE_MAX := 18.0
+var _voice_id: String = ""
+var _voice_left: float = -1.0
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 
 
@@ -108,6 +116,26 @@ func _ready() -> void:
 	_apply_external_model()
 	if show_nameplate:
 		_build_nameplate()
+	# Spawn cry shortly after appearing (0.3-0.9 s stagger so a wave doesn't shout in unison).
+	_voice_id = _enemy_voice()
+	if _voice_id != "":
+		_voice_left = randf_range(0.3, 0.9)
+
+
+## Subclass hook: the enemy's vocalization SFX id (in assets/generated/audio/sfx/).
+## Empty = silent. Overridden per creature (rusher/shooter/exploder + the three bosses).
+func _enemy_voice() -> String:
+	return ""
+
+
+## Play the vocalization on spawn then at random VOICE_MIN..VOICE_MAX intervals while alive.
+func _tick_voice(delta: float) -> void:
+	if _voice_id == "" or _dead:
+		return
+	_voice_left -= delta
+	if _voice_left <= 0.0:
+		play_sfx(_voice_id)
+		_voice_left = randf_range(VOICE_MIN, VOICE_MAX)
 
 
 ## Enemy traversal jump (T-fix): crates break the navmesh, so an enemy that
@@ -265,6 +293,7 @@ func _wire_model_animation(inst: Node3D) -> void:
 
 
 func _process(_delta: float) -> void:
+	_tick_voice(_delta)
 	# Off-the-map failsafe: an enemy knocked into the void (off a ledge, through a
 	# gap) would otherwise stay alive-but-unreachable and block a "kill everything"
 	# objective (the reported Earth exploder). Track the last floor it stood on and,
