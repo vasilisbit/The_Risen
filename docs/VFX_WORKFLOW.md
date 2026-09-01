@@ -108,3 +108,33 @@ silhouette glows. `strength` (0–1) dims it as a shield pool is spent. Params:
 
 Texture kit + meshes: **$0** (Godot/Blender). Decals: ~**$0.5** (3 albedos + 3 patina).
 Ability SFX: ~**$0.02**. The bulk of the work is Godot authoring, as intended.
+
+## 7. Muzzle flash (`fp_viewmodel.gd`)
+
+Per-shot flash on the first-person gun, spawned **inside the viewmodel's own SubViewport**
+so it composites with the arms. `weapon_manager._fire()` calls
+`fpvm.muzzle_flash(weapon_name, Weapon.ELEMENT_COLORS[weapon.element])`, so:
+
+- **Colour = the weapon's energy element** — Kinetic pale / Solar orange / Arc cyan / Void
+  purple (`Weapon.ELEMENT_COLORS`, set by the solar/arc/void injector mods).
+- **Shape differs per gun type** via `MUZZLE_SIZE` (shotgun wide, sniper long/narrow, auto
+  rifle small, hand cannon punchy).
+- **Position = the true barrel tip**, computed once per weapon swap by `_compute_muzzle()`:
+  the forward-most (most −Z) mesh vertex of the gun model in holder space, cached in
+  `_muzzle_local`. This auto-aligns to each gun regardless of its own mesh rotation (the
+  hand cannon models its barrel along +X, the others along −Z) — no per-gun hand-tuning.
+- The flash = an additive billboarded `flare` core + `flare_cross` star (both `no_depth_test`
+  so they read over the gun) + an element-tinted `OmniLight`, tweened out over ~0.06 s.
+
+To retune a gun's flash size, edit `MUZZLE_SIZE`; the position is automatic.
+
+## 8. Travelling slash wave (`slash_wave.gd`)
+
+The Assault **Energy Blade** throws a `SlashWave` (crescent GLB, billboarded + additive)
+that **flies forward, damages each enemy it passes once** (200, melee-multiplied,
+attributed to "Energy Blade"), and **fades out after `MAX_DIST` (9 m)** — a ranged slash,
+not a point-blank cone. `EnergyBlade._execute()` builds it, `setup(from, dir, damage,
+color)` then `add_child` (setup only stores; `_ready` applies the transform once in-tree).
+Targeting reuses the melee surface-distance approach (group "enemy" minus body radius) so it
+catches big bosses by their body, not their foot origin. Tunables at the top of the script:
+`SPEED`, `MAX_DIST`, `HIT_RADIUS`.
