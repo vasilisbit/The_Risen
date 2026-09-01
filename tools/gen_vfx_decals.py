@@ -47,6 +47,11 @@ DECALS = {
         "pattern in grey stone ground: sharp dark cracks spider-webbing outward from a "
         "central impact point, broken shattered rock, fading to intact stone at the edges. "
         "Clean grey rock background, no objects, no text, photorealistic, centered.", "crack"),
+    "bullet_hole": (
+        "Top-down orthographic view, perfect 1:1 square, of a single small bullet impact "
+        "mark on a hard surface: a dark charred central hole ringed by black soot and a few "
+        "short radial cracks, fading quickly to clean neutral grey surface at the edges. "
+        "Small, tight, centered, photorealistic, no objects, no text.", "hole"),
 }
 
 
@@ -87,6 +92,11 @@ def _process(name, raw, mode):
             elif mode == "crack":
                 dark = max(0.0, min(1.0, (0.55 - lum) / 0.55))
                 a = edge * (0.05 + 1.15 * dark)              # mostly the cracks
+            elif mode == "hole":
+                # Only the VERY dark soot/hole survives; the medium-grey clean surround
+                # goes fully transparent (else it projects as a light disc on the wall).
+                dark = max(0.0, min(1.0, (0.30 - lum) / 0.30))
+                a = edge * min(1.0, 1.8 * dark)
             else:  # full
                 a = edge
             op[x, y] = (r, g, b, int(max(0.0, min(1.0, a)) * 255))

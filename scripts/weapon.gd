@@ -198,13 +198,15 @@ func fire(origin: Vector3, direction: Vector3, world: World3D, exclude: Array = 
 		var hit := space.intersect_ray(query)
 		if hit.is_empty():
 			continue
+		var collider: Object = hit["collider"]
 		# Bullet-impact sparks where the shot lands (world or enemy), sized per gun and
-		# tinted by the weapon's energy element.
+		# tinted by the weapon's energy element. A temporary bullet-hole decal is left
+		# only on static world geometry (not on a moving enemy, where it would detach).
 		var host := get_tree().current_scene
 		if host != null:
 			var ecol: Color = ELEMENT_COLORS.get(element, Color(1.0, 0.9, 0.7))
-			VfxKit.impact(host, hit["position"], hit.get("normal", Vector3.UP), ecol, weapon_name)
-		var collider: Object = hit["collider"]
+			var world_hit := collider == null or not collider.has_method("take_damage")
+			VfxKit.impact(host, hit["position"], hit.get("normal", Vector3.UP), ecol, weapon_name, world_hit)
 		if collider != null and collider.has_method("take_damage"):
 			var dmg := per_pellet
 			var head := false

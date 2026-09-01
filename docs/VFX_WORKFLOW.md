@@ -141,6 +141,16 @@ gun type** (`VfxKit.IMPACT`: sniper big & bright, shotgun small ×many-pellets, 
 heavier single-shot guns (scale ≥ 1.2) add a dynamic `OmniLight`, so a shotgun blast or
 sustained auto fire doesn't spawn a swarm of lights.
 
+On **static world hits** (not enemies — a decal on a moving body would detach), `impact`
+also leaves a **temporary `bullet_hole` decal** (`_bullet_mark`): the fal decal
+(`gen_vfx_decals.py`, alpha mode `hole` — only the very dark soot survives, so the clean
+surround is fully transparent and there's no light disc), oriented flat to the hit normal
+with a random roll, sized per gun, subtly element-tinted, fading out after ~4 s. **No normal
+map** on this one — a patina normal is opaque across the whole square and would project a
+disc past the keyed hole. **Gotcha:** after regenerating a decal, a full
+`filesystem_manage(op="scan")` is needed, not just `reimport` — the running game otherwise
+keeps the stale imported texture (this is what caused a phantom light disc during dev).
+
 ## 8. Travelling slash wave (`slash_wave.gd`)
 
 The Assault **Energy Blade** throws a `SlashWave` (crescent GLB, billboarded + additive)
