@@ -81,9 +81,11 @@ const IMPACT := {
 
 ## Brief bullet-impact at a surface hit: sparks bouncing off along the normal + a
 ## quick flash + a tiny light, tinted by the weapon's energy element and sized per gun.
-static func impact(host: Node, at: Vector3, normal: Vector3, color: Color, kind: String = "Auto Rifle") -> void:
+static func impact(host: Node, at: Vector3, normal: Vector3, color: Color, kind: String = "Auto Rifle", leave_mark: bool = false) -> void:
 	if host == null or not (host is Node):
 		return
+	if leave_mark:
+		_bullet_mark(host, at, normal, color, kind)
 	var root := Node3D.new()
 	host.add_child(root)
 	root.global_position = at
@@ -411,6 +413,39 @@ static func _sprite_mat(tex_name: String, color: Color, additive: bool) -> Stand
 	if tex != null:
 		m.albedo_texture = tex
 	return m
+
+
+## A temporary bullet-hole Decal on a static surface, oriented flat to the hit normal,
+## sized per gun and faded out after ~4 s. World hits only (a mark on a moving enemy
+## would detach); guarded by ResourceLoader so it no-ops if the decal isn't present.
+static func _bullet_mark(host: Node, at: Vector3, normal: Vector3, color: Color, kind: String) -> void:
+	var path := "%s/bullet_hole.png" % DECAL_DIR
+	if not ResourceLoader.exists(path):
+		return
+	var d := Decal.new()
+	d.texture_albedo = load(path)
+	# No normal map here: a patina normal is opaque across the whole square and would
+	# project a visible disc beyond the (alpha-keyed) hole. The albedo alpha is the mark.
+	var scl := float((IMPACT.get(kind, IMPACT["Auto Rifle"]))["scale"])
+	var s := 0.34 * scl
+	d.size = Vector3(s, 0.4, s)
+	d.modulate = Color(1, 1, 1).lerp(color, 0.3)      # subtle element tint on the scorch
+	d.albedo_mix = 1.0
+	host.add_child(d)
+	# Orient +Y along the surface normal (a Decal projects down its local -Y), with a
+	# random roll so repeated hits don't look stamped.
+	var n := normal.normalized() if normal.length() > 0.01 else Vector3.UP
+	var xaxis := n.cross(Vector3.FORWARD)
+	if xaxis.length() < 0.01:
+		xaxis = n.cross(Vector3.RIGHT)
+	xaxis = xaxis.normalized()
+	var zaxis := xaxis.cross(n).normalized()
+	var basis := Basis(xaxis, n, zaxis).rotated(n, randf() * TAU)
+	d.global_transform = Transform3D(basis, at)
+	var tw := d.create_tween()
+	tw.tween_interval(2.6)
+	tw.tween_property(d, "albedo_mix", 0.0, 1.6)      # ~4.2 s total, then free
+	tw.tween_callback(d.queue_free)
 
 
 ## Additive unshaded spark material that does NOT billboard, so a velocity-aligned
