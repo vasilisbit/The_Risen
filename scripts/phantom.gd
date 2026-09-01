@@ -43,6 +43,10 @@ func _init() -> void:
 	flux_value = 75
 
 
+func _enemy_voice() -> String:
+	return "boss_phantom"
+
+
 ## The custom Hive-wraith model (T-0044) ships its own teal PBR, so DON'T tint it -
 ## the old purple override is what put the "purple around him". Keep its materials.
 func external_model_tint() -> Material:

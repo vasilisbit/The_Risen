@@ -37,6 +37,10 @@ func _init() -> void:
 	loot_rarity_override = "Epic"          # guaranteed Epic on death
 
 
+func _enemy_voice() -> String:
+	return "boss_brute"
+
+
 func _ready() -> void:
 	super._ready()
 	add_to_group("boss")

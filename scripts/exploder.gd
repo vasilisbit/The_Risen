@@ -33,6 +33,10 @@ func _init() -> void:
 	flux_value = 4
 
 
+func _enemy_voice() -> String:
+	return "enemy_exploder"
+
+
 func _ready() -> void:
 	super._ready()
 	_mat = StandardMaterial3D.new()          # unique per instance so it can pulse

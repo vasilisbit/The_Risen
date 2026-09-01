@@ -41,6 +41,10 @@ func _init() -> void:
 	flux_value = 5
 
 
+func _enemy_voice() -> String:
+	return "enemy_shooter"
+
+
 func _ready() -> void:
 	super._ready()
 	# Desync: each shooter gets its own peek rhythm, fire cadence, and a random
