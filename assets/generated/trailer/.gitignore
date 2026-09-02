@@ -1,8 +1,4 @@
-# IGF trailer build outputs — large binaries, regenerate via tools/ + deliverables/igf/build_trailer.py
-frames/
-clips/
-*.mp4
-*.png
-_urls.json
-_jobs.json
+# IGF trailer build outputs — large binaries. Regenerate via The_Risen/tools/ +
+# game-dev-the-risen/deliverables/igf/build_trailer.py (minimax/h3-max i2v + cassetteai music).
+*
 !.gitignore
