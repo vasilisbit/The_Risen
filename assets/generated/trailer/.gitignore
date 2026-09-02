@@ -1,0 +1,8 @@
+# IGF trailer build outputs — large binaries, regenerate via tools/ + deliverables/igf/build_trailer.py
+frames/
+clips/
+*.mp4
+*.png
+_urls.json
+_jobs.json
+!.gitignore
