@@ -54,20 +54,49 @@ func _ready() -> void:
 	body_exited.connect(_on_body_exited)
 
 
-## Roll rarity 1-100 per GDD §2.7 (Exotic folded into Epic for the MVP).
+## Rarity weights per difficulty tier (GDD §2.7, extended for T-0027). The gold
+## Exotic is the payoff for playing harder: near-absent on Normal, uncommon on
+## Heroic, and genuinely likely on Legendary. Weights per tier need not sum to 100.
+const RARITY_WEIGHTS := {
+	"Normal":    {"Common": 55, "Rare": 33, "Epic": 11, "Exotic": 1},
+	"Heroic":    {"Common": 40, "Rare": 33, "Epic": 20, "Exotic": 7},
+	"Legendary": {"Common": 28, "Rare": 32, "Epic": 22, "Exotic": 18},
+}
+const RARITY_ORDER := ["Common", "Rare", "Epic", "Exotic"]
+
+
+## Roll rarity from the weight table for the tier the mission is being played on
+## (Normal in the hub / unknown). A forced rarity (boss drops) skips the roll.
 func roll_rarity() -> void:
 	if forced_rarity != "" and RARITY_COLORS.has(forced_rarity):
 		rarity = forced_rarity
 		kind = _roll_kind()
 		return
-	var r := randi_range(1, 100)
-	if r <= 50:
-		rarity = "Common"
-	elif r <= 85:
-		rarity = "Rare"
-	else:
-		rarity = "Epic"
+	rarity = _roll_weighted(_tier_weights())
 	kind = _roll_kind()
+
+
+## Weight table for the current difficulty tier, defaulting to Normal.
+func _tier_weights() -> Dictionary:
+	var tier := "Normal"
+	var diff := get_node_or_null("/root/Difficulty")
+	if diff and diff.has_method("scene_tier"):
+		tier = String(diff.scene_tier())
+	return RARITY_WEIGHTS.get(tier, RARITY_WEIGHTS["Normal"])
+
+
+## Pick a rarity from a {rarity: weight} table.
+func _roll_weighted(weights: Dictionary) -> String:
+	var total := 0
+	for k in weights:
+		total += int(weights[k])
+	var r := randi_range(1, maxi(1, total))
+	var acc := 0
+	for k in RARITY_ORDER:
+		acc += int(weights.get(k, 0))
+		if r <= acc:
+			return k
+	return "Common"
 
 
 func _roll_kind() -> String:

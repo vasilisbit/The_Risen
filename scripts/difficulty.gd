@@ -198,6 +198,16 @@ func death_limit() -> int:
 	return LEGENDARY_DEATH_LIMIT if current(scene) == LEGENDARY else 0
 
 
+## Effective tier for the CURRENT scene, regardless of APPLIES_TO - Normal in the
+## hub / anywhere that isn't one of the three missions. Used by systems that scale
+## with the tier the mission is actually being played on (e.g. loot rarity).
+func scene_tier() -> String:
+	var scene := _scene_mission()
+	if not ALL_MISSIONS.has(scene):
+		return NORMAL
+	return current(scene)
+
+
 ## True once Earth, Venus AND Mars have each been beaten on Legendary. Drives the
 ## end-game credits roll (the last of the three to fall triggers it, in any order).
 func all_missions_legendary_cleared() -> bool:
