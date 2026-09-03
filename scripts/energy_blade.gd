@@ -20,7 +20,13 @@ func _init() -> void:
 
 
 func _execute() -> void:
-	var facing: Vector3 = -player.global_transform.basis.z
+	# Travel along where the player is LOOKING (yaw + pitch), not the flat body
+	# facing, so the slash flies up a slope or at a raised enemy (SlashWave keeps
+	# the full 3D direction now). Fall back to body forward if look_direction is absent.
+	var facing: Vector3 = player.look_direction() if player.has_method("look_direction") \
+		else -player.global_transform.basis.z
+	if facing.length() < 0.01:
+		facing = -player.global_transform.basis.z
 	var from: Vector3 = player.global_position + Vector3(0, 1.1, 0) + facing.normalized() * 0.6
 	last_hits = 0
 	var wave := SlashWave.new()
