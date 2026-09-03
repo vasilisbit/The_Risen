@@ -50,13 +50,22 @@ void vertex() {
 void fragment() {
 	vec2 uv = world_pos.xz * tex_scale;
 	vec2 drift = normalize(flow_dir) * TIME * flow_speed;
-	// two layers scrolling at different rates -> churning, not a rigid slide
+	// Domain warp: push the sample point around by its own noise so the molten field
+	// reads as organic FLOWING channels instead of chunky cellular blobs that look like
+	// blocks. This is what turns the lava from "glowing rectangles" into continuous flow.
+	vec2 warp = vec2(fbm(uv + drift + vec2(1.3, 4.7)), fbm(uv - drift * 0.8 + vec2(8.1, 2.4)));
+	uv += (warp - 0.5) * 1.7;
+	// three layers scrolling at different rates -> churning, not a rigid slide; the fine
+	// layer adds continuous small detail so the surface never reads as flat blocks.
 	float base = fbm(uv + drift);
 	float detail = fbm(uv * 2.4 - drift * 1.7 + 5.0);
-	float field = base * 0.65 + detail * 0.35;
-	// crust vs molten: threshold the field, then a hotter core inside the molten veins
-	float molten = smoothstep(0.42, 0.62, field);
-	float core = smoothstep(0.6, 0.82, field);
+	float fine = fbm(uv * 5.3 + drift * 0.6 + 11.0);
+	float field = base * 0.58 + detail * 0.30 + fine * 0.12;
+	// crust vs molten: threshold the field, then a hotter core inside the molten veins.
+	// Softer/lower molten threshold -> the glowing channels connect across the surface
+	// rather than breaking into isolated cells.
+	float molten = smoothstep(0.36, 0.60, field);
+	float core = smoothstep(0.58, 0.82, field);
 	vec3 col = mix(crust_color, hot_color, molten);
 	col = mix(col, bright_color, core * 0.9);
 	ALBEDO = col * 0.12;

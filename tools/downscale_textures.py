@@ -23,11 +23,16 @@ APPLY = "--apply" in sys.argv
 
 SKIP_SUBSTR = ("/raw/", "_concept", "_front", "_back", "_ship_ref")
 SKIP_DIRS = ("assets/generated/fold", "assets/generated/ui")
+# Kept at native resolution on purpose: the Forge Master is shown large + close-up in the
+# vendor / item screen, where 1024 read too soft (user feedback 2026-08-30). Do NOT downscale.
+KEEP_FULL = ("assets/generated/hub/forge_master_texture_0.png",)
 
 
 def target_for(rel: str) -> int | None:
     p = rel.replace("\\", "/")
     if any(s in p for s in SKIP_SUBSTR):
+        return None
+    if any(p.endswith(k) for k in KEEP_FULL):
         return None
     if any(p.startswith(d) for d in SKIP_DIRS):
         return None
