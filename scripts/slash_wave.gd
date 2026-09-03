@@ -28,16 +28,20 @@ var last_hits: int = 0           # enemies struck, exposed for tests
 ## `color`. Add to the scene AFTER calling this.
 func setup(from: Vector3, dir: Vector3, damage: float, color: Color) -> void:
 	_from = from                       # applied in _ready (node not in the tree yet)
-	var d := dir
-	d.y = 0.0
-	_dir = d.normalized() if d.length() > 0.01 else Vector3.FORWARD
+	# Keep the FULL 3D aim (including pitch) so the wave flies where the player is
+	# looking - up a slope, at a raised enemy - not only along the flat heading.
+	_dir = dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD
 	_damage = damage
 	_color = color
 
 
 func _ready() -> void:
 	global_position = _from
-	look_at(global_position + _dir, Vector3.UP)
+	# look_at with a world UP is degenerate when the aim is near-vertical; pick a
+	# non-parallel up in that case. Orientation is mostly cosmetic (the arc mesh
+	# billboards to the camera), but a degenerate look_at spams errors.
+	var up := Vector3.UP if absf(_dir.dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
+	look_at(global_position + _dir, up)
 	_build_visual()
 
 

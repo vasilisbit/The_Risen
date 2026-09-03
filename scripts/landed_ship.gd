@@ -172,10 +172,10 @@ func _return_home() -> void:
 	# After the in-engine climb, play the LIFT-OFF cinematic (the ship leaves the atmosphere
 	# and docks into the mothership where it rests); it then dissolves to the destination. Falls
 	# back to the plain transition if the clip / ShipTravel is missing, so extraction never stalls.
-	# Clearing Venus on the hardest tier (Legendary) rolls the credits between the orbit
-	# cinematic and the hub; the roll then continues into the hub itself.
+	# Beating the LAST of the three missions on Legendary (any order) rolls the credits between
+	# the orbit cinematic and the hub; the roll then continues into the hub itself.
 	var dest := HUB_SCENE
-	if _completed_run and _venus_legendary_cleared():
+	if _completed_run and _all_legendary_cleared():
 		Credits.next_scene = HUB_SCENE
 		dest = CREDITS_SCENE
 	var st := get_node_or_null("/root/ShipTravel")
@@ -188,17 +188,15 @@ func _return_home() -> void:
 		get_tree().change_scene_to_file(dest)
 
 
-## True when the run just finished IS the Venus mission played on Legendary (the hardest
-## tier). Read from the Difficulty autoload, which resolves the mission from the scene and
-## the effective tier from the save; safe (returns false) if the autoload is absent.
-func _venus_legendary_cleared() -> bool:
+## True once all three missions (Earth, Venus, Mars) have been beaten on Legendary. The
+## just-finished mission's clear is banked by ObjectiveManager -> complete_mission ->
+## Difficulty.unlock_after BEFORE the player boards, so this reads true on the final one.
+## Safe (returns false) if the Difficulty autoload is absent.
+func _all_legendary_cleared() -> bool:
 	var diff := get_node_or_null("/root/Difficulty")
-	if diff == null:
+	if diff == null or not diff.has_method("all_missions_legendary_cleared"):
 		return false
-	var mid := String(diff.current_mission()) if diff.has_method("current_mission") else ""
-	if mid != "Venus":
-		return false
-	return diff.has_method("current") and String(diff.current(mid)) == "Legendary"
+	return diff.all_missions_legendary_cleared()
 
 
 func _unhandled_input(event: InputEvent) -> void:

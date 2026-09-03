@@ -58,6 +58,9 @@ var health: float = MAX_HEALTH
 var shield: float = MAX_SHIELD
 
 var is_dead: bool = false
+## Deaths this run. On Legendary the run fails once this reaches Difficulty's
+## death limit (see _on_death). Resets naturally - the Guardian is fresh per scene.
+var _deaths: int = 0
 
 const KNOCKBACK_DECAY := 22.0    # how fast a horizontal knockback push fades
 const PUSH_TIME := 0.4           # s a wind gust / boss slam takes to shove you
@@ -508,6 +511,17 @@ func add_recoil(pitch_kick: float, shake: float) -> void:
 	_shake = minf(_shake + shake, MAX_SHAKE)
 
 
+## World-space direction the player is looking (yaw AND pitch), taken from the
+## camera. Aim-directed attacks (the Energy Blade slash) use this so they travel
+## toward the crosshair - up a slope, at a raised enemy - instead of only along
+## the body's flat facing. Falls back to the body forward if the camera is absent.
+func look_direction() -> Vector3:
+	var cam: Camera3D = _spring_arm.get_node_or_null("Camera3D") if _spring_arm else null
+	if cam:
+		return -cam.global_transform.basis.z
+	return -global_transform.basis.z
+
+
 ## Apply look pitch plus shake. Jitter goes on the Camera, not the SpringArm or
 ## the body, so it never accumulates into the player's actual facing.
 func _apply_look(delta: float) -> void:
@@ -620,6 +634,7 @@ func set_wind(v: Vector3) -> void:
 
 func _on_death() -> void:
 	is_dead = true
+	_deaths += 1
 	var tel := get_node_or_null("/root/Telemetry")
 	if tel:
 		tel.player_died(global_position, _last_damage_source)
@@ -627,6 +642,16 @@ func _on_death() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if has_node("WeaponManager"):
 		$WeaponManager.set_process(false)
+	# Legendary: out of lives -> the run fails instead of respawning.
+	var diff := get_node_or_null("/root/Difficulty")
+	var limit: int = diff.death_limit() if diff and diff.has_method("death_limit") else 0
+	if limit > 0 and _deaths >= limit:
+		var gs := get_node_or_null("/root/GameState")
+		if gs and gs.has_method("fail_mission"):
+			gs.fail_mission("out_of_lives", "OUT OF LIVES")
+		else:
+			get_tree().change_scene_to_file("res://scenes/hub/hub.tscn")
+		return
 	if _death_screen:
 		_death_screen.visible = true
 	get_tree().create_timer(RESPAWN_DELAY).timeout.connect(_respawn)

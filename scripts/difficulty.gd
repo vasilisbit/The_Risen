@@ -19,6 +19,13 @@ const NORMAL := "Normal"
 const HEROIC := "Heroic"
 const LEGENDARY := "Legendary"
 
+## Legendary runs are limited to this many deaths; the run fails on the next one.
+## Applies to every mission played on Legendary (see death_limit); 0 = unlimited.
+const LEGENDARY_DEATH_LIMIT := 5
+
+## The three missions, for the "cleared all on Legendary -> credits" check.
+const ALL_MISSIONS := ["Earth", "Venus", "Mars"]
+
 ## Missions the FULL modifier set (enemy health, time limit, no shield regen)
 ## applies to (GDD §7: "Apply to Mission 1 & 3 only").
 const APPLIES_TO := ["Earth", "Venus"]
@@ -181,8 +188,32 @@ func no_shield_regen() -> bool:
 	return bool(active_tier(current_mission()).get("no_shield_regen", false))
 
 
+## Max deaths allowed on the CURRENT mission before the run fails; 0 = unlimited.
+## Legendary only, and on any of the three missions (uses the raw scene name, so
+## it covers Mars). The Guardian counts deaths per run and calls this each death.
+func death_limit() -> int:
+	var scene := _scene_mission()
+	if not ALL_MISSIONS.has(scene):
+		return 0
+	return LEGENDARY_DEATH_LIMIT if current(scene) == LEGENDARY else 0
+
+
+## True once Earth, Venus AND Mars have each been beaten on Legendary. Drives the
+## end-game credits roll (the last of the three to fall triggers it, in any order).
+func all_missions_legendary_cleared() -> bool:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm == null:
+		return false
+	var lc: Dictionary = sm.data.get("legendary_cleared", {})
+	for m in ALL_MISSIONS:
+		if not bool(lc.get(m, false)):
+			return false
+	return true
+
+
 ## Called when a mission completes, to record progression toward the tier unlocks:
 ##  - clearing a mission on Heroic/Legendary unlocks THAT mission's Legendary;
+##  - clearing a mission on Legendary records it for the all-three credits roll;
 ##  - clearing Venus (on ANY difficulty) opens Heroic on every mission.
 func unlock_after(mission_id: String) -> void:
 	var sm := get_node_or_null("/root/SaveManager")
@@ -198,6 +229,10 @@ func unlock_after(mission_id: String) -> void:
 		var hc: Dictionary = sm.data.get("heroic_cleared", {})
 		hc[mission_id] = true
 		sm.data["heroic_cleared"] = hc
+	if played == LEGENDARY:
+		var lc: Dictionary = sm.data.get("legendary_cleared", {})
+		lc[mission_id] = true
+		sm.data["legendary_cleared"] = lc
 	if mission_id == "Venus":
 		var unlocks: Dictionary = sm.data.get("difficulty_unlocks", {})
 		unlocks[HEROIC] = true

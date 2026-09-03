@@ -141,6 +141,9 @@ func _default_data() -> Dictionary:
 		# in heroic_cleared: a mission's Legendary unlocks once it's beaten on Heroic.
 		"difficulty_unlocks": {"Heroic": false},
 		"heroic_cleared": {},
+		# Missions beaten on Legendary. When all three are here the credits roll
+		# (the last one cleared, in any play order). Backfilled into older saves.
+		"legendary_cleared": {},
 		# Selected modifier tier (T-0027).
 		"selected_difficulty": "Normal",
 		# Most recent mission deployed to - drives the hub window planet (T-0028).

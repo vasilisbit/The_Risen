@@ -15,6 +15,9 @@ const RETURN_SCENE := "res://scenes/hub/hub.tscn"
 signal expired
 
 @export var mission_id: String = ""
+## Per-mission cap on the Legendary time limit. 0 = use the tier default
+## (Difficulty.time_limit(), 600 s). Earth sets 300 s (5 min) in earth.tscn.
+@export var time_limit_override: float = 0.0
 
 var time_left: float = 0.0
 var running: bool = false
@@ -30,9 +33,21 @@ func _ready() -> void:
 	if limit <= 0.0:
 		queue_free()             # not a timed tier
 		return
+	if time_limit_override > 0.0:
+		limit = time_limit_override   # per-mission cap (Earth = 5 min)
 	time_left = limit
 	running = true
 	_build_ui()
+	# Stop the clock the moment every objective is done - the run is won, so the
+	# remaining time shouldn't keep ticking toward a failure. The label freezes at
+	# the time left and is hidden with the rest of the mission HUD on lift-off.
+	var obj := get_parent().get_node_or_null("ObjectiveManager") if get_parent() else null
+	if obj and obj.has_signal("all_complete"):
+		obj.all_complete.connect(_on_objectives_complete)
+
+
+func _on_objectives_complete() -> void:
+	running = false
 
 
 func _process(delta: float) -> void:
@@ -89,6 +104,10 @@ func _mission() -> String:
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 6
+	# Hidden with the objectives during the ship board/lift-off cinematics
+	# (landed_ship._freeze_player toggles this group), so the clock disappears
+	# on lift-off instead of hanging over the 3rd-person shot.
+	layer.add_to_group("mission_hud")
 	add_child(layer)
 
 	var box := VBoxContainer.new()

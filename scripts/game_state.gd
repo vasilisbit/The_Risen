@@ -46,6 +46,50 @@ func _release() -> void:
 		transition_to(path)
 
 
+## Fail the current run: flash a red banner, log the failure, then return to the hub.
+## Shared by the Legendary time limit (mission_timer) and the Legendary death cap
+## (guardian). `reason` is the telemetry tag; `banner` is the on-screen text.
+func fail_mission(reason: String, banner: String = "MISSION FAILED",
+		return_scene: String = "res://scenes/hub/hub.tscn") -> void:
+	var tel := get_node_or_null("/root/Telemetry")
+	if tel and tel.has_method("mission_failed"):
+		var scene := get_tree().current_scene
+		tel.mission_failed(String(scene.name) if scene else "", reason)
+	var banner_node := _show_fail_banner(banner)
+	# create_timer defaults to process_always, so the wait ticks even if the tree
+	# was paused (e.g. a death that opened a menu).
+	await get_tree().create_timer(2.5).timeout
+	get_tree().paused = false
+	# GameState is an autoload that outlives the scene swap, so the banner must be
+	# freed explicitly or it would hang over the hub forever.
+	if is_instance_valid(banner_node):
+		banner_node.queue_free()
+	transition_to(return_scene)
+
+
+## Build the red fail banner as one throwaway Control (tint + centred label) and
+## return it so the caller can free it after the scene swap.
+func _show_fail_banner(text: String) -> Control:
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(root)
+	var tint := ColorRect.new()
+	tint.color = Color(0.3, 0.0, 0.0, 0.55)
+	tint.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(tint)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(center)
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 56)
+	center.add_child(label)
+	return root
+
+
 ## Fade to black, run `at_black` (e.g. reveal a screen), fade back in - without
 ## a scene change. Used for the transition into the vendor screen. Runs while the
 ## tree is paused because this autoload is PROCESS_MODE_ALWAYS.

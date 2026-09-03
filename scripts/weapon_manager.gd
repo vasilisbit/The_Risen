@@ -108,6 +108,10 @@ func _process(delta: float) -> void:
 		_switch(2)
 	elif Input.is_action_just_pressed("weapon_4"):
 		_switch(3)
+	elif Input.is_action_just_pressed("weapon_next"):
+		_cycle(1)                          # scroll wheel down -> next weapon
+	elif Input.is_action_just_pressed("weapon_prev"):
+		_cycle(-1)                         # scroll wheel up -> previous weapon
 
 	if Input.is_action_just_pressed("reload"):
 		w.start_reload()                     # the reload_started signal plays the FP animation
@@ -115,6 +119,15 @@ func _process(delta: float) -> void:
 	var wants_fire := Input.is_action_pressed("fire") if w.automatic else Input.is_action_just_pressed("fire")
 	if wants_fire:
 		_fire()
+
+
+## Cycle the active weapon by `dir` (+1 next, -1 previous), wrapping around the
+## equipped set. Bound to the mouse wheel; no-op with 0 or 1 weapons.
+func _cycle(dir: int) -> void:
+	var n := _weapons.size()
+	if n <= 1:
+		return
+	_switch((_active + dir + n) % n)
 
 
 func _switch(index: int) -> void:

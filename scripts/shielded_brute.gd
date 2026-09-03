@@ -18,6 +18,9 @@ const SLAM_COOLDOWN := 10.0
 const SLAM_KNOCKBACK := 9.0
 const MAX_SHIELD := 500.0
 const ADDS_COUNT := 5
+## Seconds of no-progress chasing before the boss is repositioned off whatever it
+## is wedged against (see _unstick). `_stuck_time` is maintained by EnemyBase._nav_dir.
+const STUCK_WARP_TIME := 1.5
 
 enum State { IDLE, CHASE, ATTACK }
 
@@ -73,6 +76,13 @@ func _physics_process(delta: float) -> void:
 				_state = State.ATTACK
 			else:
 				_chase(delta)
+				# The large boss body can wedge against the Tripo building collision
+				# and grind there every frame - it never reaches the player AND the
+				# repeated depenetration against the dense concave mesh tanks the
+				# frame rate. If it makes no progress for a while, snap it onto the
+				# navmesh toward the player so it comes free instead of grinding.
+				if _stuck_time > STUCK_WARP_TIME:
+					_unstick()
 		State.ATTACK:
 			_halt_horizontal()
 			_face(_player.global_position)
@@ -97,6 +107,25 @@ func _chase(delta: float) -> void:
 		_tick_jump(dir, delta)          # hop onto a crate/ledge in the way
 	else:
 		_halt_horizontal()
+
+
+## Come free from an obstacle: step a few metres toward the player, snapped to the
+## nearest navmesh point so it lands on walkable ground clear of the asset it was
+## grinding against. A small reposition beats a stuck boss that softlocks the fight
+## and destroys the frame rate.
+func _unstick() -> void:
+	_stuck_time = 0.0
+	var map := get_world_3d().navigation_map
+	if not map.is_valid() or _player == null:
+		return
+	var toward := _player.global_position - global_position
+	toward.y = 0.0
+	toward = toward.normalized() if toward.length() > 0.01 else -global_transform.basis.z
+	var goal := global_position + toward * 4.0
+	var nav_point := NavigationServer3D.map_get_closest_point(map, goal)
+	if nav_point != Vector3.ZERO:
+		global_position = nav_point + Vector3(0, 1.0, 0)
+	velocity = Vector3.ZERO
 
 
 func _melee() -> void:
