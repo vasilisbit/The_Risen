@@ -188,8 +188,12 @@ func unlock_after(mission_id: String) -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm == null:
 		return
-	# The tier this mission was actually played on (Normal outside Earth/Venus).
-	var played := current(mission_id) if APPLIES_TO.has(mission_id) else NORMAL
+	# The tier this mission was actually played on. Gate on SHIELD_APPLIES_TO, not
+	# APPLIES_TO: Mars runs a real Heroic (shielded enemies) even though it takes
+	# none of the tier's other modifiers, so a Heroic Mars clear must still unlock
+	# Mars Legendary. (This was the bug: Mars fell into the NORMAL branch here, so
+	# beating it on Heroic never recorded the clear.)
+	var played := current(mission_id) if SHIELD_APPLIES_TO.has(mission_id) else NORMAL
 	if played == HEROIC or played == LEGENDARY:
 		var hc: Dictionary = sm.data.get("heroic_cleared", {})
 		hc[mission_id] = true

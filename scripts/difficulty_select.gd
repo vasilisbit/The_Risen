@@ -78,9 +78,17 @@ func refresh() -> void:
 		if not unlocked:
 			lock.text = "LOCKED - %s" % _unlock_hint(id)
 	var applies: bool = diff.APPLIES_TO.has(mission_id)
-	_note.text = ("Modifiers apply to this mission.   Selected: %s" % current) if applies \
-		else "Modifiers do not apply to %s - it runs on Normal." % mission_id
-	_launch.text = "LAUNCH  -  %s" % (current if applies else "Normal")
+	var shield_only: bool = not applies and diff.SHIELD_APPLIES_TO.has(mission_id)
+	if applies:
+		_note.text = "Modifiers apply to this mission.   Selected: %s" % current
+	elif shield_only:
+		# Mars: enemies shield up on Heroic/Legendary, but the rest of the tier
+		# (enemy health, time limit) is left to the wave rewards - so the selected
+		# tier still matters here, just for the shields.
+		_note.text = "Enemies carry shields on this mission; its other modifiers come from the wave rewards.   Selected: %s" % current
+	else:
+		_note.text = "Modifiers do not apply to %s - it runs on Normal." % mission_id
+	_launch.text = "LAUNCH  -  %s" % (current if (applies or shield_only) else "Normal")
 
 
 ## How a locked tier is earned. Heroic is a global unlock (clear Venus); Legendary is
