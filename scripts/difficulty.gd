@@ -208,6 +208,43 @@ func scene_tier() -> String:
 	return current(scene)
 
 
+## Whether RANDOM loot may roll the gold Exotic in the current mission. Bosses'
+## guaranteed Exotic drops are separate and always happen (see boss_exotic_count):
+##   Normal    - never (on Normal the ONLY Exotic is the Venus boss's guaranteed one);
+##   Heroic    - Mars and Venus only;
+##   Legendary - all three missions.
+func exotic_loot_allowed() -> bool:
+	var scene := _scene_mission()
+	if not ALL_MISSIONS.has(scene):
+		return false
+	match current(scene):
+		LEGENDARY:
+			return true
+		HEROIC:
+			return scene == "Mars" or scene == "Venus"
+		_:
+			return false
+
+
+## How many Exotic weapons the CURRENT mission's boss drops, gated by the same
+## mission+tier rule as exotic_loot_allowed and scaled by difficulty (0 = this
+## boss drops no Exotic at this tier):
+##   Normal    - Venus boss only, 1;
+##   Heroic    - Mars and Venus bosses, 2 each;
+##   Legendary - all three bosses, 3 each.
+func boss_exotic_count() -> int:
+	var scene := _scene_mission()
+	if not ALL_MISSIONS.has(scene):
+		return 0
+	match current(scene):
+		LEGENDARY:
+			return 3
+		HEROIC:
+			return 2 if (scene == "Mars" or scene == "Venus") else 0
+		_:
+			return 1 if scene == "Venus" else 0
+
+
 ## True once Earth, Venus AND Mars have each been beaten on Legendary. Drives the
 ## end-game credits roll (the last of the three to fall triggers it, in any order).
 func all_missions_legendary_cleared() -> bool:

@@ -403,9 +403,14 @@ func _die() -> void:
 	queue_free()
 
 
-## GDD §3.4 reward: 1 Exotic weapon + 3 Epic armour pieces (chest/helmet/gloves).
+## GDD §3.4 reward: Exotic weapon(s) + 3 Epic armour pieces (chest/helmet/gloves).
+## The Exotic count scales with difficulty (Difficulty.boss_exotic_count: 1 Normal /
+## 2 Heroic / 3 Legendary), so a harder run pays out more gold weapons.
 func _drop_loot(where: Vector3) -> void:
-	_drop_item(where, "Exotic", "weapon", "")
+	var diff := get_node_or_null("/root/Difficulty")
+	var exotics: int = diff.boss_exotic_count() if diff and diff.has_method("boss_exotic_count") else 1
+	for i in maxi(1, exotics):        # Venus boss always yields at least one Exotic
+		_drop_item(where, "Exotic", "weapon", "")
 	for slot in LootDrop.ARMOR_KINDS:
 		_drop_item(where, "Epic", "armor", slot)
 
