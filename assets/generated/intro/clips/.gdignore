@@ -1,0 +1,2 @@
+# Build intermediates for the intro cinematic (regenerable by tools/gen_intro_cinematic.py).
+# Godot should not import these as game assets - only intro.ogv is used in-engine.

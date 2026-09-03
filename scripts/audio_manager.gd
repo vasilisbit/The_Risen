@@ -38,7 +38,10 @@ const TRACK_HUB := "hub"
 const TRACK_COMBAT_EARTH := "earth_combat"
 const TRACK_COMBAT_MARS := "mars_combat"
 const TRACK_COMBAT_VENUS := "venus_combat"
-const TRACK_BOSS := "boss"
+const TRACK_BOSS := "boss"               # generic boss cue (fallback off-planet)
+const TRACK_BOSS_EARTH := "boss_earth"   # per-boss themes: Shielded Brute / Teleporting
+const TRACK_BOSS_MARS := "boss_mars"     # Phantom / Ember Tyrant. File-backed (Suno + Lyria);
+const TRACK_BOSS_VENUS := "boss_venus"   # each falls back to the generic boss synth.
 const TRACK_TRAVEL := "travel"           # the Fold cutscene stinger (file-only)
 
 ## Real audio generated on fal.ai (ElevenLabs SFX + Stable Audio music). When a file
@@ -93,7 +96,7 @@ func _exit_tree() -> void:
 ## Build every loop up front, off the main thread. Until a track lands in the
 ## cache the director simply retries a second later, so nothing stalls.
 func _warm_music() -> void:
-	for track in [TRACK_HUB, TRACK_COMBAT_EARTH, TRACK_COMBAT_MARS, TRACK_COMBAT_VENUS, TRACK_BOSS, TRACK_TRAVEL]:
+	for track in [TRACK_HUB, TRACK_COMBAT_EARTH, TRACK_COMBAT_MARS, TRACK_COMBAT_VENUS, TRACK_BOSS, TRACK_BOSS_EARTH, TRACK_BOSS_MARS, TRACK_BOSS_VENUS, TRACK_TRAVEL]:
 		var wav := _build_music(track)
 		if wav == null:
 			continue
@@ -198,10 +201,19 @@ func _wanted_track() -> String:
 	if player == null:
 		return TRACK_HUB
 
-	# A living boss anywhere in the level takes priority over everything.
+	# A living boss anywhere in the level takes priority over everything. Each planet has its
+	# own boss theme; off-planet falls back to the generic boss cue.
 	for b in tree.get_nodes_in_group("boss"):
-		if is_instance_valid(b):
-			return TRACK_BOSS
+		if not is_instance_valid(b):
+			continue
+		match scene:
+			"Earth":
+				return TRACK_BOSS_EARTH
+			"Mars":
+				return TRACK_BOSS_MARS
+			"Venus":
+				return TRACK_BOSS_VENUS
+		return TRACK_BOSS
 
 	# On a planet the world's battle theme plays for the WHOLE mission - continuously,
 	# not gated on an enemy being within range (that made the music cut out to the hub
@@ -306,7 +318,7 @@ func _build_music(track: String) -> AudioStream:
 			wav = _make_combat(140.0, 41.2, 0.55)
 		TRACK_COMBAT_VENUS:
 			wav = _make_combat(150.0, 36.7, 0.7)   # faster + lower + grittier: Venus is hell
-		TRACK_BOSS:
+		TRACK_BOSS, TRACK_BOSS_EARTH, TRACK_BOSS_MARS, TRACK_BOSS_VENUS:
 			wav = _make_boss()
 	if wav != null:
 		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD

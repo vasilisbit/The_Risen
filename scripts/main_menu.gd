@@ -296,6 +296,11 @@ func _do_new(slot: int) -> void:
 	var sm := get_node_or_null("/root/SaveManager")
 	if sm and sm.has_method("new_game_in_slot"):
 		sm.new_game_in_slot(slot)
+	# Fresh character: play the lore intro cinematic, which then dissolves into the hub. Falls
+	# back to a straight hub load if the intro clip isn't present.
+	var st := get_node_or_null("/root/ShipTravel")
+	if st and st.has_method("play_intro") and st.play_intro(HUB):
+		return
 	_go(HUB)
 
 
