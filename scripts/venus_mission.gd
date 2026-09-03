@@ -16,6 +16,13 @@ const EMBER_TYRANT := "res://scenes/enemies/ember_tyrant.tscn"
 const SECTION_ASCENT := 0
 const SECTION_DESCENT := 1
 
+## Aggro radius (m) forced onto the ascent enemies, overriding their defaults
+## (Rusher 10 m, Shooter 20 m). On the open 200 m slope the player out-ranged
+## both and picked them off before they ever woke, so the climb played as a
+## shooting gallery. A wide radius makes each formation engage - rushers charge,
+## shooters take cover and return fire - as soon as the player crests into view.
+const ASCENT_AGGRO_RANGE := 55.0
+
 ## Seconds between the Ember Tyrant dying and the mission completing. GDD §3.4
 ## says 5 s before the victory screen; 8 s here because completing the mission
 ## frees the level, and with it the boss's four guaranteed drops - the player
@@ -69,6 +76,10 @@ func _spawn_section(section: int) -> void:
 		var e := scene.instantiate() as Node3D
 		host.add_child(e)
 		e.global_position = (markers[i] as Node3D).global_position + Vector3(0, 1, 0)
+		# Ascent enemies aggro from much further so the player can't snipe the
+		# whole slope clean before anything reacts (see ASCENT_AGGRO_RANGE).
+		if section == SECTION_ASCENT and "detect_range" in e:
+			e.detect_range = ASCENT_AGGRO_RANGE
 		if e.has_signal("died"):
 			e.died.connect(_on_enemy_killed)
 

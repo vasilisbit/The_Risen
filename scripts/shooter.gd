@@ -9,7 +9,7 @@ extends EnemyBase
 ## HP 100; drops loot on death (EnemyBase).
 
 const MOVE_SPEED := 4.5          # m/s
-const DETECT_RANGE := 20.0       # m
+const DETECT_RANGE := 20.0       # m (default; per-instance override via `detect_range`)
 const COVER_SEARCH_RADIUS := 10.0
 const PEEK_INTERVAL := 3.0       # s in cover between peeks
 const PEEK_OFFSET := 1.6         # m sideways step
@@ -34,6 +34,10 @@ var shots_fired: int = 0         # exposed for tests/telemetry
 ## lockstep. Randomised in _ready around the base constants.
 var _peek_interval: float = PEEK_INTERVAL
 var _shoot_cd: float = SHOOT_COOLDOWN
+## Aggro radius. Defaults to DETECT_RANGE but spawners can widen it per instance
+## (e.g. the Venus ascent - venus_mission.gd), where the player picked shooters
+## off from beyond 20 m before they ever took cover and returned fire.
+var detect_range: float = DETECT_RANGE
 
 
 func _init() -> void:
@@ -73,7 +77,7 @@ func _physics_process(delta: float) -> void:
 	match _state:
 		State.IDLE:
 			_halt_horizontal()
-			if dist <= DETECT_RANGE:
+			if dist <= detect_range:
 				_cover_pos = _pick_cover()
 				_state = State.SEEK_COVER
 		State.SEEK_COVER:
