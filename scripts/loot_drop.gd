@@ -76,13 +76,24 @@ func roll_rarity() -> void:
 	kind = _roll_kind()
 
 
-## Weight table for the current difficulty tier, defaulting to Normal.
+## Weight table for the current difficulty tier, defaulting to Normal. The gold
+## Exotic is additionally gated by mission+tier: it is dropped to weight 0 unless
+## Difficulty says random Exotics are allowed here (Normal: nowhere - the Venus
+## boss's guaranteed Exotic is the only Normal one; Heroic: Mars/Venus; Legendary:
+## all three). Boss-forced drops bypass this whole roll (forced_rarity).
 func _tier_weights() -> Dictionary:
 	var tier := "Normal"
+	var exotic_ok := false
 	var diff := get_node_or_null("/root/Difficulty")
-	if diff and diff.has_method("scene_tier"):
-		tier = String(diff.scene_tier())
-	return RARITY_WEIGHTS.get(tier, RARITY_WEIGHTS["Normal"])
+	if diff:
+		if diff.has_method("scene_tier"):
+			tier = String(diff.scene_tier())
+		if diff.has_method("exotic_loot_allowed"):
+			exotic_ok = bool(diff.exotic_loot_allowed())
+	var w: Dictionary = (RARITY_WEIGHTS.get(tier, RARITY_WEIGHTS["Normal"]) as Dictionary).duplicate()
+	if not exotic_ok:
+		w["Exotic"] = 0
+	return w
 
 
 ## Pick a rarity from a {rarity: weight} table.

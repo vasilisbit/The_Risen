@@ -687,7 +687,39 @@ func _die() -> void:
 	_log_kill()
 	died.emit(where)
 	_drop_loot(where)
+	if is_in_group("boss"):
+		_drop_boss_exotics(where)          # gated + scaled by difficulty
 	queue_free()
+
+
+## Bosses drop guaranteed Exotic weapon(s) ON TOP of their normal reward, gated and
+## scaled by difficulty (Difficulty.boss_exotic_count: Venus only on Normal, +Mars
+## on Heroic, all three on Legendary; 1/2/3 by tier, 0 = none here). Bosses that
+## roll their own death (the Ember Tyrant) handle this themselves instead.
+func _drop_boss_exotics(where: Vector3) -> void:
+	var diff := get_node_or_null("/root/Difficulty")
+	var n: int = diff.boss_exotic_count() if diff and diff.has_method("boss_exotic_count") else 0
+	for i in n:
+		_drop_forced(where, "Exotic", "weapon")
+
+
+## Spawn one loot pickup at `where` with a forced rarity + category (no loot_chance
+## roll). Used for boss guarantees.
+func _drop_forced(where: Vector3, rarity: String, category: String) -> void:
+	var packed := load(LOOT_SCENE_PATH)
+	if packed == null:
+		return
+	var drop := packed.instantiate() as Node3D
+	if "forced_rarity" in drop:
+		drop.forced_rarity = rarity
+	if "category" in drop:
+		drop.category = category
+	var host := get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	host.add_child(drop)
+	var offset := Vector3(randf_range(-1.4, 1.4), 0.4, randf_range(-1.4, 1.4))
+	drop.global_position = where + offset
 
 
 ## Subclasses that override _die() (Exploder, Ember Tyrant) call this too.
