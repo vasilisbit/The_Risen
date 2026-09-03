@@ -109,6 +109,9 @@ var _time_since_damage: float = SHIELD_RECHARGE_DELAY
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _spawn_point: Vector3
 var _death_screen: CanvasLayer
+## Legendary "lives left" counter (only built on a Legendary mission - see
+## _build_lives_hud). null elsewhere.
+var _lives_label: Label
 var _ability_hud: Control
 var _weapon_hud: Control
 var _character: Node3D          # Phase 3 animated body (true first-person)
@@ -157,6 +160,8 @@ func _ready() -> void:
 	# collision is registered) and re-record the spawn/checkpoint at that height.
 	call_deferred("_snap_to_floor")
 	_build_death_screen()
+	# Deferred so get_tree().current_scene (and thus Difficulty.death_limit) is set.
+	call_deferred("_build_lives_hud")
 	_build_ability_hud()       # before apply_class_stats, which wires the super in
 	apply_class_stats()
 	refresh_armor_bonus()
@@ -635,6 +640,7 @@ func set_wind(v: Vector3) -> void:
 func _on_death() -> void:
 	is_dead = true
 	_deaths += 1
+	_update_lives_hud()          # reflect the spent life (0 shown just before the fail)
 	var tel := get_node_or_null("/root/Telemetry")
 	if tel:
 		tel.player_died(global_position, _last_damage_source)
@@ -808,6 +814,47 @@ func _update_character() -> void:
 		_character.set_aim_pitch(_look_pitch)
 	if _fp_viewmodel and _fp_viewmodel.has_method("set_pitch"):
 		_fp_viewmodel.set_pitch(_look_pitch)
+
+
+## On a Legendary mission (where deaths are capped), show a top-right "LIVES n"
+## counter so the player always knows how many they have left. Built only when
+## Difficulty reports a death limit here; hidden with the rest of the mission HUD
+## during the ship cinematics (mission_hud group).
+func _build_lives_hud() -> void:
+	if not is_inside_tree():
+		return
+	var diff := get_node_or_null("/root/Difficulty")
+	if diff == null or not diff.has_method("death_limit") or diff.death_limit() <= 0:
+		return
+	var layer := CanvasLayer.new()
+	layer.layer = 6
+	layer.add_to_group("mission_hud")
+	add_child(layer)
+	_lives_label = Label.new()
+	_lives_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_lives_label.anchor_left = 1.0
+	_lives_label.anchor_right = 1.0
+	_lives_label.offset_left = -230.0
+	_lives_label.offset_top = 16.0
+	_lives_label.custom_minimum_size = Vector2(210, 0)
+	_lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_lives_label.add_theme_font_size_override("font_size", 22)
+	_lives_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_lives_label.add_theme_constant_override("outline_size", 6)
+	layer.add_child(_lives_label)
+	_update_lives_hud()
+
+
+func _update_lives_hud() -> void:
+	if _lives_label == null:
+		return
+	var diff := get_node_or_null("/root/Difficulty")
+	var limit: int = diff.death_limit() if diff and diff.has_method("death_limit") else 0
+	var left: int = maxi(0, limit - _deaths)
+	_lives_label.text = "LIVES  %d" % left
+	# Amber normally, red on the last life so the stakes read at a glance.
+	_lives_label.add_theme_color_override("font_color",
+		Color(1.0, 0.32, 0.28) if left <= 1 else Color(1.0, 0.82, 0.34))
 
 
 func _build_death_screen() -> void:

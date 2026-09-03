@@ -57,10 +57,15 @@ func _ready() -> void:
 ## Rarity weights per difficulty tier (GDD §2.7, extended for T-0027). The gold
 ## Exotic is the payoff for playing harder: near-absent on Normal, uncommon on
 ## Heroic, and genuinely likely on Legendary. Weights per tier need not sum to 100.
+## Weights (relative, per tier - they need not sum to 100). Epic climbs with the
+## tier so harder runs feel richer, but the gold Exotic from a NORMAL ENEMY is
+## deliberately a lottery: ~0.1 % on Heroic, ~0.2 % on Legendary (and gated to the
+## eligible missions - see _tier_weights). Exotic is really meant to come from
+## bosses; a trash-mob Exotic is a rare thrill, not a farm. Normal never rolls one.
 const RARITY_WEIGHTS := {
-	"Normal":    {"Common": 55, "Rare": 33, "Epic": 11, "Exotic": 1},
-	"Heroic":    {"Common": 40, "Rare": 33, "Epic": 20, "Exotic": 7},
-	"Legendary": {"Common": 28, "Rare": 32, "Epic": 22, "Exotic": 18},
+	"Normal":    {"Common": 550, "Rare": 330, "Epic": 120, "Exotic": 0},
+	"Heroic":    {"Common": 430, "Rare": 330, "Epic": 240, "Exotic": 1},
+	"Legendary": {"Common": 300, "Rare": 340, "Epic": 358, "Exotic": 2},
 }
 const RARITY_ORDER := ["Common", "Rare", "Epic", "Exotic"]
 

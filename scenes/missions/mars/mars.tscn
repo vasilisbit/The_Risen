@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="1_jx450"]
 [ext_resource type="Script" uid="uid://3kmilolmyo21" path="res://scripts/wave_manager.gd" id="3_27qac"]
 [ext_resource type="Script" uid="uid://dxhey7uqt8ij6" path="res://scripts/objective_manager.gd" id="4_objm"]
+[ext_resource type="Script" uid="uid://qxajat0k42ye" path="res://scripts/mission_timer.gd" id="5_timer"]
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_rx1gp"]
 geometry_parsed_geometry_type = 1
@@ -26,3 +27,8 @@ mission_id = "Mars"
 
 [node name="WaveManager" type="Node" parent="." unique_id=1210423846]
 script = ExtResource("3_27qac")
+
+[node name="MissionTimer" type="Node" parent="."]
+script = ExtResource("5_timer")
+mission_id = "Mars"
+time_limit_override = 300.0

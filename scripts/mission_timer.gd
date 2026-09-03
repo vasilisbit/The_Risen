@@ -29,7 +29,9 @@ var _expired: bool = false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	var diff := get_node_or_null("/root/Difficulty")
-	var limit: float = diff.time_limit() if diff else 0.0
+	# scene_time_limit covers all three missions (Mars included), so a Legendary
+	# Mars run gets the clock too - time_limit() is Earth/Venus-only.
+	var limit: float = diff.scene_time_limit() if diff else 0.0
 	if limit <= 0.0:
 		queue_free()             # not a timed tier
 		return

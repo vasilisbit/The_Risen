@@ -184,6 +184,18 @@ func time_limit() -> float:
 	return float(active_tier(current_mission()).get("time_limit", 0.0))
 
 
+## Time limit (s) for the CURRENT scene's effective tier, for ANY of the three
+## missions - unlike time_limit(), which is APPLIES_TO-gated (Earth/Venus). Lets
+## Mars carry the Legendary clock WITHOUT the tier's other modifiers (its health
+## stays base). Legendary = the tier default (600 s); 0 otherwise. mission_timer
+## caps it per-scene (all three missions = 5 min via time_limit_override).
+func scene_time_limit() -> float:
+	var scene := _scene_mission()
+	if not ALL_MISSIONS.has(scene):
+		return 0.0
+	return float(tier_of(current(scene)).get("time_limit", 0.0))
+
+
 func no_shield_regen() -> bool:
 	return bool(active_tier(current_mission()).get("no_shield_regen", false))
 
