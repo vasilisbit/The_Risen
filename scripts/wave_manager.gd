@@ -19,6 +19,11 @@ const PHANTOM := "res://scenes/enemies/phantom.tscn"
 
 const STAGGER := 0.5           # s between successive portal openings
 const PORTAL_LEAD := 2.0       # s a portal is visible before its enemy appears
+## Aggro radius (m) forced onto Rusher/Shooter wave enemies, overriding their
+## defaults (Rusher 10 m, Shooter 20 m) so the player can't pick them off across
+## a chamber before they react (mirrors the Venus ascent fix). Only Rusher and
+## Shooter expose `detect_range`, so Exploders/the Phantom are untouched.
+const AGGRO_RANGE := 55.0
 const INTERMISSION := 15.0     # s countdown after a wave is cleared
 const BUFF_TIMEOUT := 10.0     # s before the buff picker auto-selects
 
@@ -188,6 +193,11 @@ func _spawn_one(type_path: String, pos: Vector3) -> void:
 			# Jitter around the marker so several enemies routed to the SAME
 			# random marker don't drop in stacked on one spot.
 			e.global_position = pos + Vector3(0, 1, 0) + _spawn_jitter()
+			# Rusher/Shooter engage from further so the player can't clear a
+			# chamber by sniping before anything reacts (see AGGRO_RANGE). Only
+			# those two expose `detect_range`; Exploders/Phantom are untouched.
+			if "detect_range" in e:
+				e.detect_range = AGGRO_RANGE
 			_alive.append(e)
 			if e.has_signal("died"):
 				e.died.connect(_on_enemy_died)
