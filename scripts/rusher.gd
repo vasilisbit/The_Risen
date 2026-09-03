@@ -7,8 +7,13 @@ extends EnemyBase
 ## 1.5 s cooldown. HP 150; drops loot on death (EnemyBase).
 
 const SPRINT_SPEED := 5.0        # m/s (below the player's 6 m/s walk - kiteable)
-const DETECT_RANGE := 10.0       # m
+const DETECT_RANGE := 10.0       # m (default; per-instance override via `detect_range`)
 const ATTACK_RANGE := 2.0        # m
+
+## Aggro radius. Defaults to DETECT_RANGE but spawners can widen it per instance
+## (e.g. the Venus ascent, where the player out-ranged the default and picked
+## enemies off before they ever woke - venus_mission.gd).
+var detect_range: float = DETECT_RANGE
 const MELEE_DAMAGE := 90.0        # normal-mode balance: was 150 (nearly 2-shot the player)
 const ATTACK_COOLDOWN := 1.5     # s
 
@@ -47,7 +52,7 @@ func _physics_process(delta: float) -> void:
 	match _state:
 		State.IDLE:
 			_halt_horizontal()
-			if dist <= DETECT_RANGE:
+			if dist <= detect_range:
 				_state = State.CHASE
 		State.CHASE:
 			if dist <= ATTACK_RANGE:
