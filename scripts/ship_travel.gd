@@ -31,6 +31,10 @@ const FOLD_DIR := "res://assets/generated/fold/"
 ## The generic lift-off clip (ship leaves atmosphere -> docks into the mothership), reused on
 ## every planet. Played by play_liftoff() after the in-engine lift-off climb.
 const LIFTOFF_VIDEO := "res://assets/generated/fold/liftoff.ogv"
+## The NEW-GAME intro cinematic (assets/generated/intro/intro.ogv, made by
+## tools/gen_intro_cinematic.py). Self-contained B&W lore film with its own baked orchestral
+## score + narration; played by play_intro() before the hub loads on a fresh character.
+const INTRO_VIDEO := "res://assets/generated/intro/intro.ogv"
 
 ## Mission planet -> level scene (same map the helm/table interactors keep locally).
 const MISSION_SCENES := {
@@ -297,6 +301,60 @@ func _build_liftoff_ui() -> void:
 	cap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	cap.position = Vector2(56, -110)
 	_video_ui.add_child(cap)
+	var skip := Label.new()
+	skip.text = "[E] SKIP"
+	skip.add_theme_font_size_override("font_size", 14)
+	skip.add_theme_color_override("font_color", Color(0.7, 0.75, 0.82))
+	skip.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	skip.add_theme_constant_override("outline_size", 4)
+	skip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	skip.position = Vector2(-96, -40)
+	_video_ui.add_child(skip)
+
+
+## Play the NEW-GAME intro cinematic full-screen (its own baked score + narration), then
+## dissolve into `next_scene` (the hub). Skippable with [E]/Esc. Returns false if the clip is
+## missing so the caller can just load the hub directly. Unlike the fold, this plays NO overlay
+## title and NO fold audio - the graded film carries its own picture and sound.
+func play_intro(next_scene: String) -> bool:
+	if _running:
+		return false
+	if not ResourceLoader.exists(INTRO_VIDEO):
+		return false
+	var stream := load(INTRO_VIDEO)
+	if not (stream is VideoStream):
+		return false
+	_running = true
+	_skipped = false
+	state = State.APPROACH
+	_pending_path = next_scene
+	ResourceLoader.load_threaded_request(next_scene)
+	# Silence the menu's music bed so only the film's baked audio is heard.
+	var am := get_node_or_null("/root/AudioManager")
+	if am and am.has_method("stop_music"):
+		am.stop_music()
+	_video = VideoStreamPlayer.new()
+	_video.stream = stream
+	_video.expand = true
+	_video.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_video.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_video)
+	_video.finished.connect(_on_video_finished.bind(""))
+	_video.play()
+	_build_intro_ui()
+	_fade.move_to_front()
+	set_process_unhandled_input(true)
+	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	return true
+
+
+## Minimal overlay for the intro: just a small skip hint (the film is already graded/letterboxed
+## and self-titled, so no bars or title card).
+func _build_intro_ui() -> void:
+	_video_ui = Control.new()
+	_video_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_video_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_video_ui)
 	var skip := Label.new()
 	skip.text = "[E] SKIP"
 	skip.add_theme_font_size_override("font_size", 14)
