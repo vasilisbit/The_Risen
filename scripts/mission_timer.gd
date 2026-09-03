@@ -24,6 +24,7 @@ var running: bool = false
 
 var _label: Label
 var _expired: bool = false
+var _ui_layer: CanvasLayer
 
 
 func _ready() -> void:
@@ -50,6 +51,10 @@ func _ready() -> void:
 
 func _on_objectives_complete() -> void:
 	running = false
+	# The run is won - hide the clock entirely so it doesn't sit under the
+	# "AREA SECURED" extraction banner (both live at top-centre).
+	if _ui_layer:
+		_ui_layer.visible = false
 
 
 func _process(delta: float) -> void:
@@ -111,6 +116,7 @@ func _build_ui() -> void:
 	# on lift-off instead of hanging over the 3rd-person shot.
 	layer.add_to_group("mission_hud")
 	add_child(layer)
+	_ui_layer = layer
 
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_CENTER_TOP)

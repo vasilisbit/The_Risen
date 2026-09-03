@@ -1,8 +1,12 @@
-extends Node
+extends Node3D
 ## Forge Master idle barks (T-0029 follow-on). Added as a child of the hub-bay clerk
 ## (hub_structure._build_vendor_stall) ONLY - not the vendor-screen backdrop - so the
 ## armourer occasionally says a random line when the player is standing near him in the
 ## hub. Positional (AudioStreamPlayer3D on the SFX bus) so it comes from his direction.
+##
+## MUST be a Node3D (not a plain Node): the voice is a Node3D child, and a plain-Node
+## parent would leave it un-parented in the spatial tree, emitting from the world origin
+## (right by the hologram table) instead of the Forge Master - the reported bug.
 ##
 ## Default (pausable) process_mode: while the shop screen is open the tree is paused, so
 ## he goes quiet then - the greeting/interaction lines cover that context instead.
