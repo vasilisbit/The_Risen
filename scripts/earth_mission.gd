@@ -16,6 +16,11 @@ const BOSS_POS := Vector3(0, 1.0, -68)        # boss plaza (Tripo-chunk ruined c
 # Player advances toward -Z; spawn a zone once the player crosses its trigger.
 const ZONE_TRIGGER_Z := [0.0, -18.0, -50.0]
 
+## Aggro radius (m) forced onto Rusher enemies only, overriding the 10 m default
+## so they charge before the player can pick them off from range (mirrors the
+## Venus ascent fix). Shooters on Earth keep their tuned default.
+const RUSHER_AGGRO_RANGE := 55.0
+
 @onready var _obj: ObjectiveManager = get_node("../ObjectiveManager")
 
 var _player: Node3D
@@ -48,12 +53,17 @@ func _spawn_zone(zone: int) -> void:
 	var host := get_tree().current_scene
 	var markers := _zone_markers(zone)
 	for i in markers.size():
-		var scene := load(_type_for(zone, i))
+		var type_path := _type_for(zone, i)
+		var scene := load(type_path)
 		if scene == null:
 			continue
 		var e := scene.instantiate() as Node3D
 		host.add_child(e)
 		e.global_position = markers[i].global_position + Vector3(0, 1, 0)
+		# Rushers only: widen aggro so they charge instead of being sniped first
+		# (see RUSHER_AGGRO_RANGE). Shooters keep their default here.
+		if type_path == RUSHER and "detect_range" in e:
+			e.detect_range = RUSHER_AGGRO_RANGE
 		if e.has_signal("died"):
 			e.died.connect(_on_enemy_killed)
 
