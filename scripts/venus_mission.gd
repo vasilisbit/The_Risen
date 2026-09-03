@@ -23,12 +23,6 @@ const SECTION_DESCENT := 1
 ## shooters take cover and return fire - as soon as the player crests into view.
 const ASCENT_AGGRO_RANGE := 55.0
 
-## Seconds between the Ember Tyrant dying and the mission completing. GDD §3.4
-## says 5 s before the victory screen; 8 s here because completing the mission
-## frees the level, and with it the boss's four guaranteed drops - the player
-## needs long enough to actually walk over them.
-const VICTORY_DELAY := 8.0
-
 # Section boundaries along -Z. Must track venus_level.gd: the ascent is 200 m
 # long and its summit pad runs 12 m further to the cavern mouth.
 const SUMMIT_Z := -170.0        # far enough up the slope to count as "summit"
@@ -152,6 +146,9 @@ func _spawn_boss() -> void:
 
 
 func _on_boss_died(_where: Vector3) -> void:
-	await get_tree().create_timer(VICTORY_DELAY).timeout
+	# Complete the objective the instant the boss dies. (The old VICTORY_DELAY wait
+	# existed to leave the boss's guaranteed drops on the ground before the level
+	# freed - but the drops spawn at death and the extraction countdown already
+	# gives 30 s+ to loot, so the delay only made the kill feel unregistered.)
 	if is_instance_valid(_obj):
 		_obj.notify_flag("boss")

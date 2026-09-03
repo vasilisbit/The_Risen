@@ -379,7 +379,9 @@ func _build_vendor_stall() -> void:
 		idle.set_script(load("res://scripts/forge_master_idle.gd"))
 		clerk.add_child(idle)
 		# Idle voice barks near him in the hub (hub bay only - not the vendor screen).
-		var barks := Node.new()
+		# Node3D (not Node) so its positional voice inherits the clerk's transform and
+		# actually emits from him, not the world origin.
+		var barks := Node3D.new()
 		barks.set_script(load("res://scripts/forge_master_barks.gd"))
 		clerk.add_child(barks)
 

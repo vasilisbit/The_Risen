@@ -834,9 +834,11 @@ func _build_lives_hud() -> void:
 	_lives_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_lives_label.anchor_left = 1.0
 	_lives_label.anchor_right = 1.0
-	_lives_label.offset_left = -230.0
+	# Pulled well in from the right edge so it clears the corner / minimap area.
+	_lives_label.offset_left = -420.0
+	_lives_label.offset_right = -170.0
 	_lives_label.offset_top = 16.0
-	_lives_label.custom_minimum_size = Vector2(210, 0)
+	_lives_label.custom_minimum_size = Vector2(250, 0)
 	_lives_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_lives_label.add_theme_font_size_override("font_size", 22)
 	_lives_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
