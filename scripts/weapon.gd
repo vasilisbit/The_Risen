@@ -65,10 +65,10 @@ const MODS := {
 	"arc":   {"name": "Arc Injector",    "desc": "Arc element",           "cost": 100, "element": "Arc"},
 	"void":  {"name": "Void Injector",   "desc": "Void element",          "cost": 100, "element": "Void"},
 }
-## Mod slots per rarity (GDD §2.7: Epic +1, Exotic +2). Levels 5/8 gate slots in
-## the GDD, but XP/levels are unimplemented (M6), so slots come from rarity - the
-## progression axis the game actually has.
-const MOD_SLOTS := {"Common": 0, "Rare": 1, "Epic": 2, "Exotic": 2}
+## Mod slots per rarity: Rare 1, Epic 2, gold Exotic 3 (the top-tier payoff).
+## Levels 5/8 gate slots in the GDD, but XP/levels are unimplemented (M6), so
+## slots come from rarity - the progression axis the game actually has.
+const MOD_SLOTS := {"Common": 0, "Rare": 1, "Epic": 2, "Exotic": 3}
 
 ## Element colours for HUD/inventory tinting.
 const ELEMENT_COLORS := {

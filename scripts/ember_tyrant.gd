@@ -39,14 +39,14 @@ const SLAM_COOLDOWN := 8.0
 const SLAM_KNOCKBACK := 3.0       # metres, exact (Guardian.apply_push)
 const SLAM_LIFT := 4.0
 
-const ERUPTION_INTERVAL := 10.0   # -> ~10 eruptions per 100 s (card acceptance)
+const ERUPTION_INTERVAL := 5.0    # base gap between lava eruptions (every phase now)
 const ADDS_TOTAL := 10
 const ADDS_PER_BURST := 2
 const ADDS_BURST_INTERVAL := 4.0  # 10 adds over 20 s
 const WEAK_POINT_COUNT := 4
 const WEAK_POINT_RING := 5.0      # fallback ring radius if markers are missing
 
-const DEATH_TIME := 3.0
+const DEATH_TIME := 1.5           # short sink-and-burst; the kill registers instantly
 const EYE_HEIGHT := 1.9
 const BOLT_COLOR := Color(1.0, 0.45, 0.08)
 const RUSHER := "res://scenes/enemies/rusher.tscn"
@@ -71,7 +71,7 @@ var _state: State = State.IDLE
 var _melee_timer: float = 0.0
 var _fireball_timer: float = 0.0
 var _slam_timer: float = 0.0
-var _eruption_timer: float = ERUPTION_INTERVAL
+var _eruption_timer: float = 3.0   # first eruption ~3 s into the fight (from the start)
 var _adds_timer: float = 0.0
 var _shield_vfx: MeshInstance3D
 var _body_mat: StandardMaterial3D
@@ -135,10 +135,13 @@ func _physics_process(delta: float) -> void:
 			_adds_timer = ADDS_BURST_INTERVAL
 			_spawn_adds_burst()
 
-	if phase == Phase.C:
+	# Lava eruptions hound the player from the START of the fight (every phase),
+	# not only the phase-C rage - the arena floor is a live hazard throughout, and
+	# more often now. Phase C erupts faster still (see _eruption_interval).
+	if _state == State.COMBAT:
 		_eruption_timer -= delta
 		if _eruption_timer <= 0.0:
-			_eruption_timer = ERUPTION_INTERVAL
+			_eruption_timer = _eruption_interval()
 			erupt()
 
 	if not _ensure_player():
@@ -308,9 +311,14 @@ func _enter_phase_b() -> void:
 	phase_changed.emit(Phase.B)
 
 
+## Gap between eruptions: the phase-C rage erupts faster (x0.6) than the earlier phases.
+func _eruption_interval() -> float:
+	return ERUPTION_INTERVAL * (0.6 if phase == Phase.C else 1.0)
+
+
 func _enter_phase_c() -> void:
 	phase = Phase.C
-	_eruption_timer = ERUPTION_INTERVAL
+	_eruption_timer = minf(_eruption_timer, _eruption_interval())
 	_rage_vfx()
 	_log_phase("B", "C")
 	phase_changed.emit(Phase.C)
@@ -386,9 +394,12 @@ func _die() -> void:
 	_death_vfx()
 	var where := global_position
 	_log_kill()
-	await get_tree().create_timer(DEATH_TIME).timeout
+	# Register the kill IMMEDIATELY so the objective / mission completes on the
+	# killing blow - the old 3 s wait left the boss "alive" long after it died.
+	# The body still plays its brief sink-and-burst before it frees.
 	died.emit(where)
 	_drop_loot(where)
+	await get_tree().create_timer(DEATH_TIME).timeout
 	queue_free()
 
 

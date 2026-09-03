@@ -191,11 +191,13 @@ func _process(delta: float) -> void:
 			s.x = 1.02
 			s.y = randf()
 		_stars[i] = s
-	if _started and not _finishing and _roll:
+	if _started and _roll:
+		# Keep scrolling even while finishing - a skip fades the roll out while it
+		# still drifts upward (nicer than freezing it dead), rather than cutting.
 		_roll.position.y -= _speed * delta
 		# Keep it centered if the window resizes mid-roll.
 		_roll.position.x = (size.x - ROLL_WIDTH) * 0.5
-		if _roll.position.y <= -_roll_h - 20.0:
+		if not _finishing and _roll.position.y <= -_roll_h - 20.0:
 			_finish()
 	queue_redraw()
 
@@ -235,8 +237,9 @@ func _finish() -> void:
 	var target := next_scene
 	# Reset the static so a later menu visit returns to the menu by default.
 	next_scene = "res://ui/main_menu.tscn"
+	# Fade over a beat (not an instant cut) so a skipped roll drifts up and dissolves.
 	var tw := create_tween()
-	tw.tween_property(_fade, "color:a", 1.0, 0.5)
+	tw.tween_property(_fade, "color:a", 1.0, 1.2)
 	tw.tween_callback(func() -> void: _go(target))
 
 

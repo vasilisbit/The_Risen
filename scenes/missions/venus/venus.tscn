@@ -31,3 +31,4 @@ script = ExtResource("4_mission")
 [node name="MissionTimer" type="Node" parent="."]
 script = ExtResource("5_timer")
 mission_id = "Venus"
+time_limit_override = 300.0
