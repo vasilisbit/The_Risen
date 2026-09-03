@@ -85,6 +85,15 @@ var incoming_element: String = "Kinetic"
 const SHIELD_MATCH_MULT := 2.0     # matching element: breaks the shield fast
 const SHIELD_MISMATCH_MULT := 0.1  # off-element / Kinetic: chip only, little bleed-through
 
+## Shield regeneration: a shielded enemy that avoids ALL damage (to shield or
+## health) for SHIELD_REGEN_DELAY seconds starts recharging its shield, refilling
+## from empty to full over SHIELD_REGEN_TIME. Any hit resets the wait (see
+## take_damage / absorb_shield). Ticked in _process so it runs even while stunned.
+## Only enemies that spawned with a shield (Heroic/Legendary) ever regen.
+const SHIELD_REGEN_DELAY := 5.0    # s without damage before regen begins
+const SHIELD_REGEN_TIME := 3.0     # s to refill from empty to full
+var _shield_regen_wait: float = 0.0   # s since the last damage taken
+
 ## Knockback displacement budget (Ground Slam), spent over PUSH_TIME seconds.
 const PUSH_TIME := 0.3
 var _push_velocity: Vector3 = Vector3.ZERO
@@ -293,6 +302,7 @@ func _wire_model_animation(inst: Node3D) -> void:
 
 
 func _process(_delta: float) -> void:
+	_tick_shield_regen(_delta)
 	_tick_voice(_delta)
 	# Off-the-map failsafe: an enemy knocked into the void (off a ledge, through a
 	# gap) would otherwise stay alive-but-unreachable and block a "kill everything"
@@ -582,6 +592,8 @@ func is_headshot(world_point: Vector3) -> bool:
 func take_damage(amount: float) -> void:
 	if _dead:
 		return
+	if amount > 0.0:
+		_shield_regen_wait = 0.0          # any hit delays shield regen
 	amount = absorb_shield(amount)
 	if amount <= 0.0:
 		play_sfx("enemy_hit")
@@ -601,6 +613,8 @@ func take_damage(amount: float) -> void:
 ## damage left after the shield breaks carries over to health at the normal 1x
 ## rate. A plain shield (shield_element Kinetic) uses 1x and behaves as before.
 func absorb_shield(amount: float) -> float:
+	if amount > 0.0:
+		_shield_regen_wait = 0.0          # bosses call this directly - reset here too
 	if elemental_shield <= 0.0 or amount <= 0.0:
 		incoming_element = "Kinetic"
 		return amount
@@ -630,6 +644,19 @@ func absorb_shield(amount: float) -> float:
 		return 0.0                               # fully absorbed, shield still up
 	var overflow := maxf(0.0, amount - rem_m / SHIELD_MISMATCH_MULT)
 	return overflow * SHIELD_MISMATCH_MULT       # heavily reduced bleed-through
+
+
+## Recharge the elemental shield once the enemy has gone SHIELD_REGEN_DELAY
+## seconds without taking any damage (the wait is reset on every hit). No-op for
+## enemies that never had a shield, once it is already full, or while dead.
+func _tick_shield_regen(delta: float) -> void:
+	if _dead or max_elemental_shield <= 0.0 or elemental_shield >= max_elemental_shield:
+		return
+	_shield_regen_wait += delta
+	if _shield_regen_wait < SHIELD_REGEN_DELAY:
+		return
+	var rate := max_elemental_shield / SHIELD_REGEN_TIME
+	elemental_shield = minf(max_elemental_shield, elemental_shield + rate * delta)
 
 
 ## Positional effect at this enemy (T-0034). No-ops without the autoload, so
