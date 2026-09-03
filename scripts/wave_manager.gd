@@ -244,7 +244,10 @@ func _check_cleared() -> void:
 
 
 func _on_all_complete() -> void:
-	_update_label()
+	# Hide the wave counter now the fight is won, so it doesn't sit under the
+	# "AREA SECURED" extraction banner (both live at top-centre).
+	if _label:
+		_label.visible = false
 	all_waves_complete.emit()
 	var tel := get_node_or_null("/root/Telemetry")
 	if tel:
@@ -328,15 +331,25 @@ func _build_ui() -> void:
 	layer.add_to_group("mission_hud")
 	add_child(layer)
 	_label = Label.new()
-	# Directly UNDER the top-centre health/shield bar. Shows only the live wave count.
+	# Directly UNDER the top-centre health/shield bar - but DROPPED BELOW the
+	# Legendary countdown clock when one is present (Legendary Mars), so the two
+	# don't overlap at top-centre.
 	_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_label.position = Vector2(-160, 54)
+	_label.position = Vector2(-160, 112.0 if _mission_timed() else 54.0)
 	_label.custom_minimum_size = Vector2(320, 0)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.add_theme_font_size_override("font_size", 18)
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_label.add_theme_constant_override("outline_size", 6)
 	layer.add_child(_label)
+
+
+## True when this run has an active Legendary countdown clock (a sibling
+## MissionTimer that isn't a no-op). Drives the wave counter's vertical spot so it
+## clears the clock at top-centre.
+func _mission_timed() -> bool:
+	var diff := get_node_or_null("/root/Difficulty")
+	return diff != null and diff.has_method("scene_time_limit") and diff.scene_time_limit() > 0.0
 
 
 func _update_label(override_text: String = "") -> void:

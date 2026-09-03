@@ -196,8 +196,16 @@ func scene_time_limit() -> float:
 	return float(tier_of(current(scene)).get("time_limit", 0.0))
 
 
+## Whether the PLAYER's shield is barred from recharging (Legendary "no second
+## wind"). Scene-based like scene_time_limit, so it applies on ALL three missions -
+## Legendary Mars stops shield regen too, without taking the tier's other modifiers.
+## (time_limit()-style APPLIES_TO gating left Mars regenerating on Legendary - the
+## same class of bug as the Mars shields / Mars timer.)
 func no_shield_regen() -> bool:
-	return bool(active_tier(current_mission()).get("no_shield_regen", false))
+	var scene := _scene_mission()
+	if not ALL_MISSIONS.has(scene):
+		return false
+	return bool(tier_of(current(scene)).get("no_shield_regen", false))
 
 
 ## Max deaths allowed on the CURRENT mission before the run fails; 0 = unlimited.
