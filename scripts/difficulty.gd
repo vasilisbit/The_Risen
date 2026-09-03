@@ -19,8 +19,16 @@ const NORMAL := "Normal"
 const HEROIC := "Heroic"
 const LEGENDARY := "Legendary"
 
-## Missions the modifiers apply to (GDD §7: "Apply to Mission 1 & 3 only").
+## Missions the FULL modifier set (enemy health, time limit, no shield regen)
+## applies to (GDD §7: "Apply to Mission 1 & 3 only").
 const APPLIES_TO := ["Earth", "Venus"]
+
+## Missions where enemies gain the Heroic/Legendary SHIELD. Broader than
+## APPLIES_TO: Mars fields shielded enemies too, but WITHOUT the +50% health -
+## its wave buff/debuff picker is already its toughness dial, so only the shield
+## is opted in (the health boost would compound with the wave picks). See
+## enemy_shield_fraction.
+const SHIELD_APPLIES_TO := ["Earth", "Venus", "Mars"]
 
 const TIERS: Array[Dictionary] = [
 	{
@@ -138,19 +146,31 @@ func active_tier(mission_id: String) -> Dictionary:
 ## Mission the enemies/player belong to. Read from whichever mission driver is
 ## in the scene, so a single enemy doesn't need to be told.
 func current_mission() -> String:
+	var scene := _scene_mission()
+	return scene if APPLIES_TO.has(scene) else ""
+
+
+## Raw scene/mission name, unfiltered by APPLIES_TO (used by the shield query,
+## which opts in a wider set of missions - see SHIELD_APPLIES_TO).
+func _scene_mission() -> String:
 	var tree := get_tree()
 	if tree == null or tree.current_scene == null:
 		return ""
-	var scene := String(tree.current_scene.name)
-	return scene if APPLIES_TO.has(scene) else ""
+	return String(tree.current_scene.name)
 
 
 func enemy_health_mult() -> float:
 	return float(active_tier(current_mission()).get("health_mult", 1.0))
 
 
+## Shield fraction for the CURRENT scene. Unlike the other queries this uses
+## SHIELD_APPLIES_TO, so Mars enemies shield up on Heroic/Legendary even though
+## the mission takes none of the tier's other modifiers (its health stays base).
 func enemy_shield_fraction() -> float:
-	return float(active_tier(current_mission()).get("shield_fraction", 0.0))
+	var scene := _scene_mission()
+	if not SHIELD_APPLIES_TO.has(scene):
+		return 0.0
+	return float(tier_of(current(scene)).get("shield_fraction", 0.0))
 
 
 func time_limit() -> float:
