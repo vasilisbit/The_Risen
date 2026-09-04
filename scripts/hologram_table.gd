@@ -47,7 +47,6 @@ const PLANET_Y := 1.95           # about eye level, floating above the table
 const PLANET_RADIUS := 0.35
 
 var _materials: Dictionary = {}          # mission -> StandardMaterial3D (holo billboard)
-var _tints: Dictionary = {}              # mission -> base tint (for locked dimming)
 var _labels: Dictionary = {}             # mission -> Label3D
 var _projectors: Dictionary = {}         # mission -> StandardMaterial3D (beam)
 var _flicker: float = 0.0

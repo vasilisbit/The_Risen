@@ -413,7 +413,7 @@ const PROMPT_GOLD := Color(1.0, 0.82, 0.34)
 func _mk_label(text: String, size: int, align: int, color := PROMPT_GOLD) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.horizontal_alignment = align
+	l.horizontal_alignment = align as HorizontalAlignment
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))

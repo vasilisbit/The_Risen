@@ -263,7 +263,7 @@ void fragment() {
 			if bones.is_empty() or vcount == 0:
 				new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 				continue
-			var per := bones.size() / vcount          # 4 or 8 bone influences per vertex
+			var per := int(bones.size() / float(vcount))  # 4 or 8 bone influences per vertex
 			var colors := PackedColorArray()
 			colors.resize(vcount)
 			for v in vcount:

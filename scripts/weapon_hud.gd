@@ -113,11 +113,11 @@ func _draw() -> void:
 ## Side-on silhouette per weapon type, so a glance at the stack tells you which
 ## row is which without reading names. Barrel points left. Prefers the generated
 ## icon, falling back to the code-drawn silhouette.
-func _draw_weapon_glyph(kind: String, c: Vector2, col: Color, scale: float) -> void:
-	if UiIcons.blit_centered(self, UiIcons.weapon_key(kind), c, 54.0 * scale, col):
+func _draw_weapon_glyph(kind: String, c: Vector2, col: Color, scl: float) -> void:
+	if UiIcons.blit_centered(self, UiIcons.weapon_key(kind), c, 54.0 * scl, col):
 		return
-	var w := 34.0 * scale
-	var h := 7.0 * scale
+	var w := 34.0 * scl
+	var h := 7.0 * scl
 	match kind:
 		"Shotgun":
 			# Short fat body, wide double barrel, pump under it.
@@ -166,7 +166,7 @@ func _build_labels() -> void:
 func _make_label(font_size: int, align: int) -> Label:
 	var l := Label.new()
 	l.add_theme_font_size_override("font_size", font_size)
-	l.horizontal_alignment = align
+	l.horizontal_alignment = align as HorizontalAlignment
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))

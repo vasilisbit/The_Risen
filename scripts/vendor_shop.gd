@@ -657,10 +657,10 @@ func _build_backdrop() -> Control:
 	return vc
 
 
-func _stage_box(vp: SubViewport, center: Vector3, size: Vector3, color: Color, rough: float) -> void:
+func _stage_box(vp: SubViewport, center: Vector3, box_size: Vector3, color: Color, rough: float) -> void:
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new()
-	bm.size = size
+	bm.size = box_size
 	mi.mesh = bm
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color

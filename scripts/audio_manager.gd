@@ -340,7 +340,8 @@ func _build_music(track: String) -> AudioStream:
 	if wav != null:
 		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		wav.loop_begin = 0
-		wav.loop_end = wav.data.size() / 2
+		@warning_ignore("integer_division")
+		wav.loop_end = wav.data.size() / 2  # 16-bit samples: byte length / 2, integer on purpose
 	return wav
 
 

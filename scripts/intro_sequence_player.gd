@@ -136,6 +136,7 @@ func play() -> void:
 	# Several decode workers: a single thread can't always sustain 24fps WebP decode while the hub
 	# scene is being threaded-preloaded in parallel, which would let the picture lag behind the
 	# audio. A small pool keeps decode well ahead of playback even under that load.
+	@warning_ignore("integer_division")
 	var n := clampi(OS.get_processor_count() / 2, 2, 4)
 	for _w in n:
 		var t := Thread.new()

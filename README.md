@@ -28,7 +28,7 @@ Open Godot 4.7, use "Import", and select `project.godot` in this folder
 The game ships as a single self-contained `.exe` (the game data / PCK is embedded,
 so there is no separate `.pck` to distribute).
 
-**One-time setup:** install the Godot **4.7-stable export templates** — in the editor,
+**One-time setup:** install the Godot **4.7-stable export templates** - in the editor,
 *Editor → Manage Export Templates → Download and Install*.
 
 **Build (interactive helper):**
@@ -87,11 +87,17 @@ Naming follows the Godot style guide: `snake_case` file and folder names,
 Feature-complete and content-complete. Core combat, three classes, the hub
 (vendor / hologram mission table / helm), all three missions (Earth, Mars, Venus
 with the Ember Tyrant boss), loot/mods, telemetry, difficulty tiers, the settings
-+ save-slot system, the space-travel Fold cutscenes, and a credits roll are all in.
-Art and audio are custom, largely AI-generated via the fal.ai pipeline (see
-[CREDITS.md](CREDITS.md)). A Windows release export is configured and builds clean
-(see *Building a Windows release* above). Remaining before submission: a human
-playtest pass and IGF packaging polish.
++ save-slot system, the space-travel Fold cutscenes, a ~2-minute black-and-white
+**New-Character intro cinematic** ("A Guardian Awakens", shown on New Game before
+the hub), and a credits roll are all in. Art and audio are custom, largely
+AI-generated via the fal.ai pipeline (see [CREDITS.md](CREDITS.md)); the intro
+film's score is from Suno and its narration from ElevenLabs v3. Because Godot 4.7
+has no built-in mp4 decoder and free video addons are unavailable, the intro plays
+through a custom core-Godot player that streams a packed WebP frame sequence
+(`assets/generated/intro/intro_frames.bin`) in sync with its Ogg audio track - no
+paid addon required. A Windows release export is configured and builds clean (see
+*Building a Windows release* above). Remaining before submission: a human playtest
+pass and IGF packaging polish.
 
 ## License
 

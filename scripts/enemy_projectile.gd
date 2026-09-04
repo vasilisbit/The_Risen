@@ -15,9 +15,15 @@ var damage: float = 60.0       # default (Shooter); bosses set their own. Was 10
 var bolt_color: Color = Color(1.0, 0.55, 0.1)
 ## Who fired it, for PlayerDeath attribution (T-0026). Set by the shooter.
 var source_name: String = "Projectile"
+## Optional design-matched bolt model (the Shooter sets this to its generated glb). When unset
+## or missing, the bolt falls back to the small emissive sphere (bosses / the Phantom).
+var model_path: String = ""
+const BOLT_LEN := 0.5          # metres, longest axis the model is fitted to
 var _dir: Vector3 = Vector3.FORWARD
 var _shooter_rid: RID
 var _life: float = 0.0
+var _visual: Node3D = null
+var _oriented: bool = false
 
 
 func setup(from: Vector3, target: Node3D, shooter_rid: RID) -> void:
@@ -28,19 +34,34 @@ func setup(from: Vector3, target: Node3D, shooter_rid: RID) -> void:
 
 
 func _ready() -> void:
-	# Small emissive orange bolt.
-	var mi := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.12
-	sphere.height = 0.24
-	mi.mesh = sphere
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = bolt_color
-	mat.emission_enabled = true
-	mat.emission = bolt_color
-	mat.emission_energy_multiplier = 2.5
-	mi.material_override = mat
-	add_child(mi)
+	# Prefer the design-matched bolt model (the Shooter's, generated from its own art); fall back
+	# to a small emissive bolt for bosses / the Phantom / when the asset isn't present.
+	if model_path != "" and ResourceLoader.exists(model_path):
+		var holder := MeshUtil.load_prop(model_path)
+		if holder != null:
+			add_child(holder)
+			MeshUtil.fit(holder, BOLT_LEN)
+			holder.rotate_y(-PI / 2.0)   # concept tip faces -X; point it down -Z (travel forward)
+			_visual = holder
+	if _visual == null:
+		var mi := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.12
+		sphere.height = 0.24
+		mi.mesh = sphere
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = bolt_color
+		mat.emission_enabled = true
+		mat.emission = bolt_color
+		mat.emission_energy_multiplier = 2.5
+		mi.material_override = mat
+		add_child(mi)
+	# Soft glow so the bolt reads at speed and keeps its emissive soulfire look in motion.
+	var glow := OmniLight3D.new()
+	glow.light_color = bolt_color
+	glow.omni_range = 3.0
+	glow.light_energy = 1.4
+	add_child(glow)
 
 
 func _physics_process(delta: float) -> void:
@@ -48,6 +69,11 @@ func _physics_process(delta: float) -> void:
 	if _life > LIFETIME:
 		queue_free()
 		return
+
+	# Orient the model down its flight path once _dir is known (skip near-vertical shots).
+	if _visual != null and not _oriented and _dir.length() > 0.01 and absf(_dir.dot(Vector3.UP)) < 0.99:
+		look_at(global_position + _dir, Vector3.UP)
+		_oriented = true
 
 	# Straight-line step (no steering).
 	var step := _dir * SPEED * delta

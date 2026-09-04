@@ -47,9 +47,9 @@ func _find_anim_player(root: Node) -> AnimationPlayer:
 
 
 func _idle_clip(ap: AnimationPlayer) -> String:
-	for name in ap.get_animation_list():
-		if String(name).to_lower().contains("idle"):
-			return name
+	for anim in ap.get_animation_list():
+		if String(anim).to_lower().contains("idle"):
+			return anim
 	var list := ap.get_animation_list()
 	return String(list[0]) if not list.is_empty() else ""
 
