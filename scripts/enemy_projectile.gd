@@ -41,7 +41,9 @@ func _ready() -> void:
 		if holder != null:
 			add_child(holder)
 			MeshUtil.fit(holder, BOLT_LEN)
-			holder.rotate_y(-PI / 2.0)   # concept tip faces -X; point it down -Z (travel forward)
+			# The mesh's long axis is Z with the tip at +Z; look_at() aims the node's -Z down the
+			# flight path, so spin the model 180 deg about Y to put the tip on -Z (leading the shot).
+			holder.rotate_y(PI)
 			_visual = holder
 	if _visual == null:
 		var mi := MeshInstance3D.new()
