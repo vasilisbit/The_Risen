@@ -55,6 +55,12 @@ func _process(delta: float) -> void:
 	_cooldown -= delta
 	if _cooldown > 0.0 or _voice.playing:
 		return
+	# Stay silent while a ShipTravel cinematic is running (fold / intro / lift-off): the hub is
+	# still loaded under the cutscene, so without this the armourer barks over the fold sequence.
+	var st := get_node_or_null("/root/ShipTravel")
+	if st != null and int(st.get("state")) != 0:   # 0 == State.IDLE
+		_cooldown = 2.0
+		return
 	var here := (get_parent() as Node3D)
 	if here == null:
 		return
