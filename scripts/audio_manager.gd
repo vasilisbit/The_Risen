@@ -63,6 +63,9 @@ var _music_cache: Dictionary = {}
 var _sfx_cache: Dictionary = {}
 var _director_timer: float = 0.0
 var _fade: Tween
+## When true, the scene "director" stops choosing/starting music - used by the intro cinematic,
+## which carries its own baked score and must play over silence. See set_music_suppressed().
+var _music_suppressed: bool = false
 ## Music synthesis runs on a worker thread - the boss loop alone takes ~280 ms
 ## to generate, and it would otherwise be built the instant a boss spawns,
 ## hitching the exact moment the fight starts. SFX are 1-2 ms, so those stay
@@ -106,6 +109,8 @@ func _warm_music() -> void:
 
 
 func _process(delta: float) -> void:
+	if _music_suppressed:
+		return
 	_director_timer -= delta
 	if _director_timer <= 0.0:
 		_director_timer = DIRECTOR_INTERVAL
@@ -113,6 +118,18 @@ func _process(delta: float) -> void:
 		if wanted != "" and wanted != current_track:
 			play_music(wanted)
 		_update_ambient()
+
+
+## Silence the scene "director" so it stops picking/starting music (and stop whatever is
+## playing). The intro cinematic calls this with `true` before it plays - it has its own baked
+## score - and `false` once it hands off, so normal scene music resumes.
+func set_music_suppressed(on: bool) -> void:
+	_music_suppressed = on
+	if on:
+		stop_music()
+		if _ambient:
+			_ambient.stop()
+		_ambient_id = ""
 
 
 ## Swap the looping ambience bed by scene: alien wind on the planets, nothing in the hub
