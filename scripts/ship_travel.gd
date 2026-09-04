@@ -34,7 +34,13 @@ const LIFTOFF_VIDEO := "res://assets/generated/fold/liftoff.ogv"
 ## The NEW-GAME intro cinematic (assets/generated/intro/intro.ogv, made by
 ## tools/gen_intro_cinematic.py). Self-contained B&W lore film with its own baked orchestral
 ## score + narration; played by play_intro() before the hub loads on a fresh character.
-const INTRO_VIDEO := "res://assets/generated/intro/intro.ogv"
+## The intro is an mp4 played via the EIRTeam.FFmpeg GDExtension (class `FFmpegVideoStream`).
+## Godot's core VideoStreamPlayer only decodes Theora, and every Theora encode of this cinematic
+## macroblocks in-engine (the file is provably clean in ffmpeg - it's Godot's decoder), while the
+## mp4 plays perfectly. The mp4 is self-contained (video + baked score/narration); the B&W look
+## is a playback shader. If the addon isn't installed, play_intro() no-ops and the hub loads
+## straight away. To install: drop the addon's `addons/` folder at the project root.
+const INTRO_VIDEO := "res://assets/generated/intro/intro.mp4"
 
 ## Mission planet -> level scene (same map the helm/table interactors keep locally).
 const MISSION_SCENES := {
@@ -77,6 +83,7 @@ var _pending_path: String = ""       # mission scene, threaded-preloaded during 
 # Video-fold overlay (present only on the video path; freed on the swap).
 var _video: VideoStreamPlayer = null
 var _video_ui: Control = null
+var _intro_audio: AudioStreamPlayer = null   # (reserved) separate audio for the intro if needed
 var _skipped: bool = false
 
 
@@ -319,11 +326,17 @@ func _build_liftoff_ui() -> void:
 func play_intro(next_scene: String) -> bool:
 	if _running:
 		return false
-	if not ResourceLoader.exists(INTRO_VIDEO):
+	# Needs the EIRTeam.FFmpeg addon (class FFmpegVideoStream) to play the mp4. If it isn't
+	# installed, no-op so the caller just loads the hub - the game never depends on the intro.
+	if not ClassDB.class_exists("FFmpegVideoStream"):
+		push_warning("ShipTravel.play_intro: FFmpegVideoStream not found - install the EIRTeam.FFmpeg addon to play the intro cinematic. Loading hub directly.")
 		return false
-	var stream := load(INTRO_VIDEO)
-	if not (stream is VideoStream):
+	if not FileAccess.file_exists(INTRO_VIDEO):
 		return false
+	var stream: Object = ClassDB.instantiate("FFmpegVideoStream")
+	if stream == null:
+		return false
+	stream.set("file", INTRO_VIDEO)
 	_running = true
 	_skipped = false
 	state = State.APPROACH
@@ -338,6 +351,12 @@ func play_intro(next_scene: String) -> bool:
 	_video.expand = true
 	_video.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_video.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The mp4 ships in COLOUR (its content is already monochrome); the B&W cinematic look - pure
+	# luminance + contrast + vignette - is applied here at playback.
+	if ResourceLoader.exists("res://shaders/intro_bw.gdshader"):
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://shaders/intro_bw.gdshader")
+		_video.material = mat
 	add_child(_video)
 	_video.finished.connect(_on_video_finished.bind(""))
 	_video.play()
@@ -427,6 +446,9 @@ func _swap(path: String) -> void:
 	if _video_ui and is_instance_valid(_video_ui):
 		_video_ui.queue_free()
 	_video_ui = null
+	if _intro_audio and is_instance_valid(_intro_audio):
+		_intro_audio.queue_free()
+	_intro_audio = null
 	_cutscene = null
 	_stop_audio()
 	var packed: PackedScene = null

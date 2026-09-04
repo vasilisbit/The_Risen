@@ -380,10 +380,14 @@ def assemble(dur):
         out = f"v{i}"
         fc.append(f"[{prev}][{i}:v]xfade=transition=fade:duration={xf}:offset={offset:.2f}[{out}]")
         prev = out
-    grade = (f"[{prev}]format=gray,eq=contrast=1.18:brightness=-0.02:saturation=0,"
-             f"noise=alls=8:allf=t+u,vignette=PI/5,"
-             f"scale=1280:720:force_original_aspect_ratio=decrease,"
-             f"pad=1280:720:-1:-1:color=black,setsar=1[vg]")
+    # IMPORTANT: encode the video as normal COLOR, exactly like the working fold clips - NO
+    # `format=gray`. Godot's Theora decoder corrupts flat-chroma (grayscale-encoded) Theora into
+    # macroblocks; the colour fold clips play clean. The keyframes are already monochrome content,
+    # so the picture still reads B&W; the contrast + luminance + vignette LOOK is applied at
+    # playback by a shader (scripts/intro_bw.gdshader via ship_travel.play_intro). Here we only
+    # crop-fill each clip to a clean 1280x720 (the fold resolution) - no pad bars, no gray.
+    grade = (f"[{prev}]scale=1280:720:force_original_aspect_ratio=increase,"
+             f"crop=1280:720,setsar=1[vg]")
     fc.append(grade)
     total = offset + dur
     music = os.path.join(AUD_DIR, "score.mp3")
@@ -410,21 +414,23 @@ def assemble(dur):
         print(f"[assemble] VO {vo_len:.1f}s placed at {vo_start:.1f}s (ends ~{vo_start+vo_len:.1f}s of {total:.1f}s)", flush=True)
     mp4 = os.path.join(OUT_DIR, "intro.mp4")
     ogv = os.path.join(OUT_DIR, "intro.ogv")
+    audio_out = os.path.join(OUT_DIR, "intro_audio.ogg")
     cmd = ["ffmpeg", "-y"] + inputs + ["-filter_complex", ";".join(fc), "-map", "[vg]"]
     if have_audio:
-        cmd += ["-map", "[aout]", "-c:a", "aac", "-b:a", "192k", "-shortest"]
-    cmd += ["-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "-t", f"{total:.2f}", mp4]
+        cmd += ["-map", "[aout]", "-c:a", "aac", "-b:a", "256k", "-shortest"]
+    cmd += ["-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", "-t", f"{total:.2f}", mp4]
     print("[assemble] ffmpeg ->", os.path.basename(mp4), f"({total:.1f}s)", flush=True)
     subprocess.run(cmd, check=True)
-    # transcode to Ogg Theora for Godot's core VideoStreamPlayer
-    print("[assemble] transcode ->", os.path.basename(ogv), flush=True)
-    tc = ["ffmpeg", "-y", "-i", mp4, "-c:v", "libtheora", "-q:v", "8"]
+    # Godot's core VideoStreamPlayer only decodes Theora. Ship the video ALONE (no audio track -
+    # the Theora+Vorbis mux corrupts Godot's decoder) as normal COLOUR at the fold's exact recipe
+    # (-q:v 8, no -g) - the setting proven clean by the mission fold clips. The mixed audio goes to
+    # a separate .ogg that ship_travel.play_intro starts in sync; the B&W look is a playback shader.
+    print("[assemble] transcode -> intro.ogv (colour, fold recipe) + intro_audio.ogg", flush=True)
+    subprocess.run(["ffmpeg", "-y", "-i", mp4, "-an", "-c:v", "libtheora", "-q:v", "8", ogv],
+                   check=True)
     if have_audio:
-        tc += ["-c:a", "libvorbis", "-q:a", "5"]
-    else:
-        tc += ["-an"]
-    tc += [ogv]
-    subprocess.run(tc, check=True)
+        subprocess.run(["ffmpeg", "-y", "-i", mp4, "-vn", "-c:a", "libvorbis", "-q:a", "6", audio_out],
+                       check=True)
     print("[assemble] ->", ogv)
 
 
