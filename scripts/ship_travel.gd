@@ -34,19 +34,25 @@ const LIFTOFF_VIDEO := "res://assets/generated/fold/liftoff.ogv"
 ## The NEW-GAME intro cinematic (assets/generated/intro/intro.mp4, made by
 ## tools/gen_intro_cinematic.py). Self-contained B&W lore film with its own baked orchestral
 ## score + narration; played by play_intro() before the hub loads on a fresh character.
-## The intro is an mp4 played via the GDE GoZen video addon (its `VideoPlayback` wrapper node).
-## Godot's core VideoStreamPlayer only decodes Theora, and every Theora encode of this cinematic
-## macroblocks in-engine (the file is provably clean in ffmpeg - it's Godot's decoder), while the
-## mp4 plays perfectly. EIRTeam.FFmpeg was tried first and is broken on 4.7 (its build targets
-## 4.1 -> push-constant errors, audio but no picture); GoZen is the working path (kept as a
-## fallback). The mp4 is self-contained (video + baked score/narration); the B&W look is a
-## playback shader. If neither addon is installed, play_intro() no-ops and the hub loads straight
-## away. To install GoZen: buy it ($5, Voylin's Ko-fi, pre-compiled) and drop its `addons/`
-## folder at the project root. GoZen reads the mp4 off DISK by absolute path (it can't read
-## res://), so an exported build must ship intro.mp4 beside the .exe (see _intro_abs_path).
+## Playback is FREE and needs no addon: Godot's core VideoStreamPlayer only decodes Theora, which
+## macroblocks this film in-engine, and the only mp4 addon (GDE GoZen) is paid/compile-your-own. So
+## the film ships as a WebP frame pack (intro_frames.bin) + its baked mix (intro_audio.ogg) and is
+## played in sync by scripts/intro_sequence_player.gd - no codec, no purchase, straight from res://.
+## GoZen (its `VideoPlayback` wrapper node, playing intro.mp4) is kept as an OPTIONAL fallback for
+## anyone who has the compiled addon; EIRTeam.FFmpeg is a last-ditch fallback (broken on 4.7). The
+## B&W look is a playback shader (shaders/intro_bw.gdshader). If nothing is available, play_intro()
+## no-ops and the hub loads straight away, so the game never hard-depends on the intro.
 const INTRO_VIDEO := "res://assets/generated/intro/intro.mp4"
-## GoZen's GDScript wrapper node. `class_name VideoPlayback` lives in the script server (NOT in
-## ClassDB), so we detect the addon by its native class + this script, and instantiate by path.
+## FREE, core-Godot playback (PREFERRED): the film as a WebP frame pack + its baked mix, played by
+## scripts/intro_sequence_player.gd. No addon, no purchase; made by tools/pack_intro_frames.py.
+## The .bin is a non-resource file - add `*.bin` to the export preset's non-resource filters (the
+## player also falls back to a copy beside the .exe). The .ogg imports normally.
+const INTRO_FRAMES := "res://assets/generated/intro/intro_frames.bin"
+const INTRO_AUDIO := "res://assets/generated/intro/intro_audio.ogg"
+const INTRO_SEQ_PLAYER := "res://scripts/intro_sequence_player.gd"
+## GoZen's GDScript wrapper node (OPTIONAL fallback if the user has the paid/compiled addon).
+## `class_name VideoPlayback` lives in the script server (NOT in ClassDB), so we detect the addon by
+## its native class + this script, and instantiate by path.
 const GOZEN_PLAYBACK_SCRIPT := "res://addons/gde_gozen/video_playback.gd"
 const INTRO_LENGTH := 114.5   # seconds; BACKUP end timer (GoZen also fires video_ended at EOF)
 
@@ -336,20 +342,20 @@ func _build_liftoff_ui() -> void:
 func play_intro(next_scene: String) -> bool:
 	if _running:
 		return false
-	if not FileAccess.file_exists(INTRO_VIDEO):
-		return false
-	# Play the mp4 through whichever video addon is installed: GoZen's VideoPlayback node
-	# (maintained on Godot 4.x - preferred) or EIRTeam's FFmpegVideoStream. No addon -> no-op so
-	# the caller just loads the hub; the game never hard-depends on the intro.
-	# GoZen ships a GDScript wrapper `VideoPlayback` (class_name in addons/gde_gozen) around its
-	# native GoZenVideo/AudioStreamFFmpeg classes. A class_name lives in the script server, NOT in
-	# ClassDB, so detect the addon by its NATIVE class + the wrapper script on disk, and
-	# instantiate the wrapper by loading its path (naming `VideoPlayback` directly would fail to
-	# parse when the addon isn't installed). EIRTeam is detected by its native FFmpegVideoStream.
-	var use_gozen := ClassDB.class_exists("GoZenVideo") and ResourceLoader.exists(GOZEN_PLAYBACK_SCRIPT)
-	var use_eirteam := ClassDB.class_exists("FFmpegVideoStream")
-	if not use_gozen and not use_eirteam:
-		push_warning("ShipTravel.play_intro: no video addon found (GoZen / EIRTeam.FFmpeg). Loading hub directly.")
+	# Pick a playback path, best-first:
+	#   1. FREE frame-pack player (no addon; the shipping path).
+	#   2. GoZen mp4 (optional, only if the compiled addon + mp4 are present).
+	#   3. EIRTeam.FFmpeg (last-ditch, broken on 4.7).
+	# GoZen ships a GDScript wrapper `VideoPlayback` (class_name in addons/gde_gozen); a class_name
+	# lives in the script server, NOT ClassDB, so detect it by its NATIVE class + the wrapper script
+	# on disk and instantiate by path. EIRTeam is detected by its native FFmpegVideoStream.
+	var seq_bin := INTRO_SEQ_PLAYER != "" and (FileAccess.file_exists(INTRO_FRAMES) \
+		or FileAccess.file_exists(OS.get_executable_path().get_base_dir().path_join("intro_frames.bin")))
+	var use_seq := seq_bin and ResourceLoader.exists(INTRO_SEQ_PLAYER)
+	var use_gozen := ClassDB.class_exists("GoZenVideo") and ResourceLoader.exists(GOZEN_PLAYBACK_SCRIPT) and FileAccess.file_exists(INTRO_VIDEO)
+	var use_eirteam := ClassDB.class_exists("FFmpegVideoStream") and FileAccess.file_exists(INTRO_VIDEO)
+	if not use_seq and not use_gozen and not use_eirteam:
+		push_warning("ShipTravel.play_intro: no playable intro (frame pack / GoZen / EIRTeam). Loading hub directly.")
 		return false
 	_running = true
 	_skipped = false
@@ -360,7 +366,20 @@ func play_intro(next_scene: String) -> bool:
 	var am := get_node_or_null("/root/AudioManager")
 	if am and am.has_method("stop_music"):
 		am.stop_music()
-	if use_gozen:
+	if use_seq:
+		# FREE core-Godot path: WebP frame pack + baked mix, played in sync by intro_sequence_player.
+		var seq: Node = (load(INTRO_SEQ_PLAYER) as Script).new()
+		if seq == null or not seq.call("load_pack", INTRO_FRAMES, INTRO_AUDIO):
+			if seq != null:
+				seq.queue_free()
+			_reset()
+			return false
+		_intro_node = seq
+		add_child(seq)
+		if seq.has_signal("finished"):
+			seq.connect("finished", Callable(self, "_on_video_finished").bind(""))
+		seq.call("play")
+	elif use_gozen:
 		# GoZen GDE: the `VideoPlayback` wrapper node, fed an ABSOLUTE on-disk path (it opens the
 		# file through FFmpeg and cannot resolve res://).
 		var abs_path := _intro_abs_path()
