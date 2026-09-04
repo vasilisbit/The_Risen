@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://culiat0r78p0y"
+uid="uid://byni658tg6g72"
 path.s3tc="res://.godot/imported/mars_arch_ORM_ee8d0d70-c48d-4ff1-a3f1-b4615b005ead.jpg-d7772e6d82baf45f93677e76401ddac4.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "1d9f09ba306f3b4f18bd2b702a1d66ae"
 }
 
 [deps]

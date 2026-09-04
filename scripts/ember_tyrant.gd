@@ -443,16 +443,31 @@ func _build_shield_vfx() -> void:
 	sphere.radius = 2.4
 	sphere.height = 4.8
 	sphere.is_hemisphere = true
+	sphere.radial_segments = 48
+	sphere.rings = 24
 	_shield_vfx.mesh = sphere
 	_shield_vfx.position = Vector3(0, 0.1, 0)
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.25, 0.55, 1.0, 0.25)
-	m.emission_enabled = true
-	m.emission = Color(0.35, 0.65, 1.0)
-	m.emission_energy_multiplier = 1.5
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_shield_vfx.material_override = m
+	# Prefer the animated ember energy-dome shader; fall back to a translucent dome if absent.
+	if ResourceLoader.exists("res://shaders/boss_shield.gdshader"):
+		var sm := ShaderMaterial.new()
+		sm.shader = load("res://shaders/boss_shield.gdshader")
+		_shield_vfx.material_override = sm
+	else:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1.0, 0.5, 0.15, 0.25)
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.6, 0.2)
+		m.emission_energy_multiplier = 1.5
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_shield_vfx.material_override = m
+	# A warm glow light that lives with the dome, so the shield lights the arena while up.
+	var gl := OmniLight3D.new()
+	gl.light_color = Color(1.0, 0.6, 0.25)
+	gl.omni_range = 8.0
+	gl.light_energy = 2.2
+	gl.position = Vector3(0, 1.6, 0)
+	_shield_vfx.add_child(gl)
 	_shield_vfx.visible = false
 	add_child(_shield_vfx)
 

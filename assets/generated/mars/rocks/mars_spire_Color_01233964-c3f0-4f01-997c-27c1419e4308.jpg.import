@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://u38hsbc4iyet"
+uid="uid://4ghqobrnd7ah"
 path.s3tc="res://.godot/imported/mars_spire_Color_01233964-c3f0-4f01-997c-27c1419e4308.jpg-bb6295d0a671b02431c7bd2a433c49d7.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "ff7e806bb2e2b9af98a4ff68fb41fd13"
 }
 
 [deps]

@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://e6pmdjksu4o4"
+uid="uid://u6ufd251ae2c"
 path.s3tc="res://.godot/imported/pilot_seat_Color_6454d14b-fc78-4124-a8a6-f49f4583ccc5.jpg-e48a8df951a92221b41f14c46edc454a.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "dd9c6cd40da67a7437f787a502c46773"
 }
 
 [deps]

@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctsmnibh0tohl"
+uid="uid://dah23yvjbubiq"
 path.s3tc="res://.godot/imported/gauntlets_NormalGL_ef5a524b-498e-4954-bb6b-68a9ebbacbfe.jpg-8541560a2bc81b007718869d9910ad4f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "756241b32f8e853c495903f9c75f59c3"
 }
 
 [deps]
