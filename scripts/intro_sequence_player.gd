@@ -108,11 +108,20 @@ func load_pack(bin_path: String, audio_path: String) -> bool:
 
 	_audio = AudioStreamPlayer.new()
 	var apath := _resolve(audio_path)
-	var stream: Resource = load(apath) if ResourceLoader.exists(apath) else null
-	if stream == null and FileAccess.file_exists(apath):
-		# Beside-exe .ogg (not imported): load it as a raw Ogg stream.
-		stream = AudioStreamOggVorbis.load_from_file(apath)
-	if stream is AudioStream:
+	var stream: AudioStream = null
+	# In the EDITOR, read the .ogg straight off disk rather than load()ing Godot's IMPORTED copy:
+	# the import cache can lag behind a regenerated .ogg, and playing that stale copy (a differently
+	# timed VO) desyncs the film from the mp4 even though the on-disk file is correct. Reading the
+	# real bytes guarantees the game plays exactly what's on disk. In an exported build the imported
+	# resource is rebuilt fresh at export time (and the raw .ogg may be absent), so load() is right.
+	var disk := ProjectSettings.globalize_path(apath) if apath.begins_with("res://") else apath
+	if OS.has_feature("editor") and apath.get_extension().to_lower() == "ogg" and FileAccess.file_exists(disk):
+		stream = AudioStreamOggVorbis.load_from_file(disk)
+	if stream == null and ResourceLoader.exists(apath):
+		stream = load(apath) as AudioStream
+	if stream == null and FileAccess.file_exists(disk):
+		stream = AudioStreamOggVorbis.load_from_file(disk)
+	if stream != null:
 		_audio.stream = stream
 	_audio.finished.connect(_on_audio_finished)
 	add_child(_audio)
