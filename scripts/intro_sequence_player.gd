@@ -85,6 +85,14 @@ func load_pack(bin_path: String, audio_path: String) -> bool:
 
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Opaque black backing: the film keeps its aspect ratio (no stretch/distortion), so a
+	# non-16:9 window gets letterbox/pillarbox bars - this fills them with black instead of
+	# letting the scene behind (the main menu) show through.
+	var bg := ColorRect.new()
+	bg.color = Color.BLACK
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
 	_rect = TextureRect.new()
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

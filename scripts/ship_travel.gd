@@ -362,9 +362,13 @@ func play_intro(next_scene: String) -> bool:
 	state = State.APPROACH
 	_pending_path = next_scene
 	ResourceLoader.load_threaded_request(next_scene)
-	# Silence the menu's music bed so only the film's baked audio is heard.
+	# Silence the menu/hub music bed so only the film's baked audio is heard. stop_music() alone
+	# isn't enough: AudioManager's scene "director" re-starts the current scene's track every tick,
+	# so suppress the director for the duration of the intro (restored in _reset()).
 	var am := get_node_or_null("/root/AudioManager")
-	if am and am.has_method("stop_music"):
+	if am and am.has_method("set_music_suppressed"):
+		am.set_music_suppressed(true)
+	elif am and am.has_method("stop_music"):
 		am.stop_music()
 	if use_seq:
 		# FREE core-Godot path: WebP frame pack + baked mix, played in sync by intro_sequence_player.
@@ -587,6 +591,10 @@ func _reset() -> void:
 	_running = false
 	state = State.IDLE
 	_skipped = false
+	# Let the scene director resume normal music (the destination scene picks its own track).
+	var am := get_node_or_null("/root/AudioManager")
+	if am and am.has_method("set_music_suppressed"):
+		am.set_music_suppressed(false)
 
 
 # --- Fold audio (video path; the in-engine cutscene runs its own) -----------
