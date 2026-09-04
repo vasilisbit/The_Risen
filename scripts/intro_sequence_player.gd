@@ -32,10 +32,11 @@ var _rect: TextureRect = null
 var _tex: ImageTexture = null
 var _audio: AudioStreamPlayer = null
 
-var _thread: Thread = null
+var _threads: Array[Thread] = []   # several decode workers so decode keeps up at 24fps under load
+var _next := 0                # next frame index a worker will claim (guarded by _mutex)
 var _mutex: Mutex = Mutex.new()
 var _buf: Dictionary = {}     # frame_index -> Image (guarded by _mutex)
-var _want := 0                # frame the main thread currently needs (loader stays ahead of this)
+var _want := 0                # frame the main thread currently needs (workers stay ahead of this)
 var _cur := -1                # frame currently on screen
 var _stop := false
 var _started := false
@@ -85,9 +86,8 @@ func load_pack(bin_path: String, audio_path: String) -> bool:
 
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Opaque black backing: the film keeps its aspect ratio (no stretch/distortion), so a
-	# non-16:9 window gets letterbox/pillarbox bars - this fills them with black instead of
-	# letting the scene behind (the main menu) show through.
+	# Black backing behind the video (only visible for the first frame before the texture exists;
+	# with the cover fill below it is otherwise hidden - it just prevents any menu flash at t=0).
 	var bg := ColorRect.new()
 	bg.color = Color.BLACK
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -96,7 +96,9 @@ func load_pack(bin_path: String, audio_path: String) -> bool:
 	_rect = TextureRect.new()
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# COVER the whole window (fills any non-16:9 window edge-to-edge, keeping aspect so nothing is
+	# distorted - it crops a sliver off the long side instead of showing bars).
+	_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if ResourceLoader.exists("res://shaders/intro_bw.gdshader"):
 		var mat := ShaderMaterial.new()
@@ -122,8 +124,14 @@ func play() -> void:
 		return
 	_started = true
 	_stop = false
-	_thread = Thread.new()
-	_thread.start(_loader)
+	# Several decode workers: a single thread can't always sustain 24fps WebP decode while the hub
+	# scene is being threaded-preloaded in parallel, which would let the picture lag behind the
+	# audio. A small pool keeps decode well ahead of playback even under that load.
+	var n := clampi(OS.get_processor_count() / 2, 2, 4)
+	for _w in n:
+		var t := Thread.new()
+		t.start(_worker)
+		_threads.append(t)
 	if _audio and _audio.stream != null:
 		_audio.play()
 	set_process(true)
@@ -143,6 +151,16 @@ func _process(_delta: float) -> void:
 	if idx != _cur:
 		_mutex.lock()
 		var img: Image = _buf.get(idx, null)
+		if img == null:
+			# Exact frame not decoded yet - show the newest decoded frame at or before it, so a
+			# brief decode stall never freezes the picture on a far-behind frame.
+			var best := -1
+			for k in _buf.keys():
+				if k <= idx and k > best:
+					best = k
+			if best >= 0:
+				img = _buf[best]
+				idx = best
 		_mutex.unlock()
 		if img != null:
 			if _tex == null:
@@ -155,16 +173,26 @@ func _process(_delta: float) -> void:
 			_cur = idx
 
 
-## Background: stream+decode frames, staying ~_LOOKAHEAD ahead of _want; drop frames already shown.
-func _loader() -> void:
+## Background worker (several run in parallel): claim the next frame index, decode it, and store it,
+## staying within _LOOKAHEAD of playback and skipping frames already behind _want.
+func _worker() -> void:
 	var fa := FileAccess.open(_pack_path, FileAccess.READ)
 	if fa == null:
 		return
-	var i := 0
-	while i < _count and not _stop:
-		if i > _want + _LOOKAHEAD:
-			OS.delay_msec(4)
+	while not _stop:
+		_mutex.lock()
+		var i := _next
+		if i < _want:              # decode fell behind playback - jump forward to catch up
+			i = _want
+		if i >= _count:
+			_mutex.unlock()
+			break
+		if i > _want + _LOOKAHEAD:  # far enough ahead; wait for playback to advance
+			_mutex.unlock()
+			OS.delay_msec(3)
 			continue
+		_next = i + 1
+		_mutex.unlock()
 		fa.seek(_offsets[i])
 		var blob := fa.get_buffer(_lengths[i])
 		var img := Image.new()
@@ -177,7 +205,6 @@ func _loader() -> void:
 				if k < _want - 2:
 					_buf.erase(k)
 			_mutex.unlock()
-		i += 1
 	fa = null
 
 
@@ -191,9 +218,10 @@ func _on_audio_finished() -> void:
 ## Stop playback and join the loader thread. Safe to call more than once.
 func stop() -> void:
 	_stop = true
-	if _thread != null and _thread.is_started():
-		_thread.wait_to_finish()
-	_thread = null
+	for t in _threads:
+		if t != null and t.is_started():
+			t.wait_to_finish()
+	_threads.clear()
 	if _audio != null and is_instance_valid(_audio):
 		_audio.stop()
 	set_process(false)
