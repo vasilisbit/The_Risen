@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dkqqohfoayhd3"
-path.s3tc="res://.godot/imported/shooter_bolt_Color_a1097be3-f4bb-430f-a6c5-2c1a2f7e1bd9.jpg-3507922cf4d81de7d7a07accda6046c9.s3tc.ctex"
+uid="uid://ckwckgbt16j61"
+path.s3tc="res://.godot/imported/shooter_bolt_Color_0593e7ad-7c43-4244-a188-63af730ae703.jpg-28a4fe7d02c4498fc133034d362dee2a.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "b58365f185cedc82d8dd11f205e2ec4d"
+"md5": "0b61d589be4cf8f3d1fbf7416a460012"
 }
 
 [deps]
 
-source_file="res://assets/generated/vfx/shooter_bolt_Color_a1097be3-f4bb-430f-a6c5-2c1a2f7e1bd9.jpg"
-dest_files=["res://.godot/imported/shooter_bolt_Color_a1097be3-f4bb-430f-a6c5-2c1a2f7e1bd9.jpg-3507922cf4d81de7d7a07accda6046c9.s3tc.ctex"]
+source_file="res://assets/generated/vfx/shooter_bolt_Color_0593e7ad-7c43-4244-a188-63af730ae703.jpg"
+dest_files=["res://.godot/imported/shooter_bolt_Color_0593e7ad-7c43-4244-a188-63af730ae703.jpg-28a4fe7d02c4498fc133034d362dee2a.s3tc.ctex"]
 
 [params]
 

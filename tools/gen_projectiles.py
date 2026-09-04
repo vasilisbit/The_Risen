@@ -25,8 +25,8 @@ FACE_LIMIT = 60000
 # Props whose concept is derived FROM a reference image (nano-banana-pro/edit) instead of
 # text-only, so the result matches an existing design. prop -> reference image URL.
 REFS = {
-    # The enemy Shooter's own design, so its bolt reads as fired BY that Hive creature.
-    "shooter_bolt": "https://v3b.fal.media/files/b/0aa80c4f/WePxET-4C64iPCRngh5SD_5p2d7fPo.png",
+    # (Reference-conditioned props go here. shooter_bolt intentionally uses text-to-image instead -
+    #  feeding the creature reference kept dragging the creature itself into the render.)
 }
 
 # prop -> (out subdir, concept prompt). Concepts are ONE object, centered, sharp,
@@ -56,15 +56,17 @@ PROPS = {
         "product render, crisp edges, high detail, PBR materials, even neutral studio lighting, "
         "no hands, no person, no text, no watermark, no logo"),
     "shooter_bolt": ("vfx",
-        "Using the creature in the reference image as the design language, create the single "
-        "PROJECTILE / energy bolt that this Hive creature fires - NOT the creature itself. A "
-        "compact dart-shaped bolt of hardened teal-cyan soulfire energy sheathed in a few dark "
-        "chitin / bone carapace shards curving back like fins, a bright glowing teal-cyan core "
-        "with thin cracks of soulfire light and faint trailing wisps at the rear, sharp pointed "
-        "tip facing LEFT, matching the teal-soulfire glow and dark bone-carapace aesthetic of the "
-        "creature, single object, centered, plain seamless neutral grey studio background, sharp "
-        "studio product render, crisp edges, high detail, PBR materials, even neutral studio "
-        "lighting, no creature, no character, no monster, no hands, no text, no watermark, no logo"),
+        "a single sci-fi energy projectile / munition, a compact horizontal dart with a sharp "
+        "pointed tip at the LEFT end and a few swept-back thin blade-fins at the rear, a dark "
+        "cracked chitin-and-bone carapace shell wrapped over a bright glowing teal-cyan soulfire "
+        "energy core, thin veins of teal-cyan soulfire light glowing along the cracks of the shell, "
+        "a faint teal energy wisp trailing straight back from the tail, alien Hive weapon aesthetic, "
+        "streamlined and symmetrical along its horizontal axis like a spear-head or a small missile, "
+        "single floating object, centered, horizontal, plain seamless neutral grey studio "
+        "background, sharp studio product render, crisp edges, high detail, PBR materials, even "
+        "neutral studio lighting, no creature, no character, no monster, no animal, no legs, no "
+        "feet, no claws, no limbs, no body, no torso, no head, no eyes, no hands, no person, no "
+        "text, no watermark, no logo"),
     "grenade": ("vfx",
         "a single futuristic sci-fi hand grenade, compact rounded ogival casing of dark "
         "gunmetal armor plating with subtle brushed-gold trim seams and rivets, a glowing "
