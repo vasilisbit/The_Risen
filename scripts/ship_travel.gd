@@ -31,17 +31,24 @@ const FOLD_DIR := "res://assets/generated/fold/"
 ## The generic lift-off clip (ship leaves atmosphere -> docks into the mothership), reused on
 ## every planet. Played by play_liftoff() after the in-engine lift-off climb.
 const LIFTOFF_VIDEO := "res://assets/generated/fold/liftoff.ogv"
-## The NEW-GAME intro cinematic (assets/generated/intro/intro.ogv, made by
+## The NEW-GAME intro cinematic (assets/generated/intro/intro.mp4, made by
 ## tools/gen_intro_cinematic.py). Self-contained B&W lore film with its own baked orchestral
 ## score + narration; played by play_intro() before the hub loads on a fresh character.
-## The intro is an mp4 played via the EIRTeam.FFmpeg GDExtension (class `FFmpegVideoStream`).
+## The intro is an mp4 played via the GDE GoZen video addon (its `VideoPlayback` wrapper node).
 ## Godot's core VideoStreamPlayer only decodes Theora, and every Theora encode of this cinematic
 ## macroblocks in-engine (the file is provably clean in ffmpeg - it's Godot's decoder), while the
-## mp4 plays perfectly. The mp4 is self-contained (video + baked score/narration); the B&W look
-## is a playback shader. If the addon isn't installed, play_intro() no-ops and the hub loads
-## straight away. To install: drop the addon's `addons/` folder at the project root.
+## mp4 plays perfectly. EIRTeam.FFmpeg was tried first and is broken on 4.7 (its build targets
+## 4.1 -> push-constant errors, audio but no picture); GoZen is the working path (kept as a
+## fallback). The mp4 is self-contained (video + baked score/narration); the B&W look is a
+## playback shader. If neither addon is installed, play_intro() no-ops and the hub loads straight
+## away. To install GoZen: buy it ($5, Voylin's Ko-fi, pre-compiled) and drop its `addons/`
+## folder at the project root. GoZen reads the mp4 off DISK by absolute path (it can't read
+## res://), so an exported build must ship intro.mp4 beside the .exe (see _intro_abs_path).
 const INTRO_VIDEO := "res://assets/generated/intro/intro.mp4"
-const INTRO_LENGTH := 114.5   # seconds; ends the intro on a timer (GoZen has no finished signal)
+## GoZen's GDScript wrapper node. `class_name VideoPlayback` lives in the script server (NOT in
+## ClassDB), so we detect the addon by its native class + this script, and instantiate by path.
+const GOZEN_PLAYBACK_SCRIPT := "res://addons/gde_gozen/video_playback.gd"
+const INTRO_LENGTH := 114.5   # seconds; BACKUP end timer (GoZen also fires video_ended at EOF)
 
 ## Mission planet -> level scene (same map the helm/table interactors keep locally).
 const MISSION_SCENES := {
@@ -86,6 +93,7 @@ var _video: VideoStreamPlayer = null
 var _video_ui: Control = null
 var _intro_audio: AudioStreamPlayer = null   # (reserved) separate audio for the intro if needed
 var _intro_node: Node = null                 # GoZen VideoPlayback node (when that addon is used)
+var _intro_overlay: ColorRect = null         # screen-read B&W grade over the GoZen video
 var _skipped: bool = false
 
 
@@ -333,10 +341,15 @@ func play_intro(next_scene: String) -> bool:
 	# Play the mp4 through whichever video addon is installed: GoZen's VideoPlayback node
 	# (maintained on Godot 4.x - preferred) or EIRTeam's FFmpegVideoStream. No addon -> no-op so
 	# the caller just loads the hub; the game never hard-depends on the intro.
-	var use_gozen := ClassDB.class_exists("VideoPlayback")
+	# GoZen ships a GDScript wrapper `VideoPlayback` (class_name in addons/gde_gozen) around its
+	# native GoZenVideo/AudioStreamFFmpeg classes. A class_name lives in the script server, NOT in
+	# ClassDB, so detect the addon by its NATIVE class + the wrapper script on disk, and
+	# instantiate the wrapper by loading its path (naming `VideoPlayback` directly would fail to
+	# parse when the addon isn't installed). EIRTeam is detected by its native FFmpegVideoStream.
+	var use_gozen := ClassDB.class_exists("GoZenVideo") and ResourceLoader.exists(GOZEN_PLAYBACK_SCRIPT)
 	var use_eirteam := ClassDB.class_exists("FFmpegVideoStream")
 	if not use_gozen and not use_eirteam:
-		push_warning("ShipTravel.play_intro: no video addon found (GoZen VideoPlayback / EIRTeam FFmpegVideoStream). Loading hub directly.")
+		push_warning("ShipTravel.play_intro: no video addon found (GoZen / EIRTeam.FFmpeg). Loading hub directly.")
 		return false
 	_running = true
 	_skipped = false
@@ -347,32 +360,39 @@ func play_intro(next_scene: String) -> bool:
 	var am := get_node_or_null("/root/AudioManager")
 	if am and am.has_method("stop_music"):
 		am.stop_music()
-	var canvas: CanvasItem = null
 	if use_gozen:
-		# GoZen GDE: a VideoPlayback node fed an ABSOLUTE path (it cannot resolve res://).
-		var abs_path := ProjectSettings.globalize_path(INTRO_VIDEO)
-		var vp: Node = ClassDB.instantiate("VideoPlayback")
+		# GoZen GDE: the `VideoPlayback` wrapper node, fed an ABSOLUTE on-disk path (it opens the
+		# file through FFmpeg and cannot resolve res://).
+		var abs_path := _intro_abs_path()
+		if not FileAccess.file_exists(abs_path):
+			push_warning("ShipTravel.play_intro: GoZen present but intro mp4 not on disk (%s). Loading hub directly." % abs_path)
+			_reset()
+			return false
+		var vp: Node = (load(GOZEN_PLAYBACK_SCRIPT) as Script).new()
 		if vp == null:
-			_reset(); return false
+			_reset()
+			return false
 		_intro_node = vp
-		if vp.has_method("set_path"):
-			vp.call("set_path", abs_path)
-		elif vp.has_method("set_video_path"):
-			vp.call("set_video_path", abs_path)
-		elif vp.has_method("open"):
-			vp.call("open", abs_path)
-		else:
-			vp.set("path", abs_path)
 		if vp is Control:
-			(vp as Control).set_anchors_preset(Control.PRESET_FULL_RECT)
-			(vp as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var vc := vp as Control
+			vc.set_anchors_preset(Control.PRESET_FULL_RECT)
+			vc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vp.set("enable_audio", true)        # play the film's baked score + narration track
+		vp.set("enable_auto_play", true)    # start as soon as the (threaded) open finishes
 		add_child(vp)
-		if vp is CanvasItem:
-			canvas = vp
-		if vp.has_method("play"):
-			vp.call("play")
+		# GoZen DOES signal the end of the film; use it (the INTRO_LENGTH timer stays as a backup).
+		if vp.has_signal("video_ended"):
+			vp.connect("video_ended", Callable(self, "_on_video_finished").bind(""))
+		# set_video_path opens the file (on a worker thread) and, with enable_auto_play, plays it.
+		vp.call("set_video_path", abs_path)
+		# The mp4 is colour-encoded monochrome; the B&W look (luma + S-curve + vignette) is graded
+		# at playback. GoZen renders through its own internal yuv->rgb shader, so grade it as a
+		# screen-read overlay drawn on top rather than a material on the video node.
+		_add_intro_bw_overlay()
 	else:
-		# EIRTeam.FFmpeg: FFmpegVideoStream on a normal VideoStreamPlayer.
+		# EIRTeam.FFmpeg (fallback only): FFmpegVideoStream on a normal VideoStreamPlayer. Its build
+		# targets Godot 4.1 and floods push-constant errors on 4.7 (audio, no picture); kept solely
+		# so the game degrades gracefully if only this addon is present.
 		var stream: Object = ClassDB.instantiate("FFmpegVideoStream")
 		if stream == null:
 			_reset(); return false
@@ -385,15 +405,14 @@ func play_intro(next_scene: String) -> bool:
 		add_child(_video)
 		_video.finished.connect(_on_video_finished.bind(""))
 		_video.play()
-		canvas = _video
-	# The mp4 is COLOUR (its content is already monochrome); the B&W cinematic look - pure
-	# luminance + contrast + vignette - is applied here at playback.
-	if canvas != null and ResourceLoader.exists("res://shaders/intro_bw.gdshader"):
-		var mat := ShaderMaterial.new()
-		mat.shader = load("res://shaders/intro_bw.gdshader")
-		canvas.material = mat
-	# End on a timer matched to the clip length (GoZen exposes no reliable finished signal; the
-	# VideoStreamPlayer path also fires its own finished as a backup).
+		# VideoStreamPlayer draws the frame as its own TEXTURE, so the canvas_item B&W shader
+		# applies directly on the player.
+		if ResourceLoader.exists("res://shaders/intro_bw.gdshader"):
+			var mat := ShaderMaterial.new()
+			mat.shader = load("res://shaders/intro_bw.gdshader")
+			_video.material = mat
+	# Backup end timer matched to the clip length (GoZen's video_ended is primary; the
+	# VideoStreamPlayer path also fires its own `finished`).
 	get_tree().create_timer(INTRO_LENGTH).timeout.connect(_on_intro_timeout)
 	_build_intro_ui()
 	_fade.move_to_front()
@@ -405,6 +424,40 @@ func play_intro(next_scene: String) -> bool:
 func _on_intro_timeout() -> void:
 	if _running and not _skipped and state != State.HANDOFF:
 		_finish_to(_pending_path)
+
+
+## Resolve the intro mp4 to an ABSOLUTE on-disk path for GoZen (it opens files via FFmpeg and
+## cannot read res://). In the editor, globalize_path points at the project file. In an EXPORTED
+## build res:// lives inside the .pck (not on disk), so the mp4 must ship BESIDE the executable;
+## we look there first, then in an `intro/` subfolder, then fall back to globalize_path.
+func _intro_abs_path() -> String:
+	if OS.has_feature("editor"):
+		return ProjectSettings.globalize_path(INTRO_VIDEO)
+	var exe_dir := OS.get_executable_path().get_base_dir()
+	var beside := exe_dir.path_join(INTRO_VIDEO.get_file())
+	if FileAccess.file_exists(beside):
+		return beside
+	var sub := exe_dir.path_join("intro").path_join(INTRO_VIDEO.get_file())
+	if FileAccess.file_exists(sub):
+		return sub
+	return ProjectSettings.globalize_path(INTRO_VIDEO)
+
+
+## The B&W cinematic grade for the GoZen path: a full-screen ColorRect whose shader reads the
+## already-rendered video from the screen texture (GoZen draws through its own yuv->rgb shader, so
+## the grade can't be a material on the video node). No-op if the shader is missing - the mp4's
+## content is already monochrome, so the picture still reads B&W without it.
+func _add_intro_bw_overlay() -> void:
+	if not ResourceLoader.exists("res://shaders/intro_bw_screen.gdshader"):
+		return
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/intro_bw_screen.gdshader")
+	rect.material = mat
+	add_child(rect)                 # added after the video node -> composites/reads it on top
+	_intro_overlay = rect
 
 
 ## Minimal overlay for the intro: just a small skip hint (the film is already graded/letterboxed
@@ -489,9 +542,13 @@ func _swap(path: String) -> void:
 	if _intro_audio and is_instance_valid(_intro_audio):
 		_intro_audio.queue_free()
 	_intro_audio = null
+	if _intro_overlay and is_instance_valid(_intro_overlay):
+		_intro_overlay.queue_free()
+	_intro_overlay = null
 	if _intro_node and is_instance_valid(_intro_node):
-		if _intro_node.has_method("stop"):
-			_intro_node.call("stop")
+		# GoZen's VideoPlayback tears down its FFmpeg handles + audio bus in close()/_exit_tree.
+		if _intro_node.has_method("close"):
+			_intro_node.call("close")
 		_intro_node.queue_free()
 	_intro_node = null
 	_cutscene = null
