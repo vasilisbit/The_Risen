@@ -41,6 +41,7 @@ const LIFTOFF_VIDEO := "res://assets/generated/fold/liftoff.ogv"
 ## is a playback shader. If the addon isn't installed, play_intro() no-ops and the hub loads
 ## straight away. To install: drop the addon's `addons/` folder at the project root.
 const INTRO_VIDEO := "res://assets/generated/intro/intro.mp4"
+const INTRO_LENGTH := 114.5   # seconds; ends the intro on a timer (GoZen has no finished signal)
 
 ## Mission planet -> level scene (same map the helm/table interactors keep locally).
 const MISSION_SCENES := {
@@ -84,6 +85,7 @@ var _pending_path: String = ""       # mission scene, threaded-preloaded during 
 var _video: VideoStreamPlayer = null
 var _video_ui: Control = null
 var _intro_audio: AudioStreamPlayer = null   # (reserved) separate audio for the intro if needed
+var _intro_node: Node = null                 # GoZen VideoPlayback node (when that addon is used)
 var _skipped: bool = false
 
 
@@ -326,17 +328,16 @@ func _build_liftoff_ui() -> void:
 func play_intro(next_scene: String) -> bool:
 	if _running:
 		return false
-	# Needs the EIRTeam.FFmpeg addon (class FFmpegVideoStream) to play the mp4. If it isn't
-	# installed, no-op so the caller just loads the hub - the game never depends on the intro.
-	if not ClassDB.class_exists("FFmpegVideoStream"):
-		push_warning("ShipTravel.play_intro: FFmpegVideoStream not found - install the EIRTeam.FFmpeg addon to play the intro cinematic. Loading hub directly.")
-		return false
 	if not FileAccess.file_exists(INTRO_VIDEO):
 		return false
-	var stream: Object = ClassDB.instantiate("FFmpegVideoStream")
-	if stream == null:
+	# Play the mp4 through whichever video addon is installed: GoZen's VideoPlayback node
+	# (maintained on Godot 4.x - preferred) or EIRTeam's FFmpegVideoStream. No addon -> no-op so
+	# the caller just loads the hub; the game never hard-depends on the intro.
+	var use_gozen := ClassDB.class_exists("VideoPlayback")
+	var use_eirteam := ClassDB.class_exists("FFmpegVideoStream")
+	if not use_gozen and not use_eirteam:
+		push_warning("ShipTravel.play_intro: no video addon found (GoZen VideoPlayback / EIRTeam FFmpegVideoStream). Loading hub directly.")
 		return false
-	stream.set("file", INTRO_VIDEO)
 	_running = true
 	_skipped = false
 	state = State.APPROACH
@@ -346,25 +347,64 @@ func play_intro(next_scene: String) -> bool:
 	var am := get_node_or_null("/root/AudioManager")
 	if am and am.has_method("stop_music"):
 		am.stop_music()
-	_video = VideoStreamPlayer.new()
-	_video.stream = stream
-	_video.expand = true
-	_video.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_video.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The mp4 ships in COLOUR (its content is already monochrome); the B&W cinematic look - pure
+	var canvas: CanvasItem = null
+	if use_gozen:
+		# GoZen GDE: a VideoPlayback node fed an ABSOLUTE path (it cannot resolve res://).
+		var abs_path := ProjectSettings.globalize_path(INTRO_VIDEO)
+		var vp: Node = ClassDB.instantiate("VideoPlayback")
+		if vp == null:
+			_reset(); return false
+		_intro_node = vp
+		if vp.has_method("set_path"):
+			vp.call("set_path", abs_path)
+		elif vp.has_method("set_video_path"):
+			vp.call("set_video_path", abs_path)
+		elif vp.has_method("open"):
+			vp.call("open", abs_path)
+		else:
+			vp.set("path", abs_path)
+		if vp is Control:
+			(vp as Control).set_anchors_preset(Control.PRESET_FULL_RECT)
+			(vp as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(vp)
+		if vp is CanvasItem:
+			canvas = vp
+		if vp.has_method("play"):
+			vp.call("play")
+	else:
+		# EIRTeam.FFmpeg: FFmpegVideoStream on a normal VideoStreamPlayer.
+		var stream: Object = ClassDB.instantiate("FFmpegVideoStream")
+		if stream == null:
+			_reset(); return false
+		stream.set("file", INTRO_VIDEO)
+		_video = VideoStreamPlayer.new()
+		_video.stream = stream
+		_video.expand = true
+		_video.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_video.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_video)
+		_video.finished.connect(_on_video_finished.bind(""))
+		_video.play()
+		canvas = _video
+	# The mp4 is COLOUR (its content is already monochrome); the B&W cinematic look - pure
 	# luminance + contrast + vignette - is applied here at playback.
-	if ResourceLoader.exists("res://shaders/intro_bw.gdshader"):
+	if canvas != null and ResourceLoader.exists("res://shaders/intro_bw.gdshader"):
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://shaders/intro_bw.gdshader")
-		_video.material = mat
-	add_child(_video)
-	_video.finished.connect(_on_video_finished.bind(""))
-	_video.play()
+		canvas.material = mat
+	# End on a timer matched to the clip length (GoZen exposes no reliable finished signal; the
+	# VideoStreamPlayer path also fires its own finished as a backup).
+	get_tree().create_timer(INTRO_LENGTH).timeout.connect(_on_intro_timeout)
 	_build_intro_ui()
 	_fade.move_to_front()
 	set_process_unhandled_input(true)
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	return true
+
+
+func _on_intro_timeout() -> void:
+	if _running and not _skipped and state != State.HANDOFF:
+		_finish_to(_pending_path)
 
 
 ## Minimal overlay for the intro: just a small skip hint (the film is already graded/letterboxed
@@ -449,6 +489,11 @@ func _swap(path: String) -> void:
 	if _intro_audio and is_instance_valid(_intro_audio):
 		_intro_audio.queue_free()
 	_intro_audio = null
+	if _intro_node and is_instance_valid(_intro_node):
+		if _intro_node.has_method("stop"):
+			_intro_node.call("stop")
+		_intro_node.queue_free()
+	_intro_node = null
 	_cutscene = null
 	_stop_audio()
 	var packed: PackedScene = null
@@ -488,7 +533,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _running or _skipped or state == State.HANDOFF:
 		return
 	# Only the video path listens here (the in-engine cutscene handles its own skip).
-	if _video == null:
+	if _video == null and _intro_node == null:
 		return
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
