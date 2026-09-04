@@ -228,7 +228,7 @@ func _build_console_table() -> void:
 	var top := _panel_mat(Color(0.7, 0.72, 0.78))
 	if top == null:
 		top = _mat(Color(0.16, 0.17, 0.21), 0.5, 0.5)
-	var m := _box(Vector3(0.0, 0.26, -3.97), Vector3(2.9, 0.52, 1.42), top)
+	var _m := _box(Vector3(0.0, 0.26, -3.97), Vector3(2.9, 0.52, 1.42), top)
 	# a slim gunmetal lip around the top edge for a finished desk read
 	var lip := _mat(Color(0.19, 0.20, 0.23), 0.85, 0.35)
 	_box(Vector3(0.0, 0.53, -3.97), Vector3(3.02, 0.06, 1.54), lip)
@@ -420,7 +420,7 @@ func _build_fallback() -> void:
 ## ------------------------------------------------------- helpers
 const PROP_DIR := "res://assets/thirdparty/Sci-Fi Essentials Kit[Standard]/glTF/"
 
-func _prop(name_: String, pos: Vector3, rot_y: float, scale: float) -> void:
+func _prop(name_: String, pos: Vector3, rot_y: float, scale_v: float) -> void:
 	var scene := load(PROP_DIR + name_ + ".gltf")
 	if scene == null:
 		return
@@ -428,7 +428,7 @@ func _prop(name_: String, pos: Vector3, rot_y: float, scale: float) -> void:
 	add_child(m)
 	m.position = pos
 	m.rotation.y = rot_y
-	m.scale = Vector3.ONE * scale
+	m.scale = Vector3.ONE * scale_v
 	_add_prop_collision(m)
 
 

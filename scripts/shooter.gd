@@ -213,6 +213,9 @@ func _shoot() -> void:
 	play_attack_animation()
 	var p := load("res://scripts/enemy_projectile.gd").new() as Node3D
 	p.source_name = "Shooter"
+	# The Shooter is a teal-soulfire Hive creature: fire its own design-matched bolt, tinted teal.
+	p.bolt_color = Color(0.20, 0.95, 0.85)
+	p.model_path = "res://assets/generated/vfx/shooter_bolt.glb"
 	var host := get_tree().current_scene
 	if host == null:
 		host = get_tree().root

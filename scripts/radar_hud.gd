@@ -77,7 +77,7 @@ func _draw() -> void:
 	var yaw := p.global_rotation.y
 	var s := sin(yaw)
 	var co := cos(yaw)
-	var scale := r / RANGE
+	var sc := r / RANGE
 
 	for e in get_tree().get_nodes_in_group("enemy"):
 		if not is_instance_valid(e) or not (e is Node3D):
@@ -90,7 +90,7 @@ func _draw() -> void:
 		# forward = (-sin, -cos), right = (cos, -sin).
 		var fwd := -(off.x * s + off.z * co)      # + = ahead
 		var rgt := off.x * co - off.z * s         # + = to the right
-		var blip := c + Vector2(rgt, -fwd) * scale
+		var blip := c + Vector2(rgt, -fwd) * sc
 		var is_boss: bool = e.is_in_group("boss")
 		var col := BOSS_COL if is_boss else BLIP_COL
 		# fade slightly with distance so near threats read stronger

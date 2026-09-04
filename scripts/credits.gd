@@ -75,6 +75,7 @@ func _build_roll() -> void:
 	_pair("Blender 5.2", "Blender Foundation")
 	_pair("Godot AI (godot-ai)", "In-editor AI tooling")
 	_pair("fal.ai", "Generative model API")
+	_pair("Suno", "AI music generation")
 	_gap(44)
 
 	_header("ART & 3D - AI-GENERATED (fal.ai)")
@@ -87,14 +88,17 @@ func _build_roll() -> void:
 	_pair("UI / HUD icons ×12", "nano-banana-pro")
 	_gap(44)
 
-	_header("AUDIO - AI-GENERATED (fal.ai)")
-	_pair("Music", "Stable Audio 3")
-	_pair("Sound effects", "ElevenLabs")
-	_pair("Vendor voice", "ElevenLabs TTS")
+	_header("AUDIO - AI-GENERATED")
+	_pair("Music (hub, travel, combat)", "Stable Audio 3 · fal.ai")
+	_pair("Sound effects", "ElevenLabs · fal.ai")
+	_pair("Vendor voice", "ElevenLabs TTS · fal.ai")
 	_gap(44)
 
-	_header("CINEMATICS - AI-GENERATED (fal.ai)")
-	_pair("Fold & lift-off clips", "nano-banana-pro · Seedance 2.0")
+	_header("CINEMATICS - AI-GENERATED")
+	_pair("Intro film \"A Guardian Awakens\"", "nano-banana-pro · MiniMax H3")
+	_pair("Intro narration", "ElevenLabs v3 · voice \"Rachel\"")
+	_pair("Intro score \"Awakening\"", "Suno")
+	_pair("Fold & lift-off clips", "nano-banana-pro · Seedance 2.0 · fal.ai")
 	_gap(44)
 
 	_header("THIRD-PARTY ASSETS")
@@ -106,9 +110,9 @@ func _build_roll() -> void:
 	_line("nano-banana-pro / edit", 15, DIM)
 	_line("Tripo H3.1 & P1 image/text-to-3d", 15, DIM)
 	_line("Meshy v7 multi-image-to-3d + rigging", 15, DIM)
+	_line("MiniMax H3 image-to-video", 15, DIM)
 	_line("fal-ai/patina", 15, DIM)
-	_line("Stable Audio 3", 15, DIM)
-	_line("ElevenLabs sound-effects & TTS", 15, DIM)
+	_line("Stable Audio 3 · ElevenLabs sound-effects, v3 TTS", 15, DIM)
 	_line("Bytedance Seedance 2.0", 15, DIM)
 	_gap(44)
 
