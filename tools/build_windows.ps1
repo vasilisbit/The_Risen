@@ -10,7 +10,7 @@
 
 param(
     [string]$Out = "",                                   # export folder (skips the prompt)
-    [string]$Godot = "C:\Tools\Godot\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64.exe"
+    [string]$Godot = "C:\Tools\Godot\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64.exe"
 )
 
 # NOTE: keep this "Continue" - Godot prints import WARNINGs to stderr, and under
@@ -24,7 +24,7 @@ if (-not (Test-Path -LiteralPath $Godot)) {
     $cmd = Get-Command godot -ErrorAction SilentlyContinue
     if ($cmd) { $Godot = $cmd.Source }
     else {
-        Write-Host "Godot 4.7 editor not found at:`n  $Godot" -ForegroundColor Red
+        Write-Host "Godot 4.7.2 editor not found at:`n  $Godot" -ForegroundColor Red
         Write-Host "Pass its path with -Godot `"C:\path\to\Godot.exe`"." -ForegroundColor Yellow
         exit 1
     }
