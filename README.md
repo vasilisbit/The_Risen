@@ -12,7 +12,8 @@ A first-person looter shooter set a century after the fall. The last Guardian wa
 ![Language](https://img.shields.io/badge/GDScript-355570)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6?logo=windows&logoColor=white)
 ![Status](https://img.shields.io/badge/status-v1.0%20released-2ACA44)
-[![Release](https://img.shields.io/github/v/release/IBilba/The_Risen)](https://github.com/IBilba/The_Risen/releases/latest)
+[![Release](https://img.shields.io/badge/release-v1.0.0-2ACA44)](https://github.com/IBilba/The_Risen/releases/latest)
+[![License](https://img.shields.io/badge/license-proprietary-lightgrey)](LICENSE.md)
 
 ### [⬇ Download &amp; Play (v1.0.0)](https://drive.google.com/file/d/1EfGOZ2w9beGJbHoXhAo3r7N8TEtCPOzt/view?usp=sharing) &nbsp;·&nbsp; [Releases](https://github.com/IBilba/The_Risen/releases) &nbsp;·&nbsp; [Planning repo](https://github.com/IBilba/game-dev-the-risen)
 
@@ -87,6 +88,6 @@ Naming follows the Godot style guide: `snake_case` files/folders, `PascalCase` n
 
 ## Credits &amp; License
 
-Third-party and AI-generated asset licenses are credited in [CREDITS.md](CREDITS.md) and in-game. Private project; all rights reserved.
+Third-party and AI-generated asset licenses are credited in [CREDITS.md](CREDITS.md) and in-game. This is a university course project made available for academic evaluation and educational reference only; all rights reserved. See [LICENSE.md](LICENSE.md).
 
 Design documents, task backlog, and analysis tooling live in the companion planning repository: **[game-dev-the-risen](https://github.com/IBilba/game-dev-the-risen)**.
