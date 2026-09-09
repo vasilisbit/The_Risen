@@ -1,0 +1,584 @@
+extends Node
+## SaveManager (autoload): JSON persistence for The Risen.
+## Schema is aligned verbatim with TDD v2.0 §4.7 (= GDD §6.3).
+##
+## SAVE SLOTS: progress lives in one of SLOT_COUNT slots
+## (user://risen_save_slot_%d.json). `active_slot` is the slot every auto-save and
+## manual save writes to, and it is remembered across launches in a small meta
+## file. On the first run of the slot system the old single-file save
+## (user://risen_save_01.json) is copied into slot 0 WITHOUT deleting the original,
+## so no existing progress is ever lost. Player OPTIONS (audio/graphics/controls)
+## are NOT here - they are global, in GameSettings.
+
+## Number of save slots the game exposes (shown as "Slot 1..N" in the UI).
+const SLOT_COUNT := 3
+## Per-slot progress file. `active_slot` selects which one is live.
+const SLOT_PATH := "user://risen_save_slot_%d.json"
+## Remembers which slot was last played, so a relaunch resumes it.
+const META_PATH := "user://risen_save_meta.json"
+## The pre-slots single-file save, migrated into slot 0 on first run (left intact).
+const LEGACY_PATH := "user://risen_save_01.json"
+
+## Which slot save/load act on. 0-based internally; the UI labels it "Slot N+1".
+var active_slot: int = 0
+
+## Mission order for unlock gating - each unlocks when the previous completes.
+const MISSION_ORDER: Array[String] = ["Earth", "Mars", "Venus"]
+
+## Flux paid for finishing a mission, on top of per-kill rewards. Tuned so a
+## clean Earth run lands near the ~200 Flux GDD 2.5 expects, which is roughly
+## two vendor upgrades.
+const COMPLETION_FLUX := {"Earth": 60, "Mars": 100, "Venus": 150}
+
+## The one weapon a new Guardian starts with. Everything else is earned from
+## loot or bought - you no longer begin holding all four (see equipped_weapons).
+## Mid-band rolls (0.5) so the starter is a stable baseline.
+const STARTER_WEAPON := {
+	"id": "starter_ar", "name": "Auto Rifle", "rarity": "Common", "mods": [],
+	"rolls": {"damage": 0.5, "reload": 0.5, "recoil": 0.5, "mag": 0.5},
+}
+
+## Flux a sale returns, by rarity, before the item-type multiplier. Below the
+## vendor buy prices (Common 10 / Rare 25 / Epic 50 / Exotic 100) so selling is a
+## sink, not a arbitrage.
+const SELL_BASE := {"Common": 5, "Rare": 15, "Epic": 40, "Exotic": 90}
+## Weapon-type multiplier on the sell base - the heavier, rarer-to-use guns are
+## worth more.
+const WEAPON_SELL_MULT := {"Auto Rifle": 1.0, "Hand Cannon": 1.15, "Shotgun": 1.25, "Sniper": 1.4}
+## How many weapons can be carried into a mission at once (weapon_1..weapon_3).
+const MAX_EQUIPPED_WEAPONS := 3
+## The three armour slots, keyed by the item name the loot roller produces.
+const ARMOR_SLOTS := ["Helmet", "Chest Plate", "Gauntlets"]
+## Passive damage reduction granted by an equipped piece, by rarity. Summed
+## across the three slots and clamped in take_damage - all-Exotic is ~21%.
+const ARMOR_REDUCTION := {"Common": 0.02, "Rare": 0.035, "Epic": 0.05, "Exotic": 0.07}
+
+signal game_loaded
+signal game_saved
+## Emitted whenever Flux is earned, so HUDs can update without polling.
+signal flux_changed(total: int)
+## Emitted whenever the equipped weapons or armour change, so the WeaponManager
+## can rebuild and the Guardian can refresh its armour bonus.
+signal loadout_changed
+
+var data: Dictionary = {}
+
+
+func _ready() -> void:
+	# Resolve which slot is live (migrating the legacy single-file save on the very
+	# first run), then load it. Autoload runs before the hub scene, so this covers
+	# "load on hub start".
+	var slot := _read_meta_slot()
+	if slot < 0:
+		_migrate_legacy()
+	else:
+		active_slot = slot
+	load_game()
+
+
+## Pointer file -> the slot to resume. Returns -1 when the slot system has never
+## run (no meta), which triggers legacy migration.
+func _read_meta_slot() -> int:
+	if not FileAccess.file_exists(META_PATH):
+		return -1
+	var f := FileAccess.open(META_PATH, FileAccess.READ)
+	if f == null:
+		return -1
+	var text := f.get_as_text()
+	f.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return -1
+	return clampi(int((parsed as Dictionary).get("active_slot", 0)), 0, SLOT_COUNT - 1)
+
+
+func _write_meta() -> void:
+	var f := FileAccess.open(META_PATH, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(JSON.stringify({"active_slot": active_slot}, "\t"))
+	f.close()
+
+
+## First run of the slot system: adopt slot 0 as active and, if the old single-file
+## save exists and slot 0 does not yet, COPY it in (the original is left untouched,
+## so migration can never lose progress). Then stamp the meta so this runs once.
+func _migrate_legacy() -> void:
+	active_slot = 0
+	var slot0 := SLOT_PATH % 0
+	if FileAccess.file_exists(LEGACY_PATH) and not FileAccess.file_exists(slot0):
+		var src := FileAccess.open(LEGACY_PATH, FileAccess.READ)
+		if src:
+			var text := src.get_as_text()
+			src.close()
+			var dst := FileAccess.open(slot0, FileAccess.WRITE)
+			if dst:
+				dst.store_string(text)
+				dst.close()
+	_write_meta()
+
+
+## A fresh default save (first launch). Field names match TDD §4.7 exactly.
+func _default_data() -> Dictionary:
+	return {
+		"player_level": 1,
+		"current_xp": 0,
+		"selected_class": "Assault",
+		# False until the player picks on the class-selection screen (T-0022).
+		# selected_class already has a value, so this is what marks it a default
+		# rather than a real choice. Backfilled into older saves on load.
+		"class_chosen": false,
+		# You start with one weapon; the rest are earned from loot or the vendor.
+		"owned_weapons": [STARTER_WEAPON.duplicate(true)],
+		"owned_armor": [],
+		# Ids from owned_weapons that are carried into a mission (weapon slots 1-3).
+		"equipped_weapons": [STARTER_WEAPON["id"]],
+		# Slot name -> owned_armor id. Empty until the player equips a piece.
+		"equipped_armor": {},
+		"flux_currency": 0,
+		"mission_completion_flags": {"Earth": false, "Mars": false, "Venus": false},
+		# Heroic is a global unlock (after Venus). Legendary is per-mission now, tracked
+		# in heroic_cleared: a mission's Legendary unlocks once it's beaten on Heroic.
+		"difficulty_unlocks": {"Heroic": false},
+		"heroic_cleared": {},
+		# Missions beaten on Legendary. When all three are here the credits roll
+		# (the last one cleared, in any play order). Backfilled into older saves.
+		"legendary_cleared": {},
+		# Selected modifier tier (T-0027).
+		"selected_difficulty": "Normal",
+		# Most recent mission deployed to - drives the hub window planet (T-0028).
+		"last_mission": "Earth",
+		"total_kills": 0,
+		"total_deaths": 0,
+		"total_playtime": 0.0,
+		# Linear 0..1 per audio bus (T-0034). Backfilled into older saves.
+		"audio_volumes": {"Master": 1.0, "Music": 1.0, "SFX": 1.0},
+	}
+
+
+## Load the active slot, or fall back to in-memory defaults on an empty / unreadable
+## / corrupt slot. Missing keys are backfilled from defaults so older saves stay
+## compatible. An empty slot is NOT written to disk here (it stays "Empty" in the
+## slot picker until New Game or the first real save).
+func load_game() -> void:
+	var defaults := _default_data()
+	var path := SLOT_PATH % active_slot
+	if not FileAccess.file_exists(path):
+		data = defaults
+		game_loaded.emit()
+		return
+
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		push_warning("SaveManager: cannot open save; using defaults.")
+		data = defaults
+		game_loaded.emit()
+		return
+	var text := f.get_as_text()
+	f.close()
+
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		push_warning("SaveManager: corrupt save; using defaults.")
+		data = defaults
+		game_loaded.emit()
+		return
+
+	data = defaults
+	for key in (parsed as Dictionary):
+		data[key] = (parsed as Dictionary)[key]
+	_normalize_loadout()
+	game_loaded.emit()
+
+
+## Repair the loadout after a load so it is always playable: at least one owned
+## weapon, every equipped id actually owned, and never zero equipped. Older saves
+## (pre-loadout) and hand-edited files pass through here too.
+func _normalize_loadout() -> void:
+	var owned: Array = data.get("owned_weapons", [])
+	if owned.is_empty():
+		owned = [STARTER_WEAPON.duplicate()]
+	data["owned_weapons"] = owned
+	var owned_ids := {}
+	for w in owned:
+		if typeof(w) == TYPE_DICTIONARY:
+			owned_ids[w.get("id", "")] = true
+			# Backfill mods/rolls so pre-mod, pre-roll saves are managed uniformly.
+			if not w.has("mods"):
+				w["mods"] = []
+			if not w.has("rolls"):
+				w["rolls"] = {"damage": 0.5, "reload": 0.5, "recoil": 0.5, "mag": 0.5}
+	var equipped: Array = data.get("equipped_weapons", [])
+	var clean: Array = []
+	for id in equipped:
+		if owned_ids.has(id) and not clean.has(id) and clean.size() < MAX_EQUIPPED_WEAPONS:
+			clean.append(id)
+	if clean.is_empty():
+		clean.append(owned[0].get("id", ""))
+	data["equipped_weapons"] = clean
+	# Drop any equipped-armour reference whose item is no longer owned.
+	var armor_ids := {}
+	for a in data.get("owned_armor", []):
+		if typeof(a) == TYPE_DICTIONARY:
+			armor_ids[a.get("id", "")] = true
+	var eq_armor: Dictionary = data.get("equipped_armor", {})
+	for slot in eq_armor.keys():
+		if not armor_ids.has(eq_armor[slot]):
+			eq_armor.erase(slot)
+	data["equipped_armor"] = eq_armor
+
+
+## Write the current data to the active slot as pretty JSON, stamping the save
+## time (used by the slot picker). Returns true on success.
+func save_game() -> bool:
+	data["saved_at"] = int(Time.get_unix_time_from_system())
+	var f := FileAccess.open(SLOT_PATH % active_slot, FileAccess.WRITE)
+	if f == null:
+		push_error("SaveManager: cannot write save to slot %d" % active_slot)
+		return false
+	f.store_string(JSON.stringify(data, "\t"))
+	f.close()
+	_write_meta()
+	game_saved.emit()
+	return true
+
+
+# --- save slots --------------------------------------------------------------
+
+## True if slot `i` holds a parseable save (i.e. not "Empty").
+func slot_exists(i: int) -> bool:
+	return FileAccess.file_exists(SLOT_PATH % i)
+
+
+## A lightweight peek at a slot for the picker UI, WITHOUT loading it into `data`.
+## Returns {"exists": false, "slot": i} for an empty/corrupt slot, otherwise a
+## summary (level, class, flux, missions cleared, last mission, saved_at).
+func slot_summary(i: int) -> Dictionary:
+	var path := SLOT_PATH % i
+	if not FileAccess.file_exists(path):
+		return {"exists": false, "slot": i}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {"exists": false, "slot": i}
+	var text := f.get_as_text()
+	f.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {"exists": false, "slot": i}
+	var d := parsed as Dictionary
+	var flags: Dictionary = d.get("mission_completion_flags", {})
+	var done := 0
+	for m in MISSION_ORDER:
+		if bool(flags.get(m, false)):
+			done += 1
+	return {
+		"exists": true,
+		"slot": i,
+		"level": int(d.get("player_level", 1)),
+		"class": String(d.get("selected_class", "Assault")),
+		"class_chosen": bool(d.get("class_chosen", false)),
+		"flux": int(d.get("flux_currency", 0)),
+		"missions_done": done,
+		"missions_total": MISSION_ORDER.size(),
+		"last_mission": String(d.get("last_mission", "Earth")),
+		"playtime": float(d.get("total_playtime", 0.0)),
+		"saved_at": int(d.get("saved_at", 0)),
+	}
+
+
+## Point future saves/loads at slot `i` and persist the choice.
+func set_active_slot(i: int) -> void:
+	active_slot = clampi(i, 0, SLOT_COUNT - 1)
+	_write_meta()
+
+
+## Switch to slot `i` and load it (used by the Load menu).
+func load_slot(i: int) -> void:
+	set_active_slot(i)
+	load_game()
+
+
+## Write the current progress into slot `i`, making it active (used by manual Save
+## and Save-As from the pause menu). Returns true on success.
+func save_to_slot(i: int) -> bool:
+	active_slot = clampi(i, 0, SLOT_COUNT - 1)
+	return save_game()
+
+
+## Begin a fresh game in slot `i`: reset to defaults, make it active, and persist
+## (used by New Game from the main menu).
+func new_game_in_slot(i: int) -> void:
+	active_slot = clampi(i, 0, SLOT_COUNT - 1)
+	data = _default_data()
+	save_game()
+
+
+## Award Flux. Returns the new balance. Kills and mission completions are the
+## only sources - before this, flux_currency was spent by the vendor but never
+## earned, so the shop was unusable on a fresh save.
+func add_flux(amount: int) -> int:
+	if amount <= 0:
+		return int(data.get("flux_currency", 0))
+	var total := int(data.get("flux_currency", 0)) + amount
+	data["flux_currency"] = total
+	flux_changed.emit(total)
+	return total
+
+
+## Mark a mission complete and auto-save (called on return to the hub).
+func complete_mission(mission: String) -> void:
+	var flags: Dictionary = data.get("mission_completion_flags", {})
+	flags[mission] = true
+	data["mission_completion_flags"] = flags
+	add_flux(int(COMPLETION_FLUX.get(mission, 0)))
+	save_game()
+	# Clearing Venus opens the Heroic/Legendary modifiers (T-0027, GDD §7).
+	var diff := get_node_or_null("/root/Difficulty")
+	if diff and diff.has_method("unlock_after"):
+		diff.unlock_after(mission)
+
+
+## True if a mission is playable: the first one, or the previous is complete.
+func is_mission_unlocked(mission: String) -> bool:
+	var idx := MISSION_ORDER.find(mission)
+	if idx <= 0:
+		return true
+	var prev: String = MISSION_ORDER[idx - 1]
+	var flags: Dictionary = data.get("mission_completion_flags", {})
+	return bool(flags.get(prev, false))
+
+
+## Record the player's class choice (T-0022) and persist it.
+func select_class(class_name_: String) -> void:
+	data["selected_class"] = class_name_
+	data["class_chosen"] = true
+	save_game()
+
+
+## True once the player has actually been through the class picker.
+func has_chosen_class() -> bool:
+	return bool(data.get("class_chosen", false))
+
+
+## Start a brand-new save (defaults) and persist it.
+func reset() -> void:
+	data = _default_data()
+	save_game()
+
+
+# --- loadout -----------------------------------------------------------------
+
+func weapon_by_id(id: String) -> Dictionary:
+	for w in data.get("owned_weapons", []):
+		if typeof(w) == TYPE_DICTIONARY and w.get("id", "") == id:
+			return w
+	return {}
+
+
+func armor_by_id(id: String) -> Dictionary:
+	for a in data.get("owned_armor", []):
+		if typeof(a) == TYPE_DICTIONARY and a.get("id", "") == id:
+			return a
+	return {}
+
+
+func is_weapon_equipped(id: String) -> bool:
+	return (data.get("equipped_weapons", []) as Array).has(id)
+
+
+## The full item dicts (not just ids) for the carried weapons, in slot order.
+func equipped_weapon_items() -> Array:
+	var items: Array = []
+	for id in data.get("equipped_weapons", []):
+		var w := weapon_by_id(id)
+		if not w.is_empty():
+			items.append(w)
+	return items
+
+
+## Equip an owned weapon into a free slot. When all three slots are full the
+## oldest is dropped, so equipping always succeeds and feels responsive.
+## Returns true if the loadout changed.
+func equip_weapon(id: String) -> bool:
+	if weapon_by_id(id).is_empty() or is_weapon_equipped(id):
+		return false
+	var equipped: Array = data.get("equipped_weapons", [])
+	if equipped.size() >= MAX_EQUIPPED_WEAPONS:
+		equipped.pop_front()
+	equipped.append(id)
+	data["equipped_weapons"] = equipped
+	save_game()
+	loadout_changed.emit()
+	return true
+
+
+## Unequip a weapon, unless it is the last one - the Guardian always carries at
+## least one. Returns true if the loadout changed.
+func unequip_weapon(id: String) -> bool:
+	var equipped: Array = data.get("equipped_weapons", [])
+	if not equipped.has(id) or equipped.size() <= 1:
+		return false
+	equipped.erase(id)
+	data["equipped_weapons"] = equipped
+	save_game()
+	loadout_changed.emit()
+	return true
+
+
+## Equip an armour piece into its slot (Helmet/Chest Plate/Gauntlets), replacing
+## whatever occupied it. Returns true if the loadout changed.
+func equip_armor(id: String) -> bool:
+	var item := armor_by_id(id)
+	if item.is_empty():
+		return false
+	var slot := String(item.get("name", ""))
+	if not ARMOR_SLOTS.has(slot):
+		return false
+	var eq: Dictionary = data.get("equipped_armor", {})
+	if eq.get(slot, "") == id:
+		return false
+	eq[slot] = id
+	data["equipped_armor"] = eq
+	save_game()
+	loadout_changed.emit()
+	return true
+
+
+func unequip_armor(slot: String) -> bool:
+	var eq: Dictionary = data.get("equipped_armor", {})
+	if not eq.has(slot):
+		return false
+	eq.erase(slot)
+	data["equipped_armor"] = eq
+	save_game()
+	loadout_changed.emit()
+	return true
+
+
+func is_armor_equipped(id: String) -> bool:
+	return id in (data.get("equipped_armor", {}) as Dictionary).values()
+
+
+# --- weapon mods -------------------------------------------------------------
+
+## Number of mod slots a weapon has, from its rarity (Weapon.MOD_SLOTS).
+func weapon_mod_slots(id: String) -> int:
+	var w := weapon_by_id(id)
+	if w.is_empty():
+		return 0
+	return int(Weapon.MOD_SLOTS.get(String(w.get("rarity", "Common")), 0))
+
+
+## Install a mod on a weapon, paying its Flux cost. Enforces the slot count, one
+## element mod per weapon, and no duplicates. Returns a status string (also shown
+## in the inventory). Crafting-from-Flux stands in for the GDD's blueprint craft
+## until blueprints exist.
+func install_mod(weapon_id: String, mod_id: String) -> String:
+	var w := weapon_by_id(weapon_id)
+	if w.is_empty():
+		return "Unknown weapon"
+	var mod: Dictionary = Weapon.MODS.get(mod_id, {})
+	if mod.is_empty():
+		return "Unknown mod"
+	var mods: Array = w.get("mods", [])
+	if mods.has(mod_id):
+		return "Already installed"
+	if mods.size() >= weapon_mod_slots(weapon_id):
+		return "No free mod slot"
+	if mod.has("element") and _has_element_mod(mods):
+		return "One element mod per weapon"
+	var cost := int(mod.get("cost", 0))
+	if int(data.get("flux_currency", 0)) < cost:
+		return "Need %d Flux" % cost
+	data["flux_currency"] = int(data.get("flux_currency", 0)) - cost
+	mods.append(mod_id)
+	w["mods"] = mods
+	save_game()
+	flux_changed.emit(int(data.get("flux_currency", 0)))
+	loadout_changed.emit()
+	return "Installed %s" % String(mod.get("name", mod_id))
+
+
+## Remove an installed mod (no Flux refund). Returns true if it changed.
+func remove_mod(weapon_id: String, mod_id: String) -> bool:
+	var w := weapon_by_id(weapon_id)
+	if w.is_empty():
+		return false
+	var mods: Array = w.get("mods", [])
+	if not mods.has(mod_id):
+		return false
+	mods.erase(mod_id)
+	w["mods"] = mods
+	save_game()
+	loadout_changed.emit()
+	return true
+
+
+func _has_element_mod(mods: Array) -> bool:
+	for id in mods:
+		if Weapon.MODS.get(id, {}).has("element"):
+			return true
+	return false
+
+
+# --- selling -----------------------------------------------------------------
+
+## Flux an item sells for: a rarity base, times the weapon-type multiplier (or a
+## flat 0.8 for armour). Public so the inventory can label the sell button.
+func sell_value(item: Dictionary) -> int:
+	var base: int = int(SELL_BASE.get(String(item.get("rarity", "Common")), 5))
+	var name_ := String(item.get("name", ""))
+	if ARMOR_SLOTS.has(name_):
+		return int(round(base * 0.8))
+	return int(round(base * float(WEAPON_SELL_MULT.get(name_, 1.0))))
+
+
+## Sell an owned weapon for Flux. Won't sell your last weapon (the loadout needs
+## one); if the sold weapon was equipped it is swapped out first. Returns the
+## Flux gained, or -1 if the sale was refused.
+func sell_weapon(id: String) -> int:
+	var item := weapon_by_id(id)
+	if item.is_empty():
+		return -1
+	# Equipped gear can't be sold - unequip it in the inventory first.
+	if is_weapon_equipped(id):
+		return -1
+	var owned: Array = data.get("owned_weapons", [])
+	if owned.size() <= 1:
+		return -1
+	var value := sell_value(item)
+	data["owned_weapons"] = owned.filter(func(w: Dictionary) -> bool: return w.get("id", "") != id)
+	add_flux(value)
+	save_game()
+	loadout_changed.emit()
+	return value
+
+
+## Sell an owned armour piece for Flux (unequipping it if worn). Returns the Flux
+## gained, or -1 if not found.
+func sell_armor(id: String) -> int:
+	var item := armor_by_id(id)
+	if item.is_empty():
+		return -1
+	# Equipped gear can't be sold - unequip it in the inventory first.
+	if is_armor_equipped(id):
+		return -1
+	var value := sell_value(item)
+	data["owned_armor"] = (data.get("owned_armor", []) as Array).filter(
+		func(a: Dictionary) -> bool: return a.get("id", "") != id)
+	add_flux(value)
+	save_game()
+	loadout_changed.emit()
+	return value
+
+
+## Total passive damage reduction from the currently equipped armour, summed
+## across slots. The Guardian folds this into take_damage.
+func armor_reduction_total() -> float:
+	var total := 0.0
+	var eq: Dictionary = data.get("equipped_armor", {})
+	for slot in eq:
+		var item := armor_by_id(String(eq[slot]))
+		if not item.is_empty():
+			total += float(ARMOR_REDUCTION.get(String(item.get("rarity", "Common")), 0.0))
+	return total

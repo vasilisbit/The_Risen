@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenshieldedbrute01"]
+
+; Shielded Brute (Earth boss) = custom fal.ai Hive-knight juggernaut (T-0044).
+; Wrapper for EnemyBase._apply_external_model. Teal-soulfire Hive art direction
+; (horned skull helm, heavy chitin plate); rigged idle + walk + attack (Meshy).
+; Sized by the rig (height_meters 3.0) so scale is 1.0. Faces -Z.
+
+[ext_resource type="PackedScene" uid="uid://blp2y380tw1nm" path="res://assets/generated/enemies/shielded_brute.glb" id="1_model"]
+
+[node name="ShieldedBruteModel" type="Node3D"]
+
+; 180 deg about Y: Meshy model faces +Z; EnemyBase._face look_at points -Z at the player.
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)

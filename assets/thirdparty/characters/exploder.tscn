@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://crisenexploder01"]
+
+; Volatile Exploder = custom fal.ai Hive cursed-thrall (T-0044). Wrapper for
+; EnemyBase._apply_external_model. Teal-soulfire Hive art direction (bloated
+; bursting teal belly); rigged idle + walk (Meshy). Faces -Z, ~1.8 m.
+
+[ext_resource type="PackedScene" uid="uid://bhx4u7gu4jcan" path="res://assets/generated/enemies/exploder.glb" id="1_model"]
+
+[node name="ExploderModel" type="Node3D"]
+
+; 180 deg about Y: Meshy model faces +Z; EnemyBase._face look_at points -Z at the player.
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)

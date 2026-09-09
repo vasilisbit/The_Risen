@@ -1,0 +1,154 @@
+extends Node
+## T-0020 Venus mission driver. Mirrors earth_mission.gd: enemies spawn per
+## section as the player advances (not all 35 at once), and the ordered
+## objectives from GDD §3.4 are driven by section triggers plus the lava-pool
+## dive - the player free-falls down the lava shaft into the boss arena directly
+## below (no teleport; venus_level builds the shaft + a soft-landing draft).
+##
+## The Ember Tyrant itself is T-0021 - until that scene exists the final
+## objective simply cannot complete, and the mission is a playable blockout.
+
+const RUSHER := "res://scenes/enemies/rusher.tscn"
+const SHOOTER := "res://scenes/enemies/shooter.tscn"
+const EXPLODER := "res://scenes/enemies/exploder.tscn"
+const EMBER_TYRANT := "res://scenes/enemies/ember_tyrant.tscn"
+
+const SECTION_ASCENT := 0
+const SECTION_DESCENT := 1
+
+## Aggro radius (m) forced onto the ascent enemies, overriding their defaults
+## (Rusher 10 m, Shooter 20 m). On the open 200 m slope the player out-ranged
+## both and picked them off before they ever woke, so the climb played as a
+## shooting gallery. A wide radius makes each formation engage - rushers charge,
+## shooters take cover and return fire - as soon as the player crests into view.
+const ASCENT_AGGRO_RANGE := 55.0
+
+# Section boundaries along -Z. Must track venus_level.gd: the ascent is 200 m
+# long and its summit pad runs 12 m further to the cavern mouth.
+const SUMMIT_Z := -170.0        # far enough up the slope to count as "summit"
+const CAVERN_Z := -212.0        # cavern mouth = end of the summit pad
+
+@onready var _obj: ObjectiveManager = get_node("../ObjectiveManager")
+
+var _player: Node3D
+var _spawned: Array[bool] = [false, false]
+var _dived: bool = false
+
+
+func _ready() -> void:
+	for pool in get_tree().get_nodes_in_group("lava_pool"):
+		(pool as Area3D).body_entered.connect(_on_pool_entered)
+
+
+func _physics_process(_delta: float) -> void:
+	if _player == null or not is_instance_valid(_player):
+		_player = get_tree().get_first_node_in_group("player")
+		if _player == null:
+			return
+	var z := _player.global_position.z
+
+	if not _spawned[SECTION_ASCENT]:
+		_spawn_section(SECTION_ASCENT)
+	if z <= SUMMIT_Z:
+		_obj.notify_flag("summit")
+	if z <= CAVERN_Z:
+		if not _spawned[SECTION_DESCENT]:
+			_spawn_section(SECTION_DESCENT)
+		_obj.notify_flag("descent")
+
+
+# --- spawning ---------------------------------------------------------------
+
+func _spawn_section(section: int) -> void:
+	_spawned[section] = true
+	var host := get_tree().current_scene
+	var markers := _section_markers(section)
+	for i in markers.size():
+		var scene := load(_type_for(section, i))
+		if scene == null:
+			continue
+		var e := scene.instantiate() as Node3D
+		host.add_child(e)
+		e.global_position = (markers[i] as Node3D).global_position + Vector3(0, 1, 0)
+		# Ascent enemies aggro from much further so the player can't snipe the
+		# whole slope clean before anything reacts (see ASCENT_AGGRO_RANGE).
+		if section == SECTION_ASCENT and "detect_range" in e:
+			e.detect_range = ASCENT_AGGRO_RANGE
+		if e.has_signal("died"):
+			e.died.connect(_on_enemy_killed)
+
+
+## spawn_point markers split by z: the ascent is everything above the cavern
+## mouth, the descent is everything beyond it.
+func _section_markers(section: int) -> Array:
+	var res: Array = []
+	for m in get_tree().get_nodes_in_group("spawn_point"):
+		var z: float = (m as Node3D).global_position.z
+		var in_ascent := z > CAVERN_Z
+		if (section == SECTION_ASCENT) == in_ascent:
+			res.append(m)
+	return res
+
+
+## GDD §3.4 per-section mix. Marker creation order in venus_level.gd puts the
+## cover/ledge positions first, so the shooters land where cover exists.
+##   Ascent  (20): 8 Shooters (rock cover) + 12 Rushers (open slope)
+##   Descent (15): 5 Shooters (wall ledges) + 2 Exploders + 8 Rushers (floors)
+func _type_for(section: int, i: int) -> String:
+	if section == SECTION_ASCENT:
+		return SHOOTER if i < 8 else RUSHER
+	if i < 5:
+		return SHOOTER
+	elif i < 7:
+		return EXPLODER
+	return RUSHER
+
+
+func _on_enemy_killed(_where: Vector3) -> void:
+	if _obj:
+		_obj.register_kill()
+
+
+# --- scripted lava-pool dive ------------------------------------------------
+
+## GDD §3.4 objective 3: the player drops into the pool and free-falls down the
+## lava shaft into the boss arena directly below (venus_level builds the open shaft
+## + a gravity-softening draft, so the player physically falls - no teleport). This
+## pool is deliberately NOT a lava hazard; it is the way forward. Entering the pool
+## trigger just marks the objective, sets the arena checkpoint, and spawns the boss.
+func _on_pool_entered(body: Node) -> void:
+	if _dived or not body.is_in_group("player"):
+		return
+	_dived = true
+	_obj.notify_flag("pool")
+	# Move the respawn point to the arena so a boss death doesn't drop you back at the
+	# top of the shaft (the player keeps falling under their own physics - not moved).
+	var entry := get_tree().get_first_node_in_group("arena_entry")
+	if entry != null and body.has_method("set_checkpoint"):
+		body.set_checkpoint((entry as Node3D).global_position)
+	_spawn_boss()
+
+
+func _spawn_boss() -> void:
+	if not ResourceLoader.exists(EMBER_TYRANT):
+		print("Venus: Ember Tyrant not implemented yet (T-0021)")
+		return
+	var scene := load(EMBER_TYRANT)
+	if scene == null:
+		return
+	var spawn := get_tree().get_first_node_in_group("boss_spawn")
+	var boss := scene.instantiate() as Node3D
+	get_tree().current_scene.add_child(boss)
+	if spawn:
+		boss.global_position = (spawn as Node3D).global_position
+	if boss.has_signal("died"):
+		boss.died.connect(_on_boss_died)
+
+
+func _on_boss_died(_where: Vector3) -> void:
+	# Complete the objective the instant the boss dies. (The old VICTORY_DELAY wait
+	# existed to leave the boss's guaranteed drops on the ground before the level
+	# freed - but the drops spawn at death and the extraction countdown already
+	# gives 30 s+ to loot, so the delay only made the kill feel unregistered.)
+	if is_instance_valid(_obj):
+		_obj.notify_flag("boss")

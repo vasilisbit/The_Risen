@@ -1,0 +1,240 @@
+"""Build ONE cohesive grungy curved cockpit interior and export a GLB.
+
+Replaces the procedural box blockout (scripts/hub_structure.gd) + the scattered
+fal.ai props that never cohered. A single lofted hull: octagonal/vaulted curved
+cross-section swept from a wraparound canopy at the front (-Z, out the window)
+back to an enclosed vendor bay, with structural ribs, ceiling light strips, a
+raised deck, and a framed windshield. Dressed further in Godot by re-mounting the
+kept systems (helm seat, console, hologram table, vendor, mirror).
+
+Authored in GODOT coords (x=width, y=up, -Z=forward/out the window) and converted
+on creation to Blender Z-up via (x,y,z)->(x,-z,y), same as tools/blender_canopy.py,
+so the export lands upright and correctly oriented in the hub.
+
+Objects are split by material role (Hull / Deck / Ribs / Canopy / CanopyTeal /
+Lights) so hub_structure.gd can assign the right material_override to each by node
+name after instancing. No textures are baked in — Godot applies the existing
+world-triplanar wall-panel material to the hull, which sidesteps glTF UV/tiling.
+
+Run headless:
+  "C:\\Program Files\\Blender Foundation\\Blender 5.2\\blender.exe" --background \
+      --python tools/blender_ship_interior.py
+or exec the file through the live Blender MCP.
+
+Output: assets/generated/interior/ship_interior.glb
+
+Coordinate anchors preserved so the kept systems re-mount unchanged:
+  window/canopy front  z = -4.6      seat  (0,0,-3)   eye (0,1.55,-2.6)
+  hologram table       origin        spawn (0,1,3)
+  vendor / ForgeMaster (0,0,10.5)    rear wall z ~= 13.8   mirror x=-3.85 z=9.5
+"""
+import bpy, bmesh, math, os
+
+ROOT = r"C:\Users\biovo\Desktop\GitHub Projects\The_Risen"
+OUT = os.path.join(ROOT, "assets", "generated", "interior", "ship_interior.glb")
+
+# ---------------------------------------------------------------- scene reset
+bpy.ops.object.select_all(action="SELECT")
+bpy.ops.object.delete()
+for coll in (bpy.data.meshes, bpy.data.materials, bpy.data.images):
+    for b in list(coll):
+        try:
+            coll.remove(b)
+        except Exception:
+            pass
+
+
+def g2b(g):
+    """Godot (x,y,z) -> Blender (x,-z,y)."""
+    return (g[0], -g[2], g[1])
+
+
+# One bmesh per material role. MirrorWall = the bay's left wall (the wall the
+# mirror hangs on); split out so ONLY it can go on the mirror's no-reflect layer.
+ROLES = ["Hull", "Deck", "Ribs", "Canopy", "CanopyTeal", "Lights", "Glass", "MirrorWall"]
+bm = {r: bmesh.new() for r in ROLES}
+
+
+def V(role, g):
+    return bm[role].verts.new(g2b(g))
+
+
+def quad(role, g0, g1, g2, g3):
+    bm[role].faces.new([V(role, g) for g in (g0, g1, g2, g3)])
+
+
+def ngon(role, gs):
+    bm[role].faces.new([V(role, g) for g in gs])
+
+
+def box(role, cx, cy, cz, sx, sy, sz):
+    x0, x1 = cx - sx / 2, cx + sx / 2
+    y0, y1 = cy - sy / 2, cy + sy / 2
+    z0, z1 = cz - sz / 2, cz + sz / 2
+    c = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0),
+         (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
+    vs = [V(role, g) for g in c]
+    for f in [(0, 1, 2, 3), (7, 6, 5, 4), (4, 5, 1, 0),
+              (6, 7, 3, 2), (5, 6, 2, 1), (7, 4, 0, 3)]:
+        bm[role].faces.new([vs[i] for i in f])
+
+
+# ------------------------------------------------------------- hull geometry
+WH = 2.3      # wall height before the ceiling chamfer
+HC = 4.2      # ceiling shoulder height
+APEX = 4.55   # vault apex
+CI = 1.15     # ceiling chamfer inset
+FRONT_Z = -4.6
+REAR_Z = 13.8
+
+
+def halfwidth(z):
+    if z <= 4.0:
+        return 5.0
+    if z >= 5.6:
+        return 4.2
+    t = (z - 4.0) / 1.6
+    return 5.0 + (4.2 - 5.0) * t
+
+
+def ring(z):
+    """7-point open-bottom cross-section (floor line is the Deck, not here)."""
+    w = halfwidth(z)
+    wc = w - CI
+    return [(-w, 0.0, z), (-w, WH, z), (-wc, HC, z), (0.0, APEX, z),
+            (wc, HC, z), (w, WH, z), (w, 0.0, z)]
+
+
+# Loft the tube (walls + vaulted ceiling), front canopy plane -> rear.
+stations = []
+z = FRONT_Z
+while z < REAR_Z - 1e-4:
+    stations.append(z)
+    z += 0.8
+stations.append(REAR_Z)
+
+for a, b in zip(stations[:-1], stations[1:]):
+    ra, rb = ring(a), ring(b)
+    bay = a >= 5.4                    # vendor-bay region
+    for i in range(len(ra) - 1):
+        # In the bay, the left wall + left chamfer (ring segments 0,1) are the
+        # MirrorWall so they can be hidden from the mirror's reflection camera.
+        role = "MirrorWall" if (bay and i in (0, 1)) else "Hull"
+        quad(role, ra[i], ra[i + 1], rb[i + 1], rb[i])
+
+# Rear bulkhead: close the rear ring into a solid wall (7-gon, floor line closes it).
+ngon("Hull", ring(REAR_Z))
+
+# ------------------------------------------------------------------- deck
+# Raised deck plate + a central inlaid runner + a couple of plating seams.
+box("Deck", 0.0, -0.09, (FRONT_Z + REAR_Z) / 2, 10.6, 0.18, REAR_Z - FRONT_Z + 0.6)
+box("Deck", 0.0, 0.02, (FRONT_Z + REAR_Z) / 2, 1.4, 0.04, REAR_Z - FRONT_Z)  # centre runner
+for zz in (-1.5, 3.0, 7.5, 11.0):
+    box("Deck", 0.0, 0.015, zz, 10.2, 0.03, 0.14)                             # cross seams
+
+# ------------------------------------------------------- curved canopy front
+# The whole front is a curved windshield that bulges forward in the middle (a
+# canopy), not a flat wall with a frame stuck on it. Everything in the window
+# band follows ZF(x) (the sill, the brow AND the glass) so the glass sits IN the
+# curve with no flat-wall look and no gaps above/below it; flat side panels fill
+# out to the hull walls and up to the ceiling so the top corners are closed.
+WINX = 3.2
+WY0, WY1 = 1.1, 3.8
+BULGE = 0.7
+
+
+def ZF(x):
+    if abs(x) >= WINX:
+        return FRONT_Z                       # flat where it meets the side walls
+    return FRONT_Z - BULGE * (1.0 - (x / WINX) ** 2)
+
+
+def fquad(role, x0, x1, y0, y1):
+    quad(role, (x0, y0, ZF(x0)), (x1, y0, ZF(x1)), (x1, y1, ZF(x1)), (x0, y1, ZF(x0)))
+
+
+def fbox(role, x, y, sx, sy, sz, dz=0.06):
+    # a small frame box sitting just roomward of the curved surface at x
+    box(role, x, y, ZF(x) + dz, sx, sy, sz)
+
+
+def ceil_y(x):
+    # the loft's front-ring ceiling edge: apex (0,APEX) sloping to the chamfer.
+    return APEX - (APEX - HC) / (5.0 - CI) * abs(x)
+
+
+SEG = 14
+xs = [-WINX + 2 * WINX * s / SEG for s in range(SEG + 1)]
+for i in range(SEG):
+    x0, x1 = xs[i], xs[i + 1]
+    fquad("Glass", x0, x1, WY0, WY1)          # curved glass pane strip
+    # Sill SLANTS from the floor edge (flat, z=FRONT_Z) up to the glass bottom
+    # (bulged, z=ZF); brow SLANTS from the glass top (bulged) up to the ceiling
+    # edge (flat, z=FRONT_Z) — this closes the gaps the bulge opened above/below.
+    quad("Hull", (x0, 0.0, FRONT_Z), (x1, 0.0, FRONT_Z), (x1, WY0, ZF(x1)), (x0, WY0, ZF(x0)))
+    quad("Hull", (x0, WY1, ZF(x0)), (x1, WY1, ZF(x1)),
+         (x1, ceil_y(x1), FRONT_Z), (x0, ceil_y(x0), FRONT_Z))
+# flat side panels: window edge -> hull wall, floor -> ceiling (close the corners)
+for sx in (-1, 1):
+    xa, xb = sx * WINX, sx * 5.0
+    fquad("Hull", min(xa, xb), max(xa, xb), 0.0, APEX + 0.15)
+# frame trim on the curve: sill line, brow line + teal accent, two mullions, pillars
+for i in range(SEG):
+    x0, x1 = xs[i], xs[i + 1]
+    mx = (x0 + x1) / 2
+    fbox("Canopy", mx, WY0, 2 * WINX / SEG, 0.14, 0.14)
+    fbox("Canopy", mx, WY1, 2 * WINX / SEG, 0.18, 0.18)
+    fbox("CanopyTeal", mx, WY1 + 0.15, 2 * WINX / SEG, 0.05, 0.05)
+for x in (-WINX / 3.0, WINX / 3.0):
+    fbox("Canopy", x, (WY0 + WY1) / 2, 0.1, WY1 - WY0, 0.14)            # mullions
+for x in (-WINX, WINX):
+    fbox("Canopy", x, (WY0 + WY1) / 2, 0.2, WY1 - WY0 + 0.3, 0.2)       # A-pillars
+
+# ------------------------------------------------------- ribs + ceiling lights
+# Structural rib rings (vertical pilasters + a ceiling brace) at intervals, plus
+# an emissive light runner down the vault and two side strips.
+for zz in (-3.0, 0.0, 3.0, 6.0, 9.0, 12.0):
+    w = halfwidth(zz)
+    wc = w - CI
+    for sx in (-1, 1):
+        box("Ribs", sx * (w - 0.06), WH / 2 + 0.1, zz, 0.12, WH, 0.36)   # wall pilaster
+    box("Ribs", 0.0, APEX - 0.1, zz, 2 * wc, 0.16, 0.34)                 # ceiling brace
+
+box("Lights", 0.0, APEX - 0.04, (FRONT_Z + REAR_Z) / 2, 0.28, 0.05, REAR_Z - FRONT_Z - 0.4)
+for sx in (-1, 1):
+    box("Lights", sx * 3.4, HC + 0.02, (FRONT_Z + REAR_Z) / 2, 0.12, 0.05, REAR_Z - FRONT_Z - 2.0)
+
+# --------------------------------------------------------- finalize objects
+# The loft is built from independent quads (no shared verts), so recalc can't make
+# the tube's normals consistent — some faces wound inward, some outward. The hull
+# is rendered SINGLE-SIDED (so the planar mirror lights it correctly), which means
+# any outward-facing face is culled and you'd see space through it. Force every
+# hull/mirror-wall face to point INWARD (toward the room centre) so all walls,
+# ceiling and front panels render from inside.
+import mathutils
+ROOM_CENTER = mathutils.Vector((0.0, -(FRONT_Z + REAR_Z) / 2.0, 2.2))  # blender coords
+INWARD_ROLES = {"Hull", "MirrorWall"}
+
+placeholder = {}
+for r in ROLES:
+    m = bpy.data.materials.get(r) or bpy.data.materials.new(r)
+    placeholder[r] = m
+
+for r in ROLES:
+    b = bm[r]
+    bmesh.ops.recalc_face_normals(b, faces=b.faces)
+    if r in INWARD_ROLES:
+        outward = [f for f in b.faces if f.normal.dot(ROOM_CENTER - f.calc_center_median()) < 0.0]
+        if outward:
+            bmesh.ops.reverse_faces(b, faces=outward)
+    mesh = bpy.data.meshes.new(r)
+    b.to_mesh(mesh)
+    b.free()
+    mesh.materials.append(placeholder[r])
+    obj = bpy.data.objects.new(r, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+
+bpy.ops.object.select_all(action="SELECT")
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
+bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True)
+print("SHIP_INTERIOR_EXPORTED", OUT)

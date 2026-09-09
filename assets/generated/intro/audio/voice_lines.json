@@ -1,0 +1,23 @@
+{
+  "model": "fal-ai/elevenlabs/tts/eleven-v3",
+  "voice": "Rachel",
+  "lines": [
+    "[somber] Before the fall... we called ourselves Guardians.",
+    "[reflective] We carried the Light \u2014 the last ember of a dying sun.",
+    "For a hundred years, we kept watch over the worlds of humankind.",
+    "[ominous] Then the Ember Collective came. Not with fleets... but with doors, torn into the sky.",
+    "[grave] Earth was the first to fall. Its cities burned from within.",
+    "Its oceans turned to ash.",
+    "Then Mars... and the long silence between the worlds.",
+    "[sorrowful] One by one, the Guardians fell.",
+    "And the Light went out of the world.",
+    "[quiet] The Vanguard drifted a hundred years... a dead ship on a dark tide.",
+    "Its last pilot asleep in the cold.",
+    "[hopeful] But a single light was never meant to die. It only waited.",
+    "[building] Now, beneath the ash of Earth, something stirs. An Archive.",
+    "A memory of how the doors were opened... and how they can be closed, forever.",
+    "[awe] The ship is waking. The Light remembers your name.",
+    "[commanding] Rise... Guardian."
+  ],
+  "licence": "synthetic speech, fal.ai output licence, IGF-safe (no real person)"
+}

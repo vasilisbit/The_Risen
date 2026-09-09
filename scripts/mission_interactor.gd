@@ -1,0 +1,163 @@
+extends RayCast3D
+## Debug interactor: casts forward from the camera crosshair. On the "interact"
+## action it acts on whatever is under the crosshair:
+##   - a body in group "vendor"        -> opens the vendor shop UI (T-0005)
+##   - a body in group "mission_sphere" -> selects the mission and, if a level
+##                                         scene exists and is unlocked, loads it.
+
+signal mission_selected(mission: String)
+
+## You must be within this many metres of a target to interact with it, so you
+## can't open the shop or launch a mission by looking at it from across the room.
+const INTERACT_RANGE := 3.5
+
+## Mission planet -> level scene. All three are built; anything not listed falls
+## through to a debug print. Unlock gating is handled by SaveManager.
+const MISSION_SCENES := {
+	"Earth": "res://scenes/missions/earth/earth.tscn",
+	"Mars": "res://scenes/missions/mars/mars.tscn",
+	"Venus": "res://scenes/missions/venus/venus.tscn",
+}
+
+
+var _prompt: Label
+
+
+func _ready() -> void:
+	# Register a hit even when the ray starts inside a body, so standing right
+	# against the Forge Master's box (you can now walk up to the counter) still
+	# counts as looking at it.
+	hit_from_inside = true
+
+
+func _physics_process(_delta: float) -> void:
+	# Show a "what to do" prompt whenever an interactable is targeted.
+	if _prompt == null or not is_instance_valid(_prompt):
+		_prompt = get_tree().get_first_node_in_group("interact_prompt") as Label
+	if _prompt == null:
+		return
+	var target := _current_target()
+	var text := ""
+	if target:
+		if target.is_in_group("vendor"):
+			text = "[E]  Interact"
+		elif target.is_in_group("mission_sphere"):
+			text = "[E]  Deploy to %s" % String(target.name).trim_suffix("Sphere")
+	_prompt.text = text
+	_prompt.visible = text != ""
+
+
+## The interactable being targeted, or null. Prefers what the crosshair ray hits
+## within range; falls back to a vendor you are standing next to and facing (the
+## ray can clear or start inside its body at point-blank range).
+func _current_target() -> Node:
+	force_raycast_update()
+	if is_colliding() and _within_range():
+		var hit := get_collider()
+		if hit and (hit.is_in_group("vendor") or hit.is_in_group("mission_sphere")):
+			return hit
+	var vendor := get_tree().get_first_node_in_group("vendor")
+	if vendor is Node3D and _near_and_facing(vendor as Node3D):
+		return vendor
+	return null
+
+
+## True when the thing under the crosshair is close enough to interact with.
+func _within_range() -> bool:
+	return global_position.distance_to(get_collision_point()) <= INTERACT_RANGE
+
+
+## Within reach on the floor plane and roughly faced (used for the point-blank
+## vendor fallback, ignoring the height difference to the body's origin).
+func _near_and_facing(node: Node3D) -> bool:
+	var flat := Vector3(node.global_position.x - global_position.x, 0.0,
+		node.global_position.z - global_position.z)
+	if flat.length() > INTERACT_RANGE:
+		return false
+	var fwd := -global_transform.basis.z
+	var flat_fwd := Vector3(fwd.x, 0.0, fwd.z)
+	if flat_fwd.length() < 0.01 or flat.length() < 0.01:
+		return true
+	return flat_fwd.normalized().dot(flat.normalized()) > 0.35
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# is_action_pressed() on the event is true only on the press edge (not
+	# on hold/echo), so rapid clicking fires once per click.
+	if event.is_action_pressed("interact"):
+		try_interact()
+
+
+## Act on the targeted interactable.
+func try_interact() -> void:
+	var target := _current_target()
+	if target == null:
+		return
+	if target.is_in_group("vendor"):
+		var shop := get_tree().get_first_node_in_group("vendor_shop")
+		if shop and shop.has_method("open"):
+			shop.open()
+		return
+	if target.is_in_group("mission_sphere"):
+		var mission := String(target.name).trim_suffix("Sphere")
+		print("Mission Selected: %s" % mission)
+		mission_selected.emit(mission)
+		_launch_mission(mission)
+
+
+## Selecting a planet opens the difficulty prompt (T-0027) rather than dropping
+## straight into the mission; the prompt calls back here on confirm.
+func _launch_mission(mission: String) -> void:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm and sm.has_method("is_mission_unlocked") and not sm.is_mission_unlocked(mission):
+		_notify("%s is locked - complete %s first." % [mission, _previous_mission(mission)])
+		return
+	if not MISSION_SCENES.has(mission):
+		print("Mission not implemented yet: %s" % mission)
+		return
+	var prompt := get_tree().get_first_node_in_group("difficulty_select")
+	if prompt and prompt.has_method("open"):
+		if not prompt.launch_confirmed.is_connected(_start_mission):
+			prompt.launch_confirmed.connect(_start_mission)
+		prompt.open(mission)
+	else:
+		_start_mission(mission)          # no prompt in the scene: go directly
+
+
+## Bottom-left notice in the hub. Falls back to a print if the hub has no
+## notice node, so this stays usable from a bare test scene.
+func _notify(message: String) -> void:
+	var notice := get_tree().get_first_node_in_group("hub_notice")
+	if notice and notice.has_method("notify"):
+		notice.notify(message)
+	else:
+		print(message)
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx("ui_hover")
+
+
+## The mission that gates `mission`, for the locked message.
+func _previous_mission(mission: String) -> String:
+	var sm := get_node_or_null("/root/SaveManager")
+	if sm == null or not ("MISSION_ORDER" in sm):
+		return "the previous mission"
+	var order: Array = sm.MISSION_ORDER
+	var idx := order.find(mission)
+	return String(order[idx - 1]) if idx > 0 else "the previous mission"
+
+
+func _start_mission(mission: String) -> void:
+	if not MISSION_SCENES.has(mission):
+		print("Mission not implemented yet: %s" % mission)
+		return
+	# Funnel the hologram-table launch through the same Fold cinematic as the helm; if
+	# ShipTravel can't run (missing assets), fall back to the plain fade-to-black.
+	var st := get_node_or_null("/root/ShipTravel")
+	if st and st.has_method("begin") and st.begin(mission, null):
+		return
+	var gs := get_node_or_null("/root/GameState")
+	if gs and gs.has_method("transition_to"):
+		gs.transition_to(MISSION_SCENES[mission])   # fade to black
+	else:
+		get_tree().change_scene_to_file(MISSION_SCENES[mission])

@@ -1,0 +1,44 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://dmeokuag8nnk4"
+path.s3tc="res://.godot/imported/venus_shard_NormalGL_82326e2d-8ee4-4e6c-8fa1-79ea8c1641a4.jpg-5e188f8a8f91e7c60c6372a089fd453d.s3tc.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "98f21e50d00029778ebf86716a29221f"
+}
+
+[deps]
+
+source_file="res://assets/generated/venus/rocks/venus_shard_NormalGL_82326e2d-8ee4-4e6c-8fa1-79ea8c1641a4.jpg"
+dest_files=["res://.godot/imported/venus_shard_NormalGL_82326e2d-8ee4-4e6c-8fa1-79ea8c1641a4.jpg-5e188f8a8f91e7c60c6372a089fd453d.s3tc.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=1
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=1
+roughness/src_normal="res://assets/generated/venus/rocks/venus_shard_NormalGL_82326e2d-8ee4-4e6c-8fa1-79ea8c1641a4.jpg"
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

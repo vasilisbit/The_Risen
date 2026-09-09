@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ember_tyrant.gd" id="1_tyrant"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_tyrant"]
+radius = 1.35
+height = 4.0
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_tyrant"]
+radius = 1.2
+height = 4.0
+
+[node name="EmberTyrant" type="CharacterBody3D"]
+script = ExtResource("1_tyrant")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("CapsuleShape3D_tyrant")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+mesh = SubResource("CapsuleMesh_tyrant")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.8
+target_desired_distance = 1.5
+radius = 1.4

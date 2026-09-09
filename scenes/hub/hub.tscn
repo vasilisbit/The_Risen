@@ -1,0 +1,135 @@
+[gd_scene format=3 uid="uid://co1s7prbdr6vw"]
+
+[ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="1_abcyb"]
+[ext_resource type="PackedScene" uid="uid://dg74s2hqqsckd" path="res://scenes/hub/hologram_table.tscn" id="2_bocl7"]
+[ext_resource type="PackedScene" uid="uid://cv5t0esp8itvn" path="res://ui/vendor_shop.tscn" id="3_koree"]
+[ext_resource type="Script" uid="uid://cpmdlc3cn6dup" path="res://scripts/hub_structure.gd" id="4_ajtfx"]
+[ext_resource type="PackedScene" path="res://ui/class_select.tscn" id="5_clssel"]
+[ext_resource type="Script" path="res://scripts/difficulty_select.gd" id="6_diffsel"]
+[ext_resource type="Script" path="res://scripts/hub_planet.gd" id="7_planet"]
+[ext_resource type="Shader" path="res://shaders/space_sky.gdshader" id="8_sky"]
+[ext_resource type="Script" path="res://scripts/hub_notice.gd" id="9_notice"]
+[ext_resource type="Script" path="res://scripts/helm_station.gd" id="10_helm"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_space"]
+shader = ExtResource("8_sky")
+
+[sub_resource type="Sky" id="Sky_ajtfx"]
+sky_material = SubResource("ShaderMaterial_space")
+
+[sub_resource type="Environment" id="Environment_ursuo"]
+background_mode = 2
+sky = SubResource("Sky_ajtfx")
+ambient_light_source = 3
+ambient_light_color = Color(0.35, 0.4, 0.55, 1)
+ambient_light_energy = 0.35
+tonemap_mode = 2
+tonemap_white = 1.2
+ssao_enabled = true
+ssao_radius = 0.9
+ssao_intensity = 1.8
+ssao_power = 2.5
+glow_enabled = true
+glow_normalized = true
+glow_intensity = 0.55
+glow_strength = 1.0
+glow_bloom = 0.12
+glow_blend_mode = 1
+glow_hdr_threshold = 0.95
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.014
+volumetric_fog_albedo = Color(0.55, 0.66, 0.82, 1)
+volumetric_fog_emission = Color(0.06, 0.08, 0.12, 1)
+volumetric_fog_emission_energy = 0.15
+volumetric_fog_length = 48.0
+volumetric_fog_gi_inject = 0.6
+adjustment_enabled = true
+adjustment_brightness = 1.02
+adjustment_contrast = 1.05
+adjustment_saturation = 1.08
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_koree"]
+albedo_color = Color(0.35, 0.28, 0.12, 1)
+metallic = 0.6
+roughness = 0.5
+emission_enabled = true
+emission = Color(0.5, 0.35, 0.1, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_ajtfx"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ursuo"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_ajtfx"]
+geometry_parsed_geometry_type = 1
+agent_height = 2.0
+
+[node name="Hub" type="Node3D" unique_id=1537759387]
+
+[node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1517499063]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3.8)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=630885685]
+environment = SubResource("Environment_ursuo")
+
+[node name="Guardian" parent="." unique_id=1754395905 instance=ExtResource("1_abcyb")]
+combat_enabled = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3.8)
+
+[node name="HologramTable" parent="." unique_id=58457010 instance=ExtResource("2_bocl7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.0)
+
+[node name="ForgeMaster" type="StaticBody3D" parent="." unique_id=804933838 groups=["vendor"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10.5)
+collision_layer = 4
+collision_mask = 0
+
+[node name="Mesh" type="MeshInstance3D" parent="ForgeMaster" unique_id=2086214232]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+material_override = SubResource("StandardMaterial3D_koree")
+mesh = SubResource("BoxMesh_ajtfx")
+
+[node name="Col" type="CollisionShape3D" parent="ForgeMaster" unique_id=921169314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("BoxShape3D_ursuo")
+
+[node name="HubUI" type="CanvasLayer" parent="." unique_id=473969501]
+
+[node name="VendorShop" parent="HubUI" unique_id=1779289198 instance=ExtResource("3_koree")]
+
+[node name="ClassSelect" parent="HubUI" instance=ExtResource("5_clssel")]
+
+[node name="DifficultySelect" type="Control" parent="HubUI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("6_diffsel")
+
+[node name="Nav" type="NavigationRegion3D" parent="." unique_id=458862026]
+navigation_mesh = SubResource("NavigationMesh_ajtfx")
+
+[node name="Structure" type="StaticBody3D" parent="Nav" unique_id=724088123]
+script = ExtResource("4_ajtfx")
+
+[node name="VendorSpawn" type="Marker3D" parent="." unique_id=1313974092]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10.5)
+
+[node name="HubPlanet" type="Node3D" parent="."]
+script = ExtResource("7_planet")
+
+[node name="Helm" type="Node3D" parent="."]
+script = ExtResource("10_helm")
+
+[node name="HubNotice" type="Control" parent="HubUI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("9_notice")

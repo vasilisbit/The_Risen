@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://bvqtuxen7khsv"]
+
+[ext_resource type="Script" uid="uid://cp52mvmlw46os" path="res://scripts/buff_select.gd" id="1_7vt0c"]
+
+[node name="BuffSelect" type="Control" unique_id=1781500437]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_7vt0c")

@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://bqj8np63sq5po"]
+
+[ext_resource type="Script" uid="uid://4ctmgtuhc0yp" path="res://scripts/mars_level.gd" id="1_acncv"]
+[ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="1_jx450"]
+[ext_resource type="Script" uid="uid://3kmilolmyo21" path="res://scripts/wave_manager.gd" id="3_27qac"]
+[ext_resource type="Script" uid="uid://dxhey7uqt8ij6" path="res://scripts/objective_manager.gd" id="4_objm"]
+[ext_resource type="Script" uid="uid://qxajat0k42ye" path="res://scripts/mission_timer.gd" id="5_timer"]
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_rx1gp"]
+geometry_parsed_geometry_type = 1
+agent_height = 2.0
+
+[node name="Mars" type="Node3D" unique_id=679572922]
+
+[node name="Nav" type="NavigationRegion3D" parent="." unique_id=1871302899]
+navigation_mesh = SubResource("NavigationMesh_rx1gp")
+
+[node name="Structure" type="StaticBody3D" parent="Nav" unique_id=1419792165]
+script = ExtResource("1_acncv")
+
+[node name="Guardian" parent="." unique_id=1754395905 instance=ExtResource("1_jx450")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 4)
+
+[node name="ObjectiveManager" type="Node" parent="." unique_id=1897997180]
+script = ExtResource("4_objm")
+mission_id = "Mars"
+
+[node name="WaveManager" type="Node" parent="." unique_id=1210423846]
+script = ExtResource("3_27qac")
+
+[node name="MissionTimer" type="Node" parent="."]
+script = ExtResource("5_timer")
+mission_id = "Mars"
+time_limit_override = 300.0

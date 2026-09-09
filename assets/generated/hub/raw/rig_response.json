@@ -1,0 +1,65 @@
+{
+  "rigged_character_glb": {
+    "url": "https://v3b.fal.media/files/b/0aa7e3cb/2EjH_v-_lremzpNapHUAE_rigged_character.glb",
+    "content_type": "model/gltf-binary",
+    "file_name": "rigged_character.glb",
+    "file_size": 3599980
+  },
+  "rigged_character_fbx": {
+    "url": "https://v3b.fal.media/files/b/0aa7e3cb/g5-Nqn3IKLOq28BTxAHM3_rigged_character.fbx",
+    "content_type": "application/octet-stream",
+    "file_name": "rigged_character.fbx",
+    "file_size": 3440540
+  },
+  "basic_animations": {
+    "walking_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3cb/NGNwHyJpcW9ZTl1aaHuQe_walking.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "walking.glb",
+      "file_size": 3612744
+    },
+    "walking_fbx": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3cb/gvPDWZszWGZ0MDs2S87aP_walking.fbx",
+      "content_type": "application/octet-stream",
+      "file_name": "walking.fbx",
+      "file_size": 3465004
+    },
+    "walking_armature_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3ca/T1zlMrkEC_hRcaUCDVwQW_walking_armature.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "walking_armature.glb",
+      "file_size": 65356
+    },
+    "running_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3cb/szgCUFTkP-1WCYRr4fgGQ_running.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "running.glb",
+      "file_size": 3608352
+    },
+    "running_fbx": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3cb/7mwLT_Z_62NGQEj4dX2rg_running.fbx",
+      "content_type": "application/octet-stream",
+      "file_name": "running.fbx",
+      "file_size": 3456668
+    },
+    "running_armature_glb": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3e0/TwheKeniUmyyK_SxSUsC__running_armature.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "running_armature.glb",
+      "file_size": 60968
+    }
+  },
+  "animation_glb": {
+    "url": "https://v3b.fal.media/files/b/0aa7e3cd/k1wg5FPPSerH5zVoqv7CL_animation.glb",
+    "content_type": "model/gltf-binary",
+    "file_name": "animation.glb",
+    "file_size": 3650352
+  },
+  "animation_fbx": {
+    "url": "https://v3b.fal.media/files/b/0aa7e3cd/XwQUtzTpnpsdgkTBksftL_animation.fbx",
+    "content_type": "application/octet-stream",
+    "file_name": "animation.fbx",
+    "file_size": 3515756
+  },
+  "rig_task_id": "01a03e31-3fd2-78a4-a06a-6afbaacfeae8"
+}

@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/venus_level.gd" id="1_venus"]
+[ext_resource type="PackedScene" uid="uid://b88q4r73j0x27" path="res://scenes/player/guardian.tscn" id="2_guard"]
+[ext_resource type="Script" uid="uid://dxhey7uqt8ij6" path="res://scripts/objective_manager.gd" id="3_obj"]
+[ext_resource type="Script" path="res://scripts/venus_mission.gd" id="4_mission"]
+[ext_resource type="Script" path="res://scripts/mission_timer.gd" id="5_timer"]
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_venus"]
+geometry_parsed_geometry_type = 1
+agent_height = 2.0
+
+[node name="Venus" type="Node3D"]
+
+[node name="Nav" type="NavigationRegion3D" parent="."]
+navigation_mesh = SubResource("NavigationMesh_venus")
+
+[node name="Structure" type="StaticBody3D" parent="Nav"]
+script = ExtResource("1_venus")
+
+[node name="Guardian" parent="." instance=ExtResource("2_guard")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 6)
+
+[node name="ObjectiveManager" type="Node" parent="."]
+script = ExtResource("3_obj")
+mission_id = "Venus"
+
+[node name="Mission" type="Node" parent="."]
+script = ExtResource("4_mission")
+
+[node name="MissionTimer" type="Node" parent="."]
+script = ExtResource("5_timer")
+mission_id = "Venus"
+time_limit_override = 300.0

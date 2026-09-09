@@ -1,0 +1,40 @@
+{
+  "model": "fal-ai/elevenlabs/tts/multilingual-v2",
+  "voice": "Adam",
+  "voice_description": "gruff warm mid-30s male armourer (Forge Master vendor)",
+  "licence": "Synthetic speech generated via fal.ai ElevenLabs Multilingual v2. Not a real person; usable under the fal.ai output licence. Commercial/IGF-safe.",
+  "lines": {
+    "buy": {
+      "text": "This will serve you well.",
+      "file": "buy.mp3"
+    },
+    "upgrade": {
+      "text": "Good upgrade, Guardian.",
+      "file": "upgrade.mp3"
+    },
+    "sell": {
+      "text": "Thank you for selling that.",
+      "file": "sell.mp3"
+    },
+    "leave": {
+      "text": "Return with honor.",
+      "file": "leave.mp3"
+    },
+    "greeting": {
+      "text": "Welcome to the Vanguard Armoury, Guardian. Let's forge something deadly.",
+      "file": "greeting.mp3"
+    },
+    "bark_1": {
+      "text": "Every weapon here is forged for war.",
+      "file": "bark_1.mp3"
+    },
+    "bark_2": {
+      "text": "Bring me your Flux, Guardian, and I'll bring you firepower.",
+      "file": "bark_2.mp3"
+    },
+    "bark_3": {
+      "text": "Stay sharp out there. The dark doesn't wait.",
+      "file": "bark_3.mp3"
+    }
+  }
+}

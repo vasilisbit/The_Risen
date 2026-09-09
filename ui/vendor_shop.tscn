@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://cv5t0esp8itvn"]
+
+[ext_resource type="Script" uid="uid://b4b2pbvnm15qa" path="res://scripts/vendor_shop.gd" id="1_ctlq1"]
+
+[node name="VendorShop" type="Control" unique_id=1779289198]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_ctlq1")

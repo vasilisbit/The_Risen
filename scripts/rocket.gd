@@ -1,0 +1,137 @@
+class_name Rocket
+extends Node3D
+
+## Homing rocket fired by the Assault super, Storm Barrage (T-0023).
+## 200 damage in an 8 m splash on impact (GDD §2.4).
+##
+## This one DOES home, unlike every enemy projectile in the game - those were
+## deliberately made linear so the player can strafe out of them. A player
+## super that the player aims at nothing in particular has the opposite
+## requirement: it should reliably hit what it was launched at.
+
+const SPEED := 26.0
+const TURN_RATE := 5.0            # rad/s of steering toward the target
+const DAMAGE := 200.0
+const SPLASH_RADIUS := 8.0
+const LIFETIME := 6.0
+const ARM_TIME := 0.15            # s of straight flight before it starts homing
+const COLOR := Color(1.0, 0.75, 0.25)
+const KNIFE_GLB := "res://assets/generated/vfx/flaming_knife.glb"
+const KNIFE_LENGTH := 0.75        # metres, blade tip to grip
+const SPIN_SPEED := 16.0          # rad/s the knife spins about its flight (Z) axis
+
+var target: Node3D
+var _dir: Vector3 = Vector3.UP
+var _life: float = 0.0
+var _detonated: bool = false
+var _spinner: Node3D              # holds the knife so it can spin under look_at()
+
+
+## Launch from `from`, initially heading `initial_dir`, homing onto `at`.
+func setup(from: Vector3, initial_dir: Vector3, at: Node3D) -> void:
+	position = from
+	_dir = initial_dir.normalized()
+	target = at
+
+
+func _ready() -> void:
+	_build_visual()
+	# An orange point light so the salvo streaks brightly even where the knife
+	# texture is dark - it reads as a molten projectile at speed.
+	var light := OmniLight3D.new()
+	light.omni_range = 4.5
+	light.light_energy = 1.8
+	light.light_color = COLOR
+	add_child(light)
+
+
+## The projectile mesh: the generated flaming-knife GLB when present, else the
+## original emissive capsule. The knife concept is a side view with the blade to
+## the LEFT (-X after align_image), so rotate it to point down -Z, which look_at()
+## keeps aimed along the flight path.
+func _build_visual() -> void:
+	var knife := MeshUtil.load_prop(KNIFE_GLB)
+	if knife != null:
+		# Parent under a spinner so it keeps tumbling even though _physics_process
+		# calls look_at() on the root every frame (which would otherwise reset it).
+		_spinner = Node3D.new()
+		add_child(_spinner)
+		_spinner.add_child(knife)
+		MeshUtil.fit(knife, KNIFE_LENGTH)
+		knife.rotate_y(-PI / 2.0)
+		return
+	var mi := MeshInstance3D.new()
+	var body := CapsuleMesh.new()
+	body.radius = 0.12
+	body.height = 0.5
+	mi.mesh = body
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = COLOR
+	mat.emission_enabled = true
+	mat.emission = COLOR
+	mat.emission_energy_multiplier = 3.0
+	mi.material_override = mat
+	add_child(mi)
+
+
+func _physics_process(delta: float) -> void:
+	if _detonated:
+		return
+	_life += delta
+	# Spin the knife about its flight (Z) axis so it reads as a thrown, tumbling blade.
+	if _spinner != null:
+		_spinner.rotate_object_local(Vector3(0, 0, 1), SPIN_SPEED * delta)
+	if _life > LIFETIME:
+		detonate()
+		return
+
+	# Steer toward the target once armed. A dead target just flies on straight.
+	if _life > ARM_TIME and target != null and is_instance_valid(target):
+		var want := (target.global_position + Vector3(0, 1.0, 0) - global_position)
+		if want.length() > 0.01:
+			_dir = _dir.slerp(want.normalized(), clampf(TURN_RATE * delta, 0.0, 1.0))
+
+	var step := _dir * SPEED * delta
+	# Detonate on contact with the world or the target itself.
+	if target != null and is_instance_valid(target):
+		if global_position.distance_to(target.global_position + Vector3(0, 1.0, 0)) <= 1.2:
+			global_position += step
+			detonate()
+			return
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(global_position, global_position + step, 1)
+	var hit := space.intersect_ray(query)
+	if not hit.is_empty():
+		global_position = hit["position"]
+		detonate()
+		return
+
+	global_position += step
+	look_at(global_position + _dir, Vector3.UP)
+
+
+## Splash damage to every enemy in SPLASH_RADIUS. Public for tests.
+func detonate() -> void:
+	if _detonated:
+		return
+	_detonated = true
+	var here := global_position
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or not (e is Node3D):
+			continue
+		if (e as Node3D).global_position.distance_to(here) > SPLASH_RADIUS:
+			continue
+		if e.has_method("mark_damage_source"):
+			e.mark_damage_source("Storm Barrage")
+		if e.has_method("take_damage"):
+			e.take_damage(DAMAGE)
+	var host := get_tree().current_scene
+	if host == null:
+		host = get_tree().root
+	# Layered fireball + sparks + smoke + shockwave + scorch + flash + shake
+	# (VfxKit), replacing the single expanding-sphere _explosion_vfx.
+	VfxKit.explosion(host, here, COLOR, SPLASH_RADIUS, "fire")
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio:
+		audio.play_sfx("explosion", here)
+	queue_free()

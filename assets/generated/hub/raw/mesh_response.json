@@ -1,0 +1,82 @@
+{
+  "animation_glb": null,
+  "animation_fbx": null,
+  "model_glb": {
+    "url": "https://v3b.fal.media/files/b/0aa7e3b0/i1kaJMU9ozKGK2J9FMu8i_model.glb",
+    "content_type": "model/gltf-binary",
+    "file_name": "model.glb",
+    "file_size": 4406600
+  },
+  "thumbnail": {
+    "url": "https://v3b.fal.media/files/b/0aa7e3b2/eNjEcLyiA43pk3nBfovu1_preview.png",
+    "content_type": "image/png",
+    "file_name": "preview.png",
+    "file_size": 132333
+  },
+  "model_urls": {
+    "glb": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3b0/i1kaJMU9ozKGK2J9FMu8i_model.glb",
+      "content_type": "model/gltf-binary",
+      "file_name": "model.glb",
+      "file_size": 4406600
+    },
+    "fbx": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3b0/kaWbQS2uX-wtCp6rS-B8l_model.fbx",
+      "content_type": "application/octet-stream",
+      "file_name": "model.fbx",
+      "file_size": 4149980
+    },
+    "obj": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3b1/AiTyt6IBKLiG4dF6Ue3Up_model.obj",
+      "content_type": "text/plain",
+      "file_name": "model.obj",
+      "file_size": 3334160
+    },
+    "usdz": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3b1/XzPhKgnyGnDBPODMNti7p_model.usdz",
+      "content_type": "model/vnd.usdz+zip",
+      "file_name": "model.usdz",
+      "file_size": 4874612
+    },
+    "blend": null,
+    "stl": {
+      "url": "https://v3b.fal.media/files/b/0aa7e3b2/vqg2dNmxLAA_CO_7IErbS_model.stl",
+      "content_type": "application/octet-stream",
+      "file_name": "model.stl",
+      "file_size": 1548884
+    }
+  },
+  "texture_urls": [
+    {
+      "base_color": {
+        "url": "https://v3b.fal.media/files/b/0aa7e3b3/7yjRiNOPKyMbO3bUzFmDg_texture_0.png",
+        "content_type": "image/png",
+        "file_name": "texture_0.png",
+        "file_size": 907514
+      },
+      "metallic": {
+        "url": "https://v3b.fal.media/files/b/0aa7e3b4/0I6WIXro7QTyEJS3NpeLu_texture_0_metallic.png",
+        "content_type": "image/png",
+        "file_name": "texture_0_metallic.png",
+        "file_size": 579336
+      },
+      "normal": {
+        "url": "https://v3b.fal.media/files/b/0aa7e3b4/G2HG3BHyd5RQF_IUAFxxQ_texture_0_normal.png",
+        "content_type": "image/png",
+        "file_name": "texture_0_normal.png",
+        "file_size": 1196804
+      },
+      "roughness": {
+        "url": "https://v3b.fal.media/files/b/0aa7e3b4/okIcyTRbk5sGjj4Hi_xtD_texture_0_roughness.png",
+        "content_type": "image/png",
+        "file_name": "texture_0_roughness.png",
+        "file_size": 577075
+      }
+    }
+  ],
+  "seed": 1989653055,
+  "rigged_character_glb": null,
+  "rigged_character_fbx": null,
+  "basic_animations": null,
+  "rig_task_id": null
+}

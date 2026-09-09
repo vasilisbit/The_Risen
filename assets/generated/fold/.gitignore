@@ -1,0 +1,9 @@
+# Fold cinematics (tools/gen_fold_video.py). Keep the runtime .ogv (+ .uid) and the .mp4
+# Seedance source (lets us re-transcode without re-billing). The large nano-banana start/end
+# reference frames are regenerable intermediates - don't bloat the repo with them.
+*_start.png
+*_end.png
+*_start.png.import
+*_end.png.import
+_ship_ref.png
+_ship_ref.png.import
