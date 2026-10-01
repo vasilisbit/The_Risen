@@ -12,10 +12,10 @@ A first-person looter shooter set a century after the fall. The last Guardian wa
 ![Language](https://img.shields.io/badge/GDScript-355570)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6?logo=windows&logoColor=white)
 ![Status](https://img.shields.io/badge/status-v1.0%20released-2ACA44)
-[![Release](https://img.shields.io/badge/release-v1.0.0-2ACA44)](https://github.com/IBilba/The_Risen/releases/latest)
+[![Release](https://img.shields.io/badge/release-v1.0.0-2ACA44)](https://github.com/vasilisbit/The_Risen/releases/latest)
 [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](LICENSE.md)
 
-### [⬇ Download &amp; Play (v1.0.0)](https://drive.google.com/file/d/1EfGOZ2w9beGJbHoXhAo3r7N8TEtCPOzt/view?usp=sharing) &nbsp;·&nbsp; [Releases](https://github.com/IBilba/The_Risen/releases) &nbsp;·&nbsp; [Planning repo](https://github.com/IBilba/game-dev-the-risen)
+### [⬇ Download &amp; Play (v1.0.0)](https://drive.google.com/file/d/1EfGOZ2w9beGJbHoXhAo3r7N8TEtCPOzt/view?usp=sharing) &nbsp;·&nbsp; [Releases](https://github.com/vasilisbit/The_Risen/releases) &nbsp;·&nbsp; [Planning repo](https://github.com/vasilisbit/game-dev-the-risen)
 
 </div>
 
@@ -61,7 +61,7 @@ Mouse sensitivity and invert-Y are configurable in **Settings → Controls**.
 
 ## Running the game
 
-Download the packaged build from the [release](https://github.com/IBilba/The_Risen/releases/latest) (link above), unzip anywhere, and run **`The_Risen.exe`** (Windows 10/11, 64-bit). The game data is embedded in the executable, so there is no separate `.pck` and no installation. Save data and settings are written to `%APPDATA%\Godot\app_userdata\The Risen\`.
+Download the packaged build from the [release](https://github.com/vasilisbit/The_Risen/releases/latest) (link above), unzip anywhere, and run **`The_Risen.exe`** (Windows 10/11, 64-bit). The game data is embedded in the executable, so there is no separate `.pck` and no installation. Save data and settings are written to `%APPDATA%\Godot\app_userdata\The Risen\`.
 
 ## Building from source
 
@@ -90,4 +90,4 @@ Naming follows the Godot style guide: `snake_case` files/folders, `PascalCase` n
 
 Third-party and AI-generated asset licenses are credited in [CREDITS.md](CREDITS.md) and in-game. This is a university course project made available for academic evaluation and educational reference only; all rights reserved. See [LICENSE.md](LICENSE.md).
 
-Design documents, task backlog, and analysis tooling live in the companion planning repository: **[game-dev-the-risen](https://github.com/IBilba/game-dev-the-risen)**.
+Design documents, task backlog, and analysis tooling live in the companion planning repository: **[game-dev-the-risen](https://github.com/vasilisbit/game-dev-the-risen)**.
